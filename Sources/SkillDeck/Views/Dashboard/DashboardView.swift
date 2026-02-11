@@ -54,10 +54,44 @@ struct DashboardView: View {
         // 工具栏：排序和过滤
         .toolbar {
             ToolbarItemGroup {
-                // Picker 在工具栏中会渲染成下拉菜单
-                Picker("Sort", selection: $viewModel.sortOrder) {
-                    ForEach(DashboardViewModel.SortOrder.allCases, id: \.self) { order in
-                        Text(order.rawValue).tag(order)
+                // Menu 在工具栏中渲染成可点击的下拉菜单按钮
+                // 相比 Picker，Menu 可以自定义图标和布局，更像 macOS 原生排序控件
+                Menu {
+                    // Section 在菜单中创建带标题的分组，类似 Android 的 menu group
+                    Section("Sort By") {
+                        ForEach(DashboardViewModel.SortOrder.allCases, id: \.self) { order in
+                            Button {
+                                if viewModel.sortOrder == order {
+                                    // 点击已选中的排序字段 → 切换升序/降序
+                                    viewModel.sortDirection = viewModel.sortDirection.toggled
+                                } else {
+                                    // 点击新的排序字段 → 切换到该字段，重置为升序
+                                    viewModel.sortOrder = order
+                                    viewModel.sortDirection = .ascending
+                                }
+                            } label: {
+                                // HStack 水平排列：图标 + 文字 + 排序方向箭头
+                                HStack {
+                                    Label(order.rawValue, systemImage: order.iconName)
+                                    if viewModel.sortOrder == order {
+                                        // Spacer 把箭头推到右边
+                                        Spacer()
+                                        Image(systemName: viewModel.sortDirection.iconName)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    // 工具栏按钮的外观：排序图标 + 当前排序字段 + 方向箭头
+                    // Label 同时提供文字和图标，macOS 工具栏会根据空间决定显示哪个
+                    HStack(spacing: 2) {
+                        Image(systemName: "line.3.horizontal.decrease")
+                        Text(viewModel.sortOrder.rawValue)
+                        Image(systemName: viewModel.sortDirection.iconName)
+                            .font(.caption2)
+                            // imageScale 控制 SF Symbol 的大小
+                            .imageScale(.small)
                     }
                 }
 
