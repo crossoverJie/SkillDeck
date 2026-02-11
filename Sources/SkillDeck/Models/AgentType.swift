@@ -85,4 +85,23 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .openCode: "opencode"
         }
     }
+
+    /// 该 Agent 除了自身 skills 目录外，还能额外读取的其他 Agent 的 skills 目录
+    ///
+    /// 这是跨目录读取规则的「唯一真实来源」（Single Source of Truth）：
+    /// - Copilot CLI 能同时读取 ~/.copilot/skills/ 和 ~/.claude/skills/
+    ///   （参见 GitHub 官方文档：https://docs.github.com/en/copilot/concepts/agents/about-agent-skills）
+    /// - 其他 Agent 目前没有跨目录读取的行为
+    ///
+    /// 返回元组数组：(目录 URL, 来源 Agent 类型)
+    /// 类似 Java 的 Pair<URL, AgentType>，Swift 用命名元组更直观
+    var additionalReadableSkillsDirectories: [(url: URL, sourceAgent: AgentType)] {
+        switch self {
+        case .copilotCLI:
+            // Copilot CLI 还能读取 Claude Code 的 skills 目录
+            return [(AgentType.claudeCode.skillsDirectoryURL, .claudeCode)]
+        default:
+            return []
+        }
+    }
 }

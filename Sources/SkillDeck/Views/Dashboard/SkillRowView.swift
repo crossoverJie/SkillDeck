@@ -19,12 +19,19 @@ struct SkillRowView: View {
                 Spacer()
 
                 // 已安装的 Agent 图标行
+                // 使用 installations 而非 installedAgents，以获取 isInherited 信息
+                // 继承安装的图标降低透明度，hover 提示显示来源
                 HStack(spacing: 4) {
-                    ForEach(skill.installedAgents, id: \.self) { agentType in
-                        Image(systemName: agentType.iconName)
+                    ForEach(skill.installations) { installation in
+                        Image(systemName: installation.agentType.iconName)
                             .font(.caption)
-                            .foregroundStyle(Constants.AgentColors.color(for: agentType))
-                            .help(agentType.displayName)  // hover 提示
+                            .foregroundStyle(Constants.AgentColors.color(for: installation.agentType))
+                            // 继承安装的图标降低透明度，视觉上区分直接安装和继承安装
+                            .opacity(installation.isInherited ? 0.4 : 1.0)
+                            // hover 提示：继承安装显示 "Copilot CLI (via Claude Code)"
+                            .help(installation.isInherited && installation.inheritedFrom != nil
+                                ? "\(installation.agentType.displayName) (via \(installation.inheritedFrom!.displayName))"
+                                : installation.agentType.displayName)
                     }
                 }
             }

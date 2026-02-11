@@ -59,7 +59,10 @@ struct SidebarView: View {
                                 .foregroundStyle(Constants.AgentColors.color(for: agentType))
                         }
                     }
-                    .badge(agent?.skillCount ?? 0)
+                    .badge(skillManager.skills(for: agentType).count)
+                    // 使用 skillManager.skills(for:) 而非 agent?.skillCount，
+                    // 因为后者只统计 Agent 自身目录的 skill 数量（来自 AgentDetector），
+                    // 不包含继承安装（如 Copilot 从 Claude 目录继承的 skill）
                     // opacity 控制透明度：未安装的 Agent 半透明显示
                     .opacity(agent?.isInstalled == true ? 1.0 : 0.5)
                 }

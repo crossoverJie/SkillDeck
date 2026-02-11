@@ -108,13 +108,17 @@ final class SkillManager {
     /// 删除一个 skill
     ///
     /// 删除流程：
-    /// 1. 移除所有 Agent 中的 symlink
+    /// 1. 移除所有 Agent 中的直接安装 symlink（跳过继承安装）
     /// 2. 删除 canonical 目录（真实文件）
     /// 3. 更新 lock file
     /// 4. 刷新数据
+    ///
+    /// 继承安装的 symlink 不需要单独删除：它们指向源 Agent 目录中的 symlink，
+    /// 而源 Agent 的 symlink 会在第 1 步被删除；即使不删，canonical 目录删除后
+    /// 它们也会变成 dangling symlink（悬空链接），不影响功能
     func deleteSkill(_ skill: Skill) async throws {
-        // 1. 移除所有 symlink
-        for installation in skill.installations where installation.isSymlink {
+        // 1. 移除所有直接安装的 symlink（跳过继承安装）
+        for installation in skill.installations where installation.isSymlink && !installation.isInherited {
             try SymlinkManager.removeSymlink(
                 skillName: skill.id,
                 from: installation.agentType
@@ -161,8 +165,18 @@ final class SkillManager {
     }
 
     /// 切换 skill 在指定 Agent 上的安装状态
+    ///
+    /// 防护逻辑：如果是继承安装（isInherited），直接返回不做任何操作
+    /// 这是 Service 层的防御，即使 UI 层禁用了 Toggle，也确保不会误操作继承安装
     func toggleAssignment(_ skill: Skill, agent: AgentType) async throws {
-        let isInstalled = skill.installations.contains { $0.agentType == agent }
+        let installation = skill.installations.first { $0.agentType == agent }
+
+        // 防护：继承安装不可 toggle（继承安装由源 Agent 管理）
+        if let installation, installation.isInherited {
+            return
+        }
+
+        let isInstalled = installation != nil
         if isInstalled {
             try await unassignSkill(skill, from: agent)
         } else {

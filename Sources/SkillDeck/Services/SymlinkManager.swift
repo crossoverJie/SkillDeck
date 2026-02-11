@@ -100,25 +100,37 @@ enum SymlinkManager {
         return fileType == .typeSymbolicLink
     }
 
-    /// 解析 symlink 指向的真实路径
-    /// 如果不是 symlink，返回原路径
+    /// 解析 symlink 指向的真实路径（递归解析多级 symlink 链）
+    ///
+    /// 使用 URL.resolvingSymlinksInPath() 而非单级的 destinationOfSymbolicLink，
+    /// 以正确处理多级 symlink 链。例如：
+    ///   ~/.copilot/skills/foo → ~/.claude/skills/foo → ~/.agents/skills/foo
+    /// resolvingSymlinksInPath() 会递归解析到最终的真实路径 ~/.agents/skills/foo
+    ///
+    /// 如果不是 symlink，返回原路径（标准化后）
     static func resolveSymlink(at url: URL) -> URL {
-        let fm = FileManager.default
-        guard let resolved = try? fm.destinationOfSymbolicLink(atPath: url.path) else {
-            return url
-        }
-        // destinationOfSymbolicLink 返回的可能是相对路径，需要解析为绝对路径
-        if resolved.hasPrefix("/") {
-            return URL(fileURLWithPath: resolved)
-        } else {
-            return url.deletingLastPathComponent().appendingPathComponent(resolved).standardized
-        }
+        // resolvingSymlinksInPath() 是 Foundation 提供的递归 symlink 解析方法，
+        // 类似 Python 的 os.path.realpath() 或 Go 的 filepath.EvalSymlinks()
+        // 它会一直跟随 symlink 直到找到最终的真实路径
+        return url.resolvingSymlinksInPath()
     }
 
-    /// 获取 skill 在所有 Agent 中的 symlink 安装信息
+    /// 获取 skill 在所有 Agent 中的安装信息（含继承安装）
+    ///
+    /// 采用两遍扫描策略：
+    /// 1. 第一遍：检查每个 Agent 自身 skills 目录下的直接安装
+    /// 2. 第二遍：对于没有直接安装的 Agent，检查其 additionalReadableSkillsDirectories，
+    ///    若找到则标记为继承安装（isInherited: true）
+    ///
+    /// 优先级规则：如果 Agent 在自身目录中已有该 skill（直接安装），则不再添加继承安装
+    /// 例如 ~/.copilot/skills/foo 已存在，则不会再从 ~/.claude/skills/foo 继承
     static func findInstallations(skillName: String, canonicalURL: URL) -> [SkillInstallation] {
         var installations: [SkillInstallation] = []
+        /// 记录哪些 Agent 已有直接安装，用于第二遍过滤
+        /// Set 类似 Java 的 HashSet，用于 O(1) 查找
+        var agentsWithDirectInstallation = Set<AgentType>()
 
+        // ========== 第一遍：直接安装扫描 ==========
         for agentType in AgentType.allCases {
             let skillURL = agentType.skillsDirectoryURL.appendingPathComponent(skillName)
 
@@ -129,7 +141,8 @@ enum SymlinkManager {
 
             let isLink = isSymlink(at: skillURL)
 
-            // 如果是 symlink，验证它指向的是同一个 canonical 位置
+            // 如果是 symlink，验证它最终指向的是同一个 canonical 位置
+            // 使用 resolvingSymlinksInPath() 递归解析，处理多级 symlink 链
             if isLink {
                 let resolved = resolveSymlink(at: skillURL)
                 // standardized 会规范化路径（去除 .. 和 . 等）
@@ -139,6 +152,7 @@ enum SymlinkManager {
                         path: skillURL,
                         isSymlink: true
                     ))
+                    agentsWithDirectInstallation.insert(agentType)
                 }
             } else {
                 // 不是 symlink，说明是原始文件（agent-local skill）
@@ -147,6 +161,44 @@ enum SymlinkManager {
                     path: skillURL,
                     isSymlink: false
                 ))
+                agentsWithDirectInstallation.insert(agentType)
+            }
+        }
+
+        // ========== 第二遍：继承安装扫描 ==========
+        // 对于没有直接安装的 Agent，检查它能额外读取的其他 Agent 目录
+        for agentType in AgentType.allCases {
+            // 如果已有直接安装，跳过（直接安装优先级更高）
+            guard !agentsWithDirectInstallation.contains(agentType) else { continue }
+
+            // 遍历该 Agent 可额外读取的目录列表
+            for additionalDir in agentType.additionalReadableSkillsDirectories {
+                let skillURL = additionalDir.url.appendingPathComponent(skillName)
+
+                guard FileManager.default.fileExists(atPath: skillURL.path) else {
+                    continue
+                }
+
+                // 验证该路径（解析 symlink 后）确实指向同一个 canonical skill
+                let resolved: URL
+                if isSymlink(at: skillURL) {
+                    resolved = resolveSymlink(at: skillURL)
+                } else {
+                    resolved = skillURL
+                }
+
+                if resolved.standardized.path == canonicalURL.standardized.path {
+                    // 找到继承安装：skill 存在于源 Agent 目录中，当前 Agent 可以读取
+                    installations.append(SkillInstallation(
+                        agentType: agentType,
+                        path: skillURL,
+                        isSymlink: isSymlink(at: skillURL),
+                        isInherited: true,
+                        inheritedFrom: additionalDir.sourceAgent
+                    ))
+                    // 找到第一个匹配就停止（避免同一 Agent 重复添加继承安装）
+                    break
+                }
             }
         }
 
