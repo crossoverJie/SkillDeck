@@ -132,6 +132,11 @@ enum SymlinkManager {
 
         // ========== 第一遍：直接安装扫描 ==========
         for agentType in AgentType.allCases {
+            // Codex 的 skillsDirectoryURL 是 ~/.agents/skills/（canonical 共享目录），
+            // 不是独立的 Agent skills 目录。所有 canonical skill 都存储在那里，
+            // 不应视为"已安装到 Codex"。与 SkillScanner.scanAll() 的处理保持一致。
+            if agentType == .codex { continue }
+
             let skillURL = agentType.skillsDirectoryURL.appendingPathComponent(skillName)
 
             // 检查 skill 是否存在于该 Agent 的 skills 目录
@@ -168,6 +173,8 @@ enum SymlinkManager {
         // ========== 第二遍：继承安装扫描 ==========
         // 对于没有直接安装的 Agent，检查它能额外读取的其他 Agent 目录
         for agentType in AgentType.allCases {
+            // Codex 跳过，原因同第一遍（canonical 共享目录不等于 Codex 独立安装）
+            if agentType == .codex { continue }
             // 如果已有直接安装，跳过（直接安装优先级更高）
             guard !agentsWithDirectInstallation.contains(agentType) else { continue }
 
