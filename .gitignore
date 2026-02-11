@@ -1,0 +1,34 @@
+# Xcode
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+build/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+Packages/
+
+# Claude Code local settings
+.claude/
+
+# macOS
+.DS_Store
+*.swp
+*~
+.fseventsd
+
+# IDE
+*.xcworkspace
+*.xcodeproj
+.vscode/
+.idea/
+
+# Build artifacts
+*.o
+*.dSYM/
+*.app
+*.dmg
+*.ipa

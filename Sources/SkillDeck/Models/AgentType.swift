@@ -1,0 +1,81 @@
+import Foundation
+
+/// AgentType 表示支持的 AI 代码助手类型
+/// 类似 Java 的 enum，但 Swift 的 enum 更强大，可以有关联值和方法
+enum AgentType: String, CaseIterable, Identifiable, Codable {
+    case claudeCode = "claude-code"
+    case codex = "codex"
+    case geminiCLI = "gemini-cli"
+    case copilotCLI = "copilot-cli"
+
+    // Identifiable 协议要求（类似 Java 的 Comparable），SwiftUI 列表渲染需要
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .claudeCode: "Claude Code"
+        case .codex: "Codex"
+        case .geminiCLI: "Gemini CLI"
+        case .copilotCLI: "Copilot CLI"
+        }
+    }
+
+    /// 每个 Agent 的配色，用于 UI 区分
+    /// SwiftUI 使用 Color 类型，类似 Android 的 Color
+    var brandColor: String {
+        switch self {
+        case .claudeCode: "coral"     // #E8734A
+        case .codex: "green"
+        case .geminiCLI: "blue"
+        case .copilotCLI: "purple"
+        }
+    }
+
+    /// Agent 对应的 SF Symbol 图标名
+    /// SF Symbols 是 Apple 提供的系统图标库，类似 Material Icons
+    var iconName: String {
+        switch self {
+        case .claudeCode: "brain.head.profile"
+        case .codex: "terminal"
+        case .geminiCLI: "sparkles"
+        case .copilotCLI: "airplane"
+        }
+    }
+
+    /// Agent 的用户级 skills 目录路径
+    /// ~ 代表用户 home 目录，例如 /Users/chenjie
+    var skillsDirectoryPath: String {
+        switch self {
+        case .claudeCode: "~/.claude/skills"
+        case .codex: "~/.agents/skills"     // Codex 直接使用共享目录
+        case .geminiCLI: "~/.gemini/skills"
+        case .copilotCLI: "~/.copilot/skills"
+        }
+    }
+
+    /// 解析后的绝对路径 URL
+    var skillsDirectoryURL: URL {
+        let expanded = NSString(string: skillsDirectoryPath).expandingTildeInPath
+        return URL(fileURLWithPath: expanded)
+    }
+
+    /// Agent 的配置目录
+    var configDirectoryPath: String? {
+        switch self {
+        case .claudeCode: "~/.claude"
+        case .codex: nil                    // Codex 没有独立配置目录
+        case .geminiCLI: "~/.gemini"
+        case .copilotCLI: "~/.copilot"
+        }
+    }
+
+    /// 用于检测 Agent 是否安装的 CLI 命令
+    var detectCommand: String {
+        switch self {
+        case .claudeCode: "claude"
+        case .codex: "codex"
+        case .geminiCLI: "gemini"
+        case .copilotCLI: "gh"
+        }
+    }
+}
