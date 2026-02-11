@@ -43,9 +43,10 @@ struct AgentToggleView: View {
                     }
 
                     // Codex canonical 安装的提示文字：
+                    // 与继承安装的 "via Claude Code" 风格统一，指明来源目录
                     // Codex 直接从 ~/.agents/skills/ 读取，所有 canonical skill 天然可用
                     if isCodexCanonical {
-                        Text("Canonical")
+                        Text("via ~/.agents/skills")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
