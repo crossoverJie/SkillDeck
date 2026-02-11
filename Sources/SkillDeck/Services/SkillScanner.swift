@@ -18,16 +18,19 @@ actor SkillScanner {
     }()
 
     /// 扫描所有 skill，返回去重后的结果
-    /// - Returns: 所有发现的 skill 数组（已去重，每个 canonical 路径只出现一次）
+    /// - Returns: 所有发现的 skill 数组（已去重，每个 skill 名称只出现一次）
     func scanAll() async throws -> [Skill] {
-        // 用字典来去重：key 是 canonical 路径，value 是 Skill
-        // OrderedDictionary 保持插入顺序（类似 Java 的 LinkedHashMap）
+        // 用 skill id（目录名）作为去重 key，而不是 canonicalURL.path
+        // 原因：同一个 skill 可能被不同 Agent 的 symlink 指向不同的物理路径
+        // 例如 ~/.copilot/skills/agent-notifier -> /path/to/dev/agent-notifier
+        //      ~/.agents/skills/agent-notifier   （另一个物理路径）
+        // 虽然 canonicalURL 不同，但 skill id 相同，应视为同一个 skill
         var skillMap: [String: Skill] = [:]
 
         // 1. 扫描共享全局目录
         let globalSkills = scanDirectory(Self.sharedSkillsURL, scope: .sharedGlobal)
         for skill in globalSkills {
-            skillMap[skill.canonicalURL.path] = skill
+            skillMap[skill.id] = skill
         }
 
         // 2. 扫描每个 Agent 的 skills 目录
@@ -41,10 +44,8 @@ actor SkillScanner {
             )
 
             for skill in agentSkills {
-                let canonicalPath = skill.canonicalURL.path
-
-                if var existingSkill = skillMap[canonicalPath] {
-                    // 已存在：合并 installations（说明同一个 skill 被多个 Agent 引用）
+                if var existingSkill = skillMap[skill.id] {
+                    // 已存在同名 skill：合并 installations（说明同一个 skill 被多个 Agent 引用）
                     let newInstallations = skill.installations.filter { newInst in
                         !existingSkill.installations.contains(where: { $0.id == newInst.id })
                     }
@@ -53,10 +54,10 @@ actor SkillScanner {
                     if case .agentLocal = existingSkill.scope, existingSkill.installations.count > 1 {
                         existingSkill.scope = .sharedGlobal
                     }
-                    skillMap[canonicalPath] = existingSkill
+                    skillMap[skill.id] = existingSkill
                 } else {
                     // 新 skill：直接添加
-                    skillMap[canonicalPath] = skill
+                    skillMap[skill.id] = skill
                 }
             }
         }
