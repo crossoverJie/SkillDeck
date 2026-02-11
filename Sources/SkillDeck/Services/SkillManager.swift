@@ -176,6 +176,14 @@ final class SkillManager {
             return
         }
 
+        // 防护：Codex canonical 安装不可 toggle
+        // Codex 的 skills 目录与 canonical 共享目录相同（~/.agents/skills/），
+        // 其安装记录的 isSymlink 为 false，表示是原始文件而非 symlink。
+        // 删除 canonical 文件应使用 deleteSkill，不应通过 toggle 操作
+        if agent == .codex, let installation, !installation.isSymlink {
+            return
+        }
+
         let isInstalled = installation != nil
         if isInstalled {
             try await unassignSkill(skill, from: agent)

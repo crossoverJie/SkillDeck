@@ -209,6 +209,25 @@ enum SymlinkManager {
             }
         }
 
+        // ========== 第三遍：Codex 特殊处理 ==========
+        // Codex 直接从 ~/.agents/skills/ 读取用户级 skills，
+        // 其 skillsDirectoryURL 与 canonical 共享目录相同。
+        // 因此所有 canonical skill 天然对 Codex 可用，
+        // 这里为 Codex 创建一个 isSymlink: false 的安装记录，
+        // 使得 sidebar badge、dashboard 过滤等 UI 能正确显示 Codex 状态。
+        let codexSkillURL = AgentType.codex.skillsDirectoryURL.appendingPathComponent(skillName)
+        if FileManager.default.fileExists(atPath: codexSkillURL.path) {
+            let resolved = resolveSymlink(at: codexSkillURL)
+            // 验证路径确实指向同一个 canonical skill（防止巧合同名但不同路径的情况）
+            if resolved.standardized.path == canonicalURL.standardized.path {
+                installations.append(SkillInstallation(
+                    agentType: .codex,
+                    path: codexSkillURL,
+                    isSymlink: false  // canonical 原始文件，不是 symlink
+                ))
+            }
+        }
+
         return installations
     }
 }
