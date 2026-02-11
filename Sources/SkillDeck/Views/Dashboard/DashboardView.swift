@@ -53,7 +53,8 @@ struct DashboardView: View {
         .searchable(text: $viewModel.searchText, prompt: "Search skills...")
         // 工具栏：排序和过滤
         .toolbar {
-            ToolbarItemGroup {
+            // placement: .navigation 将工具栏项放在左侧（导航区域），默认 .automatic 会放在右侧
+            ToolbarItemGroup(placement: .navigation) {
                 // Menu 在工具栏中渲染成可点击的下拉菜单按钮
                 // 相比 Picker，Menu 可以自定义图标和布局，更像 macOS 原生排序控件
                 Menu {
