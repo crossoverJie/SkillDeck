@@ -7,6 +7,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     case codex = "codex"
     case geminiCLI = "gemini-cli"
     case copilotCLI = "copilot-cli"
+    case openCode = "opencode"       // OpenCode: 开源 AI 编程 CLI 工具
 
     // Identifiable 协议要求（类似 Java 的 Comparable），SwiftUI 列表渲染需要
     var id: String { rawValue }
@@ -17,6 +18,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codex: "Codex"
         case .geminiCLI: "Gemini CLI"
         case .copilotCLI: "Copilot CLI"
+        case .openCode: "OpenCode"
         }
     }
 
@@ -28,6 +30,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codex: "green"
         case .geminiCLI: "blue"
         case .copilotCLI: "purple"
+        case .openCode: "teal"
         }
     }
 
@@ -39,6 +42,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codex: "terminal"
         case .geminiCLI: "sparkles"
         case .copilotCLI: "airplane"
+        case .openCode: "chevron.left.forwardslash.chevron.right"  // </> 代码符号，契合 OpenCode 的编程主题
         }
     }
 
@@ -50,6 +54,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codex: "~/.agents/skills"     // Codex 直接使用共享目录
         case .geminiCLI: "~/.gemini/skills"
         case .copilotCLI: "~/.copilot/skills"
+        case .openCode: "~/.config/opencode/skills"  // OpenCode 使用 XDG 风格的配置路径
         }
     }
 
@@ -66,6 +71,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codex: nil                    // Codex 没有独立配置目录
         case .geminiCLI: "~/.gemini"
         case .copilotCLI: "~/.copilot"
+        case .openCode: "~/.config/opencode"
         }
     }
 
@@ -76,6 +82,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codex: "codex"
         case .geminiCLI: "gemini"
         case .copilotCLI: "gh"
+        case .openCode: "opencode"
         }
     }
 }

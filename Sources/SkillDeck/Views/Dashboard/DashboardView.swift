@@ -55,8 +55,6 @@ struct DashboardView: View {
         .toolbar {
             // placement: .navigation 将工具栏项放在左侧（导航区域），默认 .automatic 会放在右侧
             ToolbarItemGroup(placement: .navigation) {
-                // Menu 在工具栏中渲染成可点击的下拉菜单按钮
-                // 相比 Picker，Menu 可以自定义图标和布局，更像 macOS 原生排序控件
                 Menu {
                     // Section 在菜单中创建带标题的分组，类似 Android 的 menu group
                     Section("Sort By") {
@@ -93,15 +91,6 @@ struct DashboardView: View {
                             .font(.caption2)
                             // imageScale 控制 SF Symbol 的大小
                             .imageScale(.small)
-                    }
-                }
-
-                Picker("Agent", selection: $viewModel.selectedAgentFilter) {
-                    Text("All Agents").tag(AgentType?.none)
-                    Divider()
-                    ForEach(AgentType.allCases) { agent in
-                        Label(agent.displayName, systemImage: agent.iconName)
-                            .tag(AgentType?.some(agent))
                     }
                 }
             }

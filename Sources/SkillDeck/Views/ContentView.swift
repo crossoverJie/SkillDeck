@@ -55,5 +55,11 @@ struct ContentView: View {
             detailVM = SkillDetailViewModel(skillManager: skillManager)
             await skillManager.refresh()
         }
+        // .onChange(of:) 在指定值变化时触发闭包（类似 React 的 useEffect 带依赖数组）
+        // 当用户点击侧边栏导航项时，将选中项映射为 Agent 过滤器并同步到 DashboardViewModel
+        // 实现侧边栏点击 → Dashboard 列表筛选的联动效果
+        .onChange(of: selectedSidebarItem) { _, newValue in
+            dashboardVM?.selectedAgentFilter = newValue?.agentFilter
+        }
     }
 }
