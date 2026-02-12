@@ -37,6 +37,12 @@ struct SidebarView: View {
     /// @State 是视图私有状态，悬停状态只在本视图内使用，不需要传递给父组件
     @State private var hoveredItem: SidebarItem?
 
+    /// F10: 是否显示安装 sheet
+    @State private var showInstallSheet = false
+
+    /// F10: 安装弹窗的 ViewModel（仅在显示 sheet 时创建）
+    @State private var installVM: SkillInstallViewModel?
+
     var body: some View {
         List(selection: $selection) {
             // Section 创建分组（macOS 侧边栏中会显示为可折叠的分组）
@@ -73,6 +79,34 @@ struct SidebarView: View {
         .navigationTitle("SkillDeck")
         // toolbar 添加工具栏按钮
         .toolbar {
+            // F10: 安装新 skill 的 "+" 按钮
+            ToolbarItem {
+                Button {
+                    installVM = SkillInstallViewModel(skillManager: skillManager)
+                    showInstallSheet = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .help("Install skill from GitHub")
+            }
+
+            // F12: 批量检查所有 skill 的更新
+            ToolbarItem {
+                Button {
+                    Task { await skillManager.checkAllUpdates() }
+                } label: {
+                    // 检查中时显示旋转动画
+                    if skillManager.isCheckingUpdates {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                    }
+                }
+                .help("Check all skills for updates")
+                .disabled(skillManager.isCheckingUpdates)
+            }
+
             ToolbarItem {
                 Button {
                     Task { await skillManager.refresh() }
@@ -80,6 +114,22 @@ struct SidebarView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .help("Refresh skills")  // 鼠标悬停提示
+            }
+        }
+        // F10: 安装 sheet 弹窗
+        // onDismiss 在 sheet 关闭时调用 cleanup 清理临时目录
+        .sheet(isPresented: $showInstallSheet, onDismiss: {
+            installVM?.cleanup()
+            installVM = nil
+        }) {
+            if let installVM {
+                SkillInstallView(
+                    viewModel: installVM,
+                    isPresented: $showInstallSheet
+                )
+                // .environment() 将 SkillManager 注入 sheet 中的视图树
+                // sheet 创建新的视图层级，需要重新注入环境依赖
+                .environment(skillManager)
             }
         }
     }

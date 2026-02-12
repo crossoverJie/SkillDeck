@@ -28,6 +28,26 @@ struct Skill: Identifiable, Hashable {
     /// lock file 中的条目（可能为 nil，表示未通过包管理器安装）
     var lockEntry: LockEntry?
 
+    /// F12: 是否有远程更新可用
+    /// 当 checkForUpdate 检测到远程 tree hash 与本地不同时设为 true
+    var hasUpdate: Bool = false
+
+    /// F12: 远程最新 tree hash
+    /// 用于 updateSkill 时知道要更新到哪个版本
+    var remoteTreeHash: String?
+
+    /// F12: 远程最新 commit hash
+    /// 用于生成 GitHub compare URL 显示差异链接
+    /// 注意：tree hash 标识文件夹内容快照，commit hash 标识一次提交。
+    /// GitHub compare URL 需要 commit hash 才能正确跳转。
+    var remoteCommitHash: String?
+
+    /// F12: 本地 commit hash（从 CommitHashCache 读取）
+    /// 用于在 UI 中显示 `abc1234 → def5678` 的 hash 对比，
+    /// 以及生成 GitHub compare URL `compare/<local>...<remote>`
+    /// 老 skill（通过 npx skills 安装）在首次更新检查时通过 backfill 获取
+    var localCommitHash: String?
+
     /// SKILL.md 文件的完整路径
     var skillMDURL: URL {
         canonicalURL.appendingPathComponent("SKILL.md")

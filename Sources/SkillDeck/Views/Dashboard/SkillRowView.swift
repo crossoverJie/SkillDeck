@@ -16,6 +16,14 @@ struct SkillRowView: View {
 
                 ScopeBadge(scope: skill.scope)
 
+                // F12: 有更新可用时显示橙色更新图标
+                if skill.hasUpdate {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                        .help("Update available")
+                }
+
                 Spacer()
 
                 // 已安装的 Agent 图标行

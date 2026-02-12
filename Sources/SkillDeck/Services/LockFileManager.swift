@@ -82,4 +82,30 @@ actor LockFileManager {
     var exists: Bool {
         FileManager.default.fileExists(atPath: filePath.path)
     }
+
+    /// 如果 lock file 不存在则创建空文件（F10：首次通过 SkillDeck 安装时使用）
+    ///
+    /// 创建一个符合 version 3 格式的空 lock file，
+    /// 后续的 updateEntry 可以直接在此基础上追加 skill 条目。
+    /// 如果文件已存在则不做任何操作（幂等操作）。
+    func createIfNotExists() throws {
+        guard !exists else { return }
+
+        // 确保父目录 (~/.agents/) 存在
+        let parentDir = filePath.deletingLastPathComponent()
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: parentDir.path) {
+            // withIntermediateDirectories: true 类似 mkdir -p，递归创建目录
+            try fm.createDirectory(at: parentDir, withIntermediateDirectories: true)
+        }
+
+        // 创建空的 lock file（version 3 格式，与 npx skills 工具兼容）
+        let emptyLockFile = LockFile(
+            version: 3,
+            skills: [:],
+            dismissed: [:],
+            lastSelectedAgents: []
+        )
+        try write(emptyLockFile)
+    }
 }

@@ -31,12 +31,24 @@ final class SkillManager {
     /// 最近的错误信息
     var errorMessage: String?
 
+    /// F12: 是否正在批量检查更新（显示全局进度）
+    var isCheckingUpdates = false
+
+    /// F12: 更新状态（按 skill id 索引，跨 refresh 保持）
+    /// 存储每个 skill 是否有可用更新，键为 skill.id
+    var updateStatuses: [String: Bool] = [:]
+
     // MARK: - Dependencies（依赖的子服务）
 
     private let scanner = SkillScanner()
     private let detector = AgentDetector()
     private let lockFileManager = LockFileManager()
     private let watcher = FileSystemWatcher()
+    /// F10/F12: Git 操作服务，用于安装和更新检查
+    private let gitService = GitService()
+    /// F12: SkillDeck 私有的 commit hash 缓存，独立于 .skill-lock.json
+    /// 存储在 ~/.agents/.skilldeck-cache.json，不污染 npx skills 的 lock file 格式
+    private let commitHashCache = CommitHashCache()
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
@@ -84,6 +96,17 @@ final class SkillManager {
             }
 
             skills = allSkills
+
+            // F12: 恢复之前的更新状态（refresh 不应清除更新检查结果）
+            // 同时从 CommitHashCache 加载本地 commit hash
+            for i in skills.indices {
+                if let hasUpdate = updateStatuses[skills[i].id] {
+                    skills[i].hasUpdate = hasUpdate
+                }
+                // 从 CommitHashCache 读取本地 commit hash
+                // 用于 UI 中显示 hash 对比和生成 GitHub compare URL
+                skills[i].localCommitHash = await commitHashCache.getHash(for: skills[i].id)
+            }
 
             // 启动文件系统监控
             startWatching()
@@ -192,7 +215,303 @@ final class SkillManager {
         }
     }
 
+    // MARK: - F10: One-Click Install
+
+    /// 从克隆的仓库安装 skill 到本地
+    ///
+    /// 安装流程：
+    /// 1. 获取 tree hash（用于 lock file 记录，后续检测更新）
+    /// 2. 拷贝文件到 canonical 目录（~/.agents/skills/<name>/）
+    /// 3. 为选中的 Agent 创建 symlink（跳过 Codex，因为它共享 canonical 目录）
+    /// 4. 创建/更新 lock file 条目
+    /// 5. 刷新 UI
+    ///
+    /// - Parameters:
+    ///   - repoDir: 克隆仓库的本地临时目录
+    ///   - skill: 要安装的 skill 信息（从 GitService.scanSkillsInRepo 获取）
+    ///   - repoSource: 仓库来源标识（如 "vercel-labs/skills"，用于 lock file）
+    ///   - repoURL: 完整的仓库 URL（如 "https://github.com/vercel-labs/skills.git"）
+    ///   - targetAgents: 要安装到的 Agent 集合
+    func installSkill(
+        from repoDir: URL,
+        skill: GitService.DiscoveredSkill,
+        repoSource: String,
+        repoURL: String,
+        targetAgents: Set<AgentType>
+    ) async throws {
+        let fm = FileManager.default
+
+        // 1. 获取 tree hash（git rev-parse HEAD:<folderPath>）
+        let treeHash = try await gitService.getTreeHash(for: skill.folderPath, in: repoDir)
+
+        // 1.5 获取 commit hash 并写入 CommitHashCache（独立于 lock file）
+        // commit hash 用于后续生成 GitHub compare URL，显示更新差异
+        let commitHash = try await gitService.getCommitHash(in: repoDir)
+        await commitHashCache.setHash(for: skill.id, hash: commitHash)
+        try await commitHashCache.save()
+
+        // 2. 拷贝到 canonical 目录
+        // canonical 路径：~/.agents/skills/<skillName>/
+        let canonicalDir = SkillScanner.sharedSkillsURL.appendingPathComponent(skill.id)
+        let sourceDir = repoDir.appendingPathComponent(skill.folderPath)
+
+        // 如果已存在，先删除再拷贝（覆盖安装）
+        if fm.fileExists(atPath: canonicalDir.path) {
+            try fm.removeItem(at: canonicalDir)
+        }
+
+        // 确保父目录存在
+        if !fm.fileExists(atPath: SkillScanner.sharedSkillsURL.path) {
+            try fm.createDirectory(at: SkillScanner.sharedSkillsURL, withIntermediateDirectories: true)
+        }
+
+        // copyItem 类似 cp -r，递归拷贝整个目录
+        try fm.copyItem(at: sourceDir, to: canonicalDir)
+
+        // 3. 为选中的 Agent 创建 symlink
+        for agent in targetAgents {
+            // Codex 直接使用 ~/.agents/skills/ 目录，不需要 symlink
+            if agent == .codex { continue }
+            // 使用 try? 忽略已存在的 symlink 错误（幂等操作）
+            try? SymlinkManager.createSymlink(from: canonicalDir, to: agent)
+        }
+
+        // 4. 更新 lock file
+        // 确保 lock file 存在（首次安装时可能不存在）
+        try await lockFileManager.createIfNotExists()
+
+        // ISO 8601 时间戳（与 npx skills CLI 格式一致）
+        let now = ISO8601DateFormatter().string(from: Date())
+        let entry = LockEntry(
+            source: repoSource,
+            sourceType: "github",
+            sourceUrl: repoURL,
+            skillPath: skill.skillMDPath,
+            skillFolderHash: treeHash,
+            installedAt: now,
+            updatedAt: now
+        )
+        try await lockFileManager.updateEntry(skillName: skill.id, entry: entry)
+
+        // 5. 刷新 UI
+        await refresh()
+    }
+
+    // MARK: - F12: Update Check
+
+    /// 检查单个 skill 的更新
+    ///
+    /// 流程：
+    /// 1. 从 lockEntry 获取源仓库 URL 和 skillPath
+    /// 2. 检查 CommitHashCache 是否有本地 commit hash
+    ///    - 有：使用 shallow 克隆（快速，只需获取远程最新状态）
+    ///    - 没有（老 skill，通过 npx skills 安装）：使用完整克隆，通过 git 历史搜索 backfill
+    /// 3. 获取远程 tree hash 和 commit hash
+    /// 4. 与本地 lockEntry.skillFolderHash 比对
+    /// 5. 清理临时目录
+    ///
+    /// - Parameter skill: 要检查的 skill（必须有 lockEntry）
+    /// - Returns: 元组 (是否有更新, 远程 tree hash, 远程 commit hash)
+    func checkForUpdate(skill: Skill) async throws -> (hasUpdate: Bool, remoteHash: String?, remoteCommitHash: String?) {
+        guard let lockEntry = skill.lockEntry else {
+            return (false, nil, nil)
+        }
+
+        // 从 skillPath 推导 folderPath（去掉末尾的 "/SKILL.md"）
+        let folderPath: String
+        if lockEntry.skillPath.hasSuffix("/SKILL.md") {
+            folderPath = String(lockEntry.skillPath.dropLast("/SKILL.md".count))
+        } else {
+            folderPath = lockEntry.skillPath
+        }
+
+        // 检查 CommitHashCache 是否有本地 commit hash
+        let localCommitHash = await commitHashCache.getHash(for: skill.id)
+        // 如果没有 commit hash（老 skill），需要完整克隆以搜索 git 历史进行 backfill
+        let needsBackfill = localCommitHash == nil
+
+        // 根据是否需要 backfill 决定克隆深度
+        let repoDir = try await gitService.cloneRepo(repoURL: lockEntry.sourceUrl, shallow: !needsBackfill)
+        defer {
+            // defer 确保无论函数如何返回都会执行清理（类似 Go 的 defer 或 Java 的 finally）
+            Task { await gitService.cleanupTempDirectory(repoDir) }
+        }
+
+        // 获取远程 tree hash
+        let remoteHash = try await gitService.getTreeHash(for: folderPath, in: repoDir)
+
+        // 获取远程 commit hash
+        let remoteCommitHash = try await gitService.getCommitHash(in: repoDir)
+
+        // Backfill：如果本地没有 commit hash，从 git 历史中搜索匹配的 commit
+        if needsBackfill {
+            if let foundHash = try await gitService.findCommitForTreeHash(
+                treeHash: lockEntry.skillFolderHash, folderPath: folderPath, in: repoDir
+            ) {
+                // 找到匹配的 commit hash，持久化到缓存（下次不再搜索）
+                await commitHashCache.setHash(for: skill.id, hash: foundHash)
+                try? await commitHashCache.save()
+            }
+        }
+
+        // 比对 hash
+        let hasUpdate = remoteHash != lockEntry.skillFolderHash
+        return (hasUpdate, remoteHash, remoteCommitHash)
+    }
+
+    /// 批量检查所有有 lockEntry 的 skill 的更新
+    ///
+    /// 优化策略：按 sourceUrl 分组，同一仓库只克隆一次，
+    /// 然后批量获取每个 skill 的 tree hash 和 commit hash 进行比对。
+    ///
+    /// 智能克隆深度：检查该组中是否有任何 skill 缺少 commit hash（从 cache 查），
+    /// 如果有则使用完整克隆（需要搜索 git 历史进行 backfill），否则使用 shallow 克隆（更快）。
+    func checkAllUpdates() async {
+        isCheckingUpdates = true
+        defer { isCheckingUpdates = false }
+
+        // 收集所有有 lockEntry 的 skill，按 sourceUrl 分组
+        // Dictionary(grouping:by:) 类似 Java Stream 的 Collectors.groupingBy()
+        let skillsWithLock = skills.filter { $0.lockEntry != nil }
+        let grouped = Dictionary(grouping: skillsWithLock) { $0.lockEntry!.sourceUrl }
+
+        for (sourceUrl, groupSkills) in grouped {
+            do {
+                // 检查该组中是否有任何 skill 缺少 commit hash
+                // 如果有，需要完整克隆以支持 backfill（搜索 git 历史还原 commit hash）
+                var needsFullClone = false
+                for skill in groupSkills {
+                    let cached = await commitHashCache.getHash(for: skill.id)
+                    if cached == nil {
+                        needsFullClone = true
+                        break
+                    }
+                }
+
+                // 每个仓库只克隆一次，根据是否需要 backfill 决定克隆深度
+                let repoDir = try await gitService.cloneRepo(repoURL: sourceUrl, shallow: !needsFullClone)
+
+                // 获取远程最新 commit hash（整个仓库共享一个 HEAD commit）
+                let remoteCommitHash = try await gitService.getCommitHash(in: repoDir)
+
+                for skill in groupSkills {
+                    guard let lockEntry = skill.lockEntry else { continue }
+
+                    // 推导 folderPath
+                    let folderPath: String
+                    if lockEntry.skillPath.hasSuffix("/SKILL.md") {
+                        folderPath = String(lockEntry.skillPath.dropLast("/SKILL.md".count))
+                    } else {
+                        folderPath = lockEntry.skillPath
+                    }
+
+                    do {
+                        let remoteHash = try await gitService.getTreeHash(for: folderPath, in: repoDir)
+                        let hasUpdate = remoteHash != lockEntry.skillFolderHash
+
+                        // 更新状态字典
+                        updateStatuses[skill.id] = hasUpdate
+
+                        // Backfill：对缺少 commit hash 的 skill 从 git 历史中搜索
+                        let localCached = await commitHashCache.getHash(for: skill.id)
+                        var currentLocalHash = localCached
+                        if localCached == nil {
+                            if let foundHash = try? await gitService.findCommitForTreeHash(
+                                treeHash: lockEntry.skillFolderHash, folderPath: folderPath, in: repoDir
+                            ) {
+                                await commitHashCache.setHash(for: skill.id, hash: foundHash)
+                                currentLocalHash = foundHash
+                            }
+                        }
+
+                        // 同步到 skills 数组（找到对应的 skill 并更新）
+                        if let index = skills.firstIndex(where: { $0.id == skill.id }) {
+                            skills[index].hasUpdate = hasUpdate
+                            skills[index].remoteTreeHash = hasUpdate ? remoteHash : nil
+                            // 存储远程 commit hash，用于生成 GitHub compare URL
+                            skills[index].remoteCommitHash = hasUpdate ? remoteCommitHash : nil
+                            // 更新本地 commit hash（可能刚通过 backfill 获取）
+                            skills[index].localCommitHash = currentLocalHash
+                        }
+                    } catch {
+                        // 单个 skill 检查失败不影响其他 skill
+                        continue
+                    }
+                }
+
+                // Backfill 后统一保存一次缓存（减少磁盘 IO）
+                try? await commitHashCache.save()
+
+                // 清理临时目录
+                await gitService.cleanupTempDirectory(repoDir)
+            } catch {
+                // 某个仓库克隆失败不影响其他仓库
+                continue
+            }
+        }
+    }
+
+    /// 执行更新：用远程文件覆盖本地，更新 lock entry
+    ///
+    /// - Parameters:
+    ///   - skill: 要更新的 skill
+    ///   - remoteHash: 远程最新的 tree hash
+    func updateSkill(_ skill: Skill, remoteHash: String) async throws {
+        guard let lockEntry = skill.lockEntry else { return }
+
+        // 推导 folderPath
+        let folderPath: String
+        if lockEntry.skillPath.hasSuffix("/SKILL.md") {
+            folderPath = String(lockEntry.skillPath.dropLast("/SKILL.md".count))
+        } else {
+            folderPath = lockEntry.skillPath
+        }
+
+        // 1. 克隆源仓库
+        let repoDir = try await gitService.shallowClone(repoURL: lockEntry.sourceUrl)
+
+        // 2. 获取新的 commit hash 并写入缓存
+        let newCommitHash = try await gitService.getCommitHash(in: repoDir)
+        await commitHashCache.setHash(for: skill.id, hash: newCommitHash)
+        try? await commitHashCache.save()
+
+        // 3. 拷贝文件覆盖 canonical 目录
+        let fm = FileManager.default
+        let sourceDir = repoDir.appendingPathComponent(folderPath)
+        let canonicalDir = skill.canonicalURL
+
+        // 删除旧文件再拷贝新文件
+        if fm.fileExists(atPath: canonicalDir.path) {
+            try fm.removeItem(at: canonicalDir)
+        }
+        try fm.copyItem(at: sourceDir, to: canonicalDir)
+
+        // 4. 更新 lock entry（新 hash + 新 updatedAt）
+        let now = ISO8601DateFormatter().string(from: Date())
+        var updatedEntry = lockEntry
+        updatedEntry.skillFolderHash = remoteHash
+        updatedEntry.updatedAt = now
+        try await lockFileManager.updateEntry(skillName: skill.id, entry: updatedEntry)
+
+        // 5. 清理临时目录
+        await gitService.cleanupTempDirectory(repoDir)
+
+        // 6. 清除更新状态
+        updateStatuses[skill.id] = false
+
+        // 7. 刷新 UI
+        await refresh()
+    }
+
     // MARK: - Helper Methods
+
+    /// 获取指定 skill 的本地 commit hash（从 CommitHashCache 读取）
+    ///
+    /// 这个方法暴露给 ViewModel 使用，因为 commitHashCache 是 private 的。
+    /// 在 checkForUpdate 后调用，获取可能通过 backfill 新获取到的 commit hash。
+    func getCachedCommitHash(for skillName: String) async -> String? {
+        await commitHashCache.getHash(for: skillName)
+    }
 
     /// 按 Agent 过滤 skill
     func skills(for agentType: AgentType) -> [Skill] {
