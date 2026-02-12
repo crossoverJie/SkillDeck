@@ -28,6 +28,8 @@ Packages/
 
 # Build artifacts
 *.o
+*.d
+*.swiftdeps
 *.dSYM/
 *.app
 *.dmg
