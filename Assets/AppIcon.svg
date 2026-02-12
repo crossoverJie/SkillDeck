@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- 主背景渐变：紫蓝色从左上到右下 -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="50%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#A855F7"/>
+    </linearGradient>
+
+    <!-- 卡片渐变：浅色半透明 -->
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#F0EAFF" stop-opacity="0.95"/>
+    </linearGradient>
+
+    <!-- 闪电渐变 -->
+    <linearGradient id="boltGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+
+    <!-- 卡片阴影 -->
+    <filter id="cardShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#3730A3" flood-opacity="0.25"/>
+    </filter>
+
+    <filter id="cardShadow2" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="16" flood-color="#3730A3" flood-opacity="0.2"/>
+    </filter>
+
+    <filter id="boltShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#D97706" flood-opacity="0.4"/>
+    </filter>
+
+  </defs>
+
+  <!-- 填满整个正方形画布，macOS 系统会自动裁剪为圆角矩形（squircle） -->
+  <!-- 不需要手动做 clipPath，否则透明区域在 Dock 中会显示为白色角落 -->
+  <g>
+    <rect width="1024" height="1024" fill="url(#bgGrad)"/>
+
+    <!-- 细微的噪点纹理增加质感 -->
+    <rect width="1024" height="1024" fill="white" opacity="0.03"/>
+
+    <!-- 底部卡片 (第3张，最下面) — 向左偏移并旋转 -->
+    <g transform="translate(512, 520) rotate(-8) translate(-512, -520)" filter="url(#cardShadow2)">
+      <rect x="262" y="240" width="500" height="620" rx="28" ry="28"
+            fill="white" opacity="0.35"/>
+    </g>
+
+    <!-- 中间卡片 (第2张) — 向右微偏移并旋转 -->
+    <g transform="translate(512, 510) rotate(4) translate(-512, -510)" filter="url(#cardShadow2)">
+      <rect x="262" y="230" width="500" height="620" rx="28" ry="28"
+            fill="white" opacity="0.55"/>
+    </g>
+
+    <!-- 最上层卡片 — 居中，无旋转 -->
+    <g filter="url(#cardShadow)">
+      <rect x="262" y="202" width="500" height="620" rx="28" ry="28"
+            fill="url(#cardGrad)"/>
+
+      <!-- 卡片顶部装饰条 -->
+      <rect x="262" y="202" width="500" height="80" rx="28" ry="28"
+            fill="#7C3AED" opacity="0.12"/>
+      <rect x="262" y="254" width="500" height="28"
+            fill="#7C3AED" opacity="0.12"/>
+
+      <!-- 卡片上的横线装饰（模拟文本行） -->
+      <rect x="310" y="500" width="200" height="14" rx="7" fill="#8B5CF6" opacity="0.15"/>
+      <rect x="310" y="534" width="360" height="14" rx="7" fill="#8B5CF6" opacity="0.10"/>
+      <rect x="310" y="568" width="300" height="14" rx="7" fill="#8B5CF6" opacity="0.10"/>
+      <rect x="310" y="602" width="380" height="14" rx="7" fill="#8B5CF6" opacity="0.10"/>
+      <rect x="310" y="636" width="260" height="14" rx="7" fill="#8B5CF6" opacity="0.10"/>
+      <rect x="310" y="670" width="340" height="14" rx="7" fill="#8B5CF6" opacity="0.10"/>
+      <rect x="310" y="704" width="180" height="14" rx="7" fill="#8B5CF6" opacity="0.10"/>
+
+      <!-- 闪电符号 — 卡片中心偏上 -->
+      <g transform="translate(512, 380)" filter="url(#boltShadow)">
+        <polygon points="
+          -10,-90
+           40,-90
+           5,-15
+           55,-15
+          -15,90
+           0,15
+          -50,15
+        " fill="url(#boltGrad)"/>
+      </g>
+    </g>
+
+    <!-- 微妙的高光效果 -->
+    <ellipse cx="400" cy="250" rx="350" ry="200" fill="white" opacity="0.06"/>
+  </g>
+</svg>
