@@ -17,6 +17,9 @@ struct SkillDetailView: View {
     /// 编辑器 ViewModel（仅在编辑时创建）
     @State private var editorVM: SkillEditorViewModel?
 
+    /// 复制路径按钮的反馈状态：true 时显示绿色 checkmark，1.5 秒后自动恢复
+    @State private var pathCopied = false
+
     var body: some View {
         // guard-let 的 SwiftUI 版本：如果 skill 不存在显示空状态
         if let skill = viewModel.skill(id: skillID) {
@@ -131,11 +134,47 @@ struct SkillDetailView: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
 
-            // 路径显示
-            Text(skill.canonicalURL.tildeAbbreviatedPath)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .textSelection(.enabled)
+            // 路径显示 + 复制按钮
+            HStack(spacing: 4) {
+                Text(skill.canonicalURL.tildeAbbreviatedPath)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .textSelection(.enabled)
+
+                // 复制路径按钮
+                // NSPasteboard 是 macOS 剪贴板 API，相当于 iOS 的 UIPasteboard
+                // .generalPasteboard 获取系统通用剪贴板（用户 Cmd+V 粘贴的内容来源）
+                Button {
+                    let pasteboard = NSPasteboard.general
+                    // clearContents() 必须在 setString 之前调用，清空旧内容
+                    pasteboard.clearContents()
+                    // 写入完整路径（展开 ~ 为绝对路径，方便终端使用）
+                    pasteboard.setString(skill.canonicalURL.path, forType: .string)
+
+                    // 设置复制成功状态，图标临时变为绿色 checkmark
+                    pathCopied = true
+                    // Task.sleep 是 Swift 并发中的非阻塞延迟（类似 Python 的 asyncio.sleep）
+                    // 1.5 秒后自动恢复原始图标
+                    Task {
+                        try? await Task.sleep(for: .seconds(1.5))
+                        pathCopied = false
+                    }
+                } label: {
+                    // contentTransition(.symbolEffect(.replace)) 让 SF Symbol 图标
+                    // 切换时使用系统内置的替换动画（淡入淡出 + 缩放），比手动 animation 更自然
+                    // Swift 的 ternary 要求两侧类型一致；.green 是 Color，.tertiary 是
+                    // HierarchicalShapeStyle，无法直接混用。用 AnyShapeStyle 类型擦除统一类型。
+                    Image(systemName: pathCopied ? "checkmark" : "doc.on.doc")
+                        .font(.caption)
+                        .foregroundStyle(pathCopied ? AnyShapeStyle(.green) : AnyShapeStyle(.tertiary))
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                // .plain 按钮样式去掉默认的边框和背景，看起来像图标
+                .buttonStyle(.plain)
+                .help("Copy path to clipboard")
+                // animation 修饰符监听 pathCopied 变化，自动对颜色等属性应用平滑过渡
+                .animation(.easeInOut(duration: 0.2), value: pathCopied)
+            }
         }
     }
 
