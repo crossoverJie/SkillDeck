@@ -17,6 +17,26 @@ import Combine
 @Observable
 final class SkillManager {
 
+    // MARK: - Error Types
+
+    /// 手动关联仓库时的错误类型
+    /// LocalizedError 协议提供人类可读的错误描述（类似 Java 的 getMessage()）
+    enum LinkError: Error, LocalizedError {
+        /// 仓库中未找到与当前 skill 匹配的目录
+        case skillNotFoundInRepo(String)
+        /// git 操作失败
+        case gitError(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .skillNotFoundInRepo(let name):
+                "Skill '\(name)' not found in repository"
+            case .gitError(let message):
+                message
+            }
+        }
+    }
+
     // MARK: - Published State（UI 绑定的状态）
 
     /// 所有发现的 skill（去重后）
@@ -92,6 +112,25 @@ final class SkillManager {
                     for i in allSkills.indices {
                         allSkills[i].lockEntry = lockFile.skills[allSkills[i].id]
                     }
+                }
+            }
+
+            // 为没有 lockEntry 但有手动关联信息的 skill 合成 LockEntry
+            // 这样这些 skill 可以复用现有的更新检查流程（checkForUpdate、checkAllUpdates）
+            let linkedInfos = await commitHashCache.getAllLinkedInfos()
+            for i in allSkills.indices {
+                if allSkills[i].lockEntry == nil, let linked = linkedInfos[allSkills[i].id] {
+                    // 合成 LockEntry：字段与 LinkedSkillInfo 对齐
+                    // installedAt/updatedAt 使用关联时间（仅供 UI 显示）
+                    allSkills[i].lockEntry = LockEntry(
+                        source: linked.source,
+                        sourceType: linked.sourceType,
+                        sourceUrl: linked.sourceUrl,
+                        skillPath: linked.skillPath,
+                        skillFolderHash: linked.skillFolderHash,
+                        installedAt: linked.linkedAt,
+                        updatedAt: linked.linkedAt
+                    )
                 }
             }
 
@@ -528,5 +567,94 @@ final class SkillManager {
             $0.displayName.lowercased().contains(lowered) ||
             $0.metadata.description.lowercased().contains(lowered)
         }
+    }
+
+    // MARK: - Link to Repository（手动关联仓库）
+
+    /// 将无 lockEntry 的 skill 手动关联到 GitHub 仓库
+    ///
+    /// 流程：
+    /// 1. normalizeRepoURL() 校验并规范化 URL 输入
+    /// 2. shallow clone 远程仓库
+    /// 3. scanSkillsInRepo 扫描仓库中的 skill，按 skill.id 匹配
+    /// 4. 获取 tree hash + commit hash
+    /// 5. 同步远程文件到本地 canonical 目录（保证本地文件与 hash 一致）
+    /// 6. 写入 commitHashCache（linkedSkills + skills 两个 map）
+    /// 7. refresh() 刷新 UI
+    ///
+    /// 关联信息存储在 SkillDeck 私有缓存（~/.agents/.skilldeck-cache.json），
+    /// 不修改 skill-lock.json（避免影响 npx skills 的行为）。
+    /// refresh() 时会从缓存读取关联信息，合成 LockEntry 挂到 Skill 模型上，
+    /// 从而复用现有的更新检查流程。
+    ///
+    /// - Parameters:
+    ///   - skill: 要关联的 skill（必须无 lockEntry）
+    ///   - repoInput: 用户输入的仓库地址（支持 "owner/repo" 或完整 URL）
+    func linkSkillToRepository(_ skill: Skill, repoInput: String) async throws {
+        // 1. 校验并规范化 URL
+        let (repoURL, source) = try GitService.normalizeRepoURL(repoInput)
+
+        // 2. shallow clone 远程仓库
+        let repoDir: URL
+        do {
+            repoDir = try await gitService.shallowClone(repoURL: repoURL)
+        } catch {
+            throw LinkError.gitError(error.localizedDescription)
+        }
+        // defer 确保无论函数如何返回都会执行清理（类似 Go 的 defer）
+        defer {
+            Task { await gitService.cleanupTempDirectory(repoDir) }
+        }
+
+        // 3. 扫描仓库中的 skill，按 skill.id 匹配
+        let discoveredSkills = await gitService.scanSkillsInRepo(repoDir: repoDir)
+        guard let matched = discoveredSkills.first(where: { $0.id == skill.id }) else {
+            throw LinkError.skillNotFoundInRepo(skill.id)
+        }
+
+        // 4. 获取 tree hash 和 commit hash
+        let treeHash = try await gitService.getTreeHash(for: matched.folderPath, in: repoDir)
+        let commitHash = try await gitService.getCommitHash(in: repoDir)
+
+        // 5. 同步远程文件到本地 canonical 目录
+        // 确保本地文件与存储的 skillFolderHash 一致，
+        // 否则后续 checkForUpdate 的 hash 对比基线会不准确
+        let fm = FileManager.default
+        let sourceDir = repoDir.appendingPathComponent(matched.folderPath)
+        let canonicalDir = skill.canonicalURL
+
+        // 删除旧文件再拷贝新文件（与 installSkill/updateSkill 一致）
+        if fm.fileExists(atPath: canonicalDir.path) {
+            try fm.removeItem(at: canonicalDir)
+        }
+        // 确保父目录存在
+        let parentDir = canonicalDir.deletingLastPathComponent()
+        if !fm.fileExists(atPath: parentDir.path) {
+            try fm.createDirectory(at: parentDir, withIntermediateDirectories: true)
+        }
+        // copyItem 递归拷贝整个目录（类似 cp -r）
+        try fm.copyItem(at: sourceDir, to: canonicalDir)
+
+        // 6. 写入 commitHashCache（两个 map）
+        // 6a. skills map：存储 commit hash（用于后续 compare URL）
+        await commitHashCache.setHash(for: skill.id, hash: commitHash)
+
+        // 6b. linkedSkills map：存储完整的关联信息（用于 refresh 时合成 LockEntry）
+        let now = ISO8601DateFormatter().string(from: Date())
+        let linkedInfo = CommitHashCache.LinkedSkillInfo(
+            source: source,
+            sourceType: "github",
+            sourceUrl: repoURL,
+            skillPath: matched.skillMDPath,
+            skillFolderHash: treeHash,
+            linkedAt: now
+        )
+        await commitHashCache.setLinkedInfo(for: skill.id, info: linkedInfo)
+
+        // 持久化到磁盘
+        try await commitHashCache.save()
+
+        // 7. 刷新 UI —— refresh 会从缓存读取关联信息，合成 LockEntry
+        await refresh()
     }
 }

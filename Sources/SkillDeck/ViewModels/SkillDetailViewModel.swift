@@ -26,6 +26,17 @@ final class SkillDetailViewModel {
     /// F12: 检查结果 —— 是否为最新（用于显示 "Up to Date" 提示）
     var showUpToDate = false
 
+    // MARK: - Link to Repository State（手动关联仓库状态）
+
+    /// 用户输入的仓库地址（支持 "owner/repo" 或完整 URL）
+    var repoURLInput = ""
+
+    /// 是否正在执行关联操作（shallow clone + 扫描 + 写缓存）
+    var isLinking = false
+
+    /// 关联操作的错误信息
+    var linkError: String?
+
     init(skillManager: SkillManager) {
         self.skillManager = skillManager
     }
@@ -128,5 +139,29 @@ final class SkillDetailViewModel {
         }
 
         isUpdating = false
+    }
+
+    // MARK: - Link to Repository
+
+    /// 将 skill 手动关联到 GitHub 仓库
+    ///
+    /// 调用 SkillManager.linkSkillToRepository，完成后 refresh 会自动
+    /// 从缓存合成 LockEntry，UI 会从 linkToRepoSection 切换到 lockFileSection。
+    func linkToRepository(skill: Skill) async {
+        let input = repoURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else { return }
+
+        isLinking = true
+        linkError = nil
+
+        do {
+            try await skillManager.linkSkillToRepository(skill, repoInput: input)
+            // 成功后清空输入（UI 会自动切换到 lockFileSection）
+            repoURLInput = ""
+        } catch {
+            linkError = error.localizedDescription
+        }
+
+        isLinking = false
     }
 }

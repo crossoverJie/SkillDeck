@@ -25,6 +25,15 @@ struct SkillDetailView: View {
                     // 头部信息
                     headerSection(skill)
 
+                    // Package Info（含更新状态）—— 放在前面，进入详情页即可看到
+                    // lockEntry 存在时显示完整包信息；否则显示手动关联仓库的 UI
+                    Divider()
+                    if let lockEntry = skill.lockEntry {
+                        lockFileSection(skill, lockEntry)
+                    } else {
+                        linkToRepoSection(skill)
+                    }
+
                     Divider()
 
                     // Agent 分配区域
@@ -34,12 +43,6 @@ struct SkillDetailView: View {
 
                     // Markdown 正文
                     markdownSection(skill)
-
-                    // Lock file 信息
-                    if let lockEntry = skill.lockEntry {
-                        Divider()
-                        lockFileSection(skill, lockEntry)
-                    }
                 }
                 .padding()
             }
@@ -172,6 +175,68 @@ struct SkillDetailView: View {
         }
     }
 
+    /// 手动关联仓库区域 —— 当 skill 没有 lockEntry 时显示
+    ///
+    /// 允许用户输入 GitHub 仓库地址（"owner/repo" 或完整 URL），
+    /// 关联后 SkillDeck 可以检查更新。关联信息存储在私有缓存中，不修改 lock file。
+    @ViewBuilder
+    private func linkToRepoSection(_ skill: Skill) -> some View {
+        // 提前读取所有 @Observable 属性到局部变量，避免在 ViewBuilder 深层嵌套中
+        // 多次访问 @Observable 属性导致 AttributeGraph 依赖追踪产生 cycle。
+        // SwiftUI 的 AttributeGraph 会为每次属性访问建立依赖边，
+        // 局部变量只触发一次依赖追踪，减少 cycle 的概率。
+        let isLinking = viewModel.isLinking
+        let linkError = viewModel.linkError
+        let inputIsEmpty = viewModel.repoURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Package Info")
+                .font(.headline)
+
+            Text("This skill is not linked to a repository. Link it to enable update checking.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            // 输入行：TextField + Link 按钮
+            HStack(spacing: 8) {
+                // $viewModel.repoURLInput 双向绑定输入框内容
+                // @Bindable 属性包装器让 @Observable 对象的属性支持 $ 语法绑定
+                TextField("owner/repo", text: $viewModel.repoURLInput)
+                    .textFieldStyle(.roundedBorder)
+                    // .onSubmit 在用户按回车时触发（类似 HTML input 的 onKeyDown Enter）
+                    .onSubmit {
+                        Task { await viewModel.linkToRepository(skill: skill) }
+                    }
+                    .disabled(isLinking)
+
+                if isLinking {
+                    // 关联中：显示 ProgressView（旋转菊花）
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Linking...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Button("Link") {
+                        Task { await viewModel.linkToRepository(skill: skill) }
+                    }
+                    .disabled(inputIsEmpty)
+                }
+            }
+
+            // 错误提示
+            if let error = linkError {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
     /// Lock file 信息区域
     @ViewBuilder
     private func lockFileSection(_ skill: Skill, _ lockEntry: LockEntry) -> some View {
@@ -197,11 +262,20 @@ struct SkillDetailView: View {
                     Text("Repository").foregroundStyle(.secondary)
                     Text(lockEntry.sourceUrl).textSelection(.enabled)
                 }
+                // 优先显示 commit hash（可直接在 GitHub 上查看），
+                // 若无（老 skill 未 backfill）则回退显示 tree hash
                 GridRow {
-                    Text("Hash").foregroundStyle(.secondary)
-                    Text(lockEntry.skillFolderHash)
-                        .font(.system(.body, design: .monospaced))
-                        .textSelection(.enabled)
+                    if let commitHash = skill.localCommitHash {
+                        Text("Commit").foregroundStyle(.secondary)
+                        Text(commitHash)
+                            .font(.system(.body, design: .monospaced))
+                            .textSelection(.enabled)
+                    } else {
+                        Text("Tree Hash").foregroundStyle(.secondary)
+                        Text(lockEntry.skillFolderHash)
+                            .font(.system(.body, design: .monospaced))
+                            .textSelection(.enabled)
+                    }
                 }
                 GridRow {
                     Text("Installed").foregroundStyle(.secondary)
