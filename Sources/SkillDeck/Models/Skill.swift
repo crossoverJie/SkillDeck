@@ -72,3 +72,23 @@ struct Skill: Identifiable, Hashable {
         lhs.id == rhs.id
     }
 }
+
+/// Skill 更新检查的状态枚举
+///
+/// 用于在列表中显示每个 skill 的更新检查进度和结果。
+/// 遵循 Equatable 协议（Swift 的值相等判断，类似 Java 的 equals），
+/// 使 SwiftUI 能够对比状态变化来决定是否重新渲染视图。
+enum SkillUpdateStatus: Equatable {
+    /// 未检查（默认状态，不显示任何图标）
+    case notChecked
+    /// 正在检查中（显示旋转 spinner）
+    case checking
+    /// 有可用更新（显示橙色上箭头图标）
+    case hasUpdate
+    /// 已是最新版本（显示绿色勾选图标）
+    case upToDate
+    /// 检查失败（显示黄色警告图标，hover 显示错误信息）
+    /// 关联值（associated value）类似 Rust 的 enum variant 携带数据，
+    /// Java 中需要用子类或额外字段实现类似功能
+    case error(String)
+}

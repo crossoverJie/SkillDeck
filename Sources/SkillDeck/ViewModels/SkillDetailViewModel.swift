@@ -100,7 +100,7 @@ final class SkillDetailViewModel {
                 skillManager.skills[index].remoteTreeHash = remoteHash
                 // 存储远程 commit hash，用于 UI 显示 hash 对比和 GitHub 链接
                 skillManager.skills[index].remoteCommitHash = hasUpdate ? remoteCommitHash : nil
-                skillManager.updateStatuses[skill.id] = hasUpdate
+                skillManager.updateStatuses[skill.id] = hasUpdate ? .hasUpdate : .upToDate
 
                 // 更新本地 commit hash（checkForUpdate 中可能执行了 backfill）
                 let cachedLocalHash = await skillManager.getCachedCommitHash(for: skill.id)

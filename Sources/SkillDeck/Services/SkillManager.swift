@@ -55,8 +55,9 @@ final class SkillManager {
     var isCheckingUpdates = false
 
     /// F12: 更新状态（按 skill id 索引，跨 refresh 保持）
-    /// 存储每个 skill 是否有可用更新，键为 skill.id
-    var updateStatuses: [String: Bool] = [:]
+    /// 存储每个 skill 的更新检查状态（5 种状态），键为 skill.id
+    /// 类型从 [String: Bool] 改为 [String: SkillUpdateStatus]，支持更丰富的 UI 反馈
+    var updateStatuses: [String: SkillUpdateStatus] = [:]
 
     // MARK: - Dependencies（依赖的子服务）
 
@@ -138,9 +139,10 @@ final class SkillManager {
 
             // F12: 恢复之前的更新状态（refresh 不应清除更新检查结果）
             // 同时从 CommitHashCache 加载本地 commit hash
+            // 从 SkillUpdateStatus 枚举恢复 hasUpdate 布尔值：只有 .hasUpdate 状态才算有更新
             for i in skills.indices {
-                if let hasUpdate = updateStatuses[skills[i].id] {
-                    skills[i].hasUpdate = hasUpdate
+                if let status = updateStatuses[skills[i].id] {
+                    skills[i].hasUpdate = (status == .hasUpdate)
                 }
                 // 从 CommitHashCache 读取本地 commit hash
                 // 用于 UI 中显示 hash 对比和生成 GitHub compare URL
@@ -412,6 +414,13 @@ final class SkillManager {
         // 收集所有有 lockEntry 的 skill，按 sourceUrl 分组
         // Dictionary(grouping:by:) 类似 Java Stream 的 Collectors.groupingBy()
         let skillsWithLock = skills.filter { $0.lockEntry != nil }
+
+        // 预设所有待检查的 skill 为 .checking 状态
+        // 这样 UI 列表中会立即显示 spinner，用户知道哪些 skill 正在被检查
+        for skill in skillsWithLock {
+            updateStatuses[skill.id] = .checking
+        }
+
         let grouped = Dictionary(grouping: skillsWithLock) { $0.lockEntry!.sourceUrl }
 
         for (sourceUrl, groupSkills) in grouped {
@@ -448,8 +457,8 @@ final class SkillManager {
                         let remoteHash = try await gitService.getTreeHash(for: folderPath, in: repoDir)
                         let hasUpdate = remoteHash != lockEntry.skillFolderHash
 
-                        // 更新状态字典
-                        updateStatuses[skill.id] = hasUpdate
+                        // 更新状态字典：使用枚举值替代布尔值
+                        updateStatuses[skill.id] = hasUpdate ? .hasUpdate : .upToDate
 
                         // Backfill：对缺少 commit hash 的 skill 从 git 历史中搜索
                         let localCached = await commitHashCache.getHash(for: skill.id)
@@ -473,7 +482,8 @@ final class SkillManager {
                             skills[index].localCommitHash = currentLocalHash
                         }
                     } catch {
-                        // 单个 skill 检查失败不影响其他 skill
+                        // 单个 skill 检查失败：标记为 .error 状态，UI 会显示警告图标
+                        updateStatuses[skill.id] = .error(error.localizedDescription)
                         continue
                     }
                 }
@@ -484,7 +494,10 @@ final class SkillManager {
                 // 清理临时目录
                 await gitService.cleanupTempDirectory(repoDir)
             } catch {
-                // 某个仓库克隆失败不影响其他仓库
+                // 仓库克隆失败：该仓库下所有 skill 都标记为 .error
+                for skill in groupSkills {
+                    updateStatuses[skill.id] = .error(error.localizedDescription)
+                }
                 continue
             }
         }
@@ -535,8 +548,8 @@ final class SkillManager {
         // 5. 清理临时目录
         await gitService.cleanupTempDirectory(repoDir)
 
-        // 6. 清除更新状态
-        updateStatuses[skill.id] = false
+        // 6. 清除更新状态（更新完成后恢复为未检查状态）
+        updateStatuses[skill.id] = .notChecked
 
         // 7. 刷新 UI
         await refresh()

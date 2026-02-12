@@ -7,6 +7,10 @@ struct SkillRowView: View {
 
     let skill: Skill
 
+    /// 从环境中获取 SkillManager，用于读取 updateStatuses 字典
+    /// @Environment 是 SwiftUI 的依赖注入机制（类似 Spring 的 @Autowired）
+    @Environment(SkillManager.self) private var skillManager
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // 第一行：名称 + 徽章
@@ -16,13 +20,8 @@ struct SkillRowView: View {
 
                 ScopeBadge(scope: skill.scope)
 
-                // F12: 有更新可用时显示橙色更新图标
-                if skill.hasUpdate {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .foregroundStyle(.orange)
-                        .font(.caption)
-                        .help("Update available")
-                }
+                // F12: 根据更新检查状态显示不同的指示器图标
+                updateStatusIndicator
 
                 Spacer()
 
@@ -74,5 +73,46 @@ struct SkillRowView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    // MARK: - Update Status Indicator
+
+    /// 根据 SkillUpdateStatus 枚举渲染不同的状态指示器
+    ///
+    /// @ViewBuilder 允许在 computed property 中使用条件分支返回不同类型的 View，
+    /// 编译器会自动包装为 `some View` 的具体类型（类似 Java 泛型的类型擦除但在编译期解析）。
+    /// 使用 `switch` 穷举枚举所有 case（Swift 强制穷举，类似 Rust 的 match）。
+    @ViewBuilder
+    private var updateStatusIndicator: some View {
+        switch skillManager.updateStatuses[skill.id] ?? .notChecked {
+        case .notChecked:
+            // 默认状态：不显示任何内容
+            // EmptyView() 是 SwiftUI 的空视图占位符，不占用任何空间
+            EmptyView()
+        case .checking:
+            // 正在检查：显示旋转的进度指示器（ProgressView）
+            // .controlSize(.mini) 使 spinner 更小，适合行内显示
+            ProgressView()
+                .controlSize(.mini)
+        case .hasUpdate:
+            // 有可用更新：橙色上箭头实心圆圈图标
+            Image(systemName: "arrow.up.circle.fill")
+                .foregroundStyle(.orange)
+                .font(.caption)
+                .help("Update available")
+        case .upToDate:
+            // 已是最新：绿色勾选实心圆圈图标
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .font(.caption)
+                .help("Up to date")
+        case .error(let message):
+            // 检查失败：黄色警告三角图标，hover 显示错误详情
+            // .help() 设置鼠标悬停时的 tooltip（macOS 原生功能）
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.yellow)
+                .font(.caption)
+                .help("Check failed: \(message)")
+        }
     }
 }

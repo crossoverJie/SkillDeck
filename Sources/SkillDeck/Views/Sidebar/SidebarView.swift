@@ -96,10 +96,25 @@ struct SidebarView: View {
                 Button {
                     Task { await skillManager.checkAllUpdates() }
                 } label: {
-                    // 检查中时显示旋转进度指示器（ProgressView），否则显示静态图标
+                    // 检查中时显示旋转进度指示器（ProgressView）+ 进度计数（如 3/12），
+                    // 否则显示静态图标
                     if skillManager.isCheckingUpdates {
-                        ProgressView()
-                            .controlSize(.small)
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .controlSize(.small)
+                            // 进度计数：统计已完成检查的 skill 数量 / 总待检查数量
+                            // .checking 状态的 skill 还在检查中，其余（.hasUpdate/.upToDate/.error）表示已完成
+                            let total = skillManager.skills.filter { $0.lockEntry != nil }.count
+                            // compactMap 类似 Java Stream 的 filter+map 组合：
+                            // 先从字典取值（可能为 nil），再过滤掉 .checking 状态
+                            let checked = skillManager.updateStatuses.values.filter {
+                                $0 != .checking && $0 != .notChecked
+                            }.count
+                            Text("\(checked)/\(total)")
+                                .font(.caption)
+                                .monospacedDigit()  // 等宽数字字体，避免数字变化时宽度跳动
+                                .foregroundStyle(.secondary)
+                        }
                     } else {
                         Image(systemName: "arrow.triangle.2.circlepath")
                     }
