@@ -37,10 +37,9 @@ struct SidebarView: View {
     /// @State 是视图私有状态，悬停状态只在本视图内使用，不需要传递给父组件
     @State private var hoveredItem: SidebarItem?
 
-    /// F10: 是否显示安装 sheet
-    @State private var showInstallSheet = false
-
     /// F10: 安装弹窗的 ViewModel（仅在显示 sheet 时创建）
+    /// 使用 `.sheet(item:)` 绑定：非 nil 时显示 sheet，nil 时关闭
+    /// 这样只用一个 @State 变量同时控制 sheet 的展示和内容，避免双状态同步时序问题
     @State private var installVM: SkillInstallViewModel?
 
     var body: some View {
@@ -82,8 +81,9 @@ struct SidebarView: View {
             // F10: 安装新 skill 的 "+" 按钮
             ToolbarItem {
                 Button {
+                    // 设置 installVM 为非 nil 即可触发 .sheet(item:) 显示
+                    // 不再需要额外的 showInstallSheet 布尔变量
                     installVM = SkillInstallViewModel(skillManager: skillManager)
-                    showInstallSheet = true
                 } label: {
                     Image(systemName: "plus")
                 }
@@ -117,20 +117,19 @@ struct SidebarView: View {
             }
         }
         // F10: 安装 sheet 弹窗
+        // .sheet(item:) 将 sheet 的展示和内容绑定到同一个 Optional 变量：
+        // - installVM 非 nil → 显示 sheet，闭包参数 vm 是解包后的值
+        // - installVM 为 nil → 关闭 sheet
+        // 这比 .sheet(isPresented:) + 额外 @State 更安全，避免双状态同步时序导致首次白窗口
         // onDismiss 在 sheet 关闭时调用 cleanup 清理临时目录
-        .sheet(isPresented: $showInstallSheet, onDismiss: {
+        .sheet(item: $installVM, onDismiss: {
             installVM?.cleanup()
             installVM = nil
-        }) {
-            if let installVM {
-                SkillInstallView(
-                    viewModel: installVM,
-                    isPresented: $showInstallSheet
-                )
+        }) { vm in
+            SkillInstallView(viewModel: vm)
                 // .environment() 将 SkillManager 注入 sheet 中的视图树
                 // sheet 创建新的视图层级，需要重新注入环境依赖
                 .environment(skillManager)
-            }
         }
     }
 

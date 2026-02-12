@@ -13,8 +13,10 @@ struct SkillInstallView: View {
     /// @Bindable 让 @Observable 对象的属性可以创建 Binding（双向绑定）
     @Bindable var viewModel: SkillInstallViewModel
 
-    /// 控制 sheet 是否显示（与父视图的 @State 双向绑定）
-    @Binding var isPresented: Bool
+    /// 从环境中获取 dismiss 动作，用于关闭 sheet
+    /// @Environment(\.dismiss) 是 SwiftUI 提供的标准方式来关闭当前呈现的视图（sheet/popover 等）
+    /// 替代之前的 @Binding var isPresented，更解耦——子视图不需要知道父视图用什么方式控制显示
+    @Environment(\.dismiss) private var dismiss
 
     /// 从环境中获取 SkillManager（用于检查已检测到的 Agent）
     @Environment(SkillManager.self) private var skillManager
@@ -57,7 +59,9 @@ struct SkillInstallView: View {
             Spacer()
             // 关闭按钮
             Button {
-                isPresented = false
+                // dismiss() 关闭当前 sheet，由 SwiftUI 环境提供
+                // 父视图的 .sheet(item:) onDismiss 回调会自动触发 cleanup
+                dismiss()
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(.secondary)
@@ -220,7 +224,8 @@ struct SkillInstallView: View {
                 }
 
                 Button("Done") {
-                    isPresented = false
+                    // dismiss() 关闭当前 sheet
+                    dismiss()
                 }
                 .buttonStyle(.borderedProminent)
             }

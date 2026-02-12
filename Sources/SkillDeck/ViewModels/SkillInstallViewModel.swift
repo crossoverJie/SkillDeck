@@ -10,7 +10,14 @@ import Foundation
 /// @Observable 让 SwiftUI 自动追踪属性变化并刷新视图
 @MainActor
 @Observable
-final class SkillInstallViewModel {
+/// Identifiable 协议要求提供唯一 id 属性，这样 `.sheet(item:)` 可以用它来判断
+/// 何时显示/隐藏 sheet（item 非 nil → 显示，nil → 隐藏）
+/// 这比 `.sheet(isPresented:)` + 额外 @State 更安全，避免双状态同步时序问题
+final class SkillInstallViewModel: Identifiable {
+
+    /// 唯一标识符，Identifiable 协议要求的属性
+    /// 每次创建新的 ViewModel 实例会自动生成新的 UUID
+    let id = UUID()
 
     // MARK: - Phase Enum
 
