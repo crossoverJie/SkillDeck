@@ -28,9 +28,9 @@ struct SkillRowView: View {
                             .foregroundStyle(Constants.AgentColors.color(for: installation.agentType))
                             // 继承安装的图标降低透明度，视觉上区分直接安装和继承安装
                             .opacity(installation.isInherited ? 0.4 : 1.0)
-                            // hover 提示：继承安装显示 "Copilot CLI (via Claude Code)"
+                            // hover 提示：继承安装显示 "Copilot CLI (via ~/.claude/skills)"
                             .help(installation.isInherited && installation.inheritedFrom != nil
-                                ? "\(installation.agentType.displayName) (via \(installation.inheritedFrom!.displayName))"
+                                ? "\(installation.agentType.displayName) (via \(installation.inheritedFrom!.skillsDirectoryPath))"
                                 : installation.agentType.displayName)
                     }
                 }

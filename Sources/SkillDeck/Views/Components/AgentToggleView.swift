@@ -34,16 +34,16 @@ struct AgentToggleView: View {
 
                     Spacer()
 
-                    // 继承安装的提示文字：显示 "via Claude Code" 等来源信息
-                    // 告知用户该安装来自其他 Agent，需到源 Agent 处才能修改
+                    // 继承安装的提示文字：显示 "via ~/.claude/skills" 等来源路径
+                    // 与 Codex canonical 的 "via ~/.agents/skills" 风格统一
                     if isInherited, let sourceAgent = installation?.inheritedFrom {
-                        Text("via \(sourceAgent.displayName)")
+                        Text("via \(sourceAgent.skillsDirectoryPath)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
                     // Codex canonical 安装的提示文字：
-                    // 与继承安装的 "via Claude Code" 风格统一，指明来源目录
+                    // 与继承安装的 "via ~/.claude/skills" 风格统一，指明来源目录
                     // Codex 直接从 ~/.agents/skills/ 读取，所有 canonical skill 天然可用
                     if isCodexCanonical {
                         Text("via ~/.agents/skills")
