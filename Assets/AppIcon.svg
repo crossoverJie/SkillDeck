@@ -32,11 +32,17 @@
       <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#D97706" flood-opacity="0.4"/>
     </filter>
 
+    <!-- squircle 裁剪蒙版：824x824 可见区域居中于 1024x1024 画布，四周各留 100px 透明边距 -->
+    <!-- rx/ry=185 近似 Apple 的超椭圆圆角，确保 Command+Tab 和 Dock 中图标大小与其他应用一致 -->
+    <clipPath id="squircleClip">
+      <rect x="100" y="100" width="824" height="824" rx="185" ry="185"/>
+    </clipPath>
+
   </defs>
 
-  <!-- 填满整个正方形画布，macOS 系统会自动裁剪为圆角矩形（squircle） -->
-  <!-- 不需要手动做 clipPath，否则透明区域在 Dock 中会显示为白色角落 -->
-  <g>
+  <!-- 使用 squircle clipPath 裁剪所有内容，确保图标四周有透明边距 -->
+  <!-- macOS 对 SPM 可执行文件不会自动应用 squircle 蒙版，需要在图标本身中实现 -->
+  <g clip-path="url(#squircleClip)">
     <rect width="1024" height="1024" fill="url(#bgGrad)"/>
 
     <!-- 细微的噪点纹理增加质感 -->
