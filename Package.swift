@@ -31,7 +31,13 @@ let package = Package(
                 .product(name: "Markdown", package: "swift-markdown"),
                 .product(name: "Collections", package: "swift-collections"),
             ],
-            path: "Sources/SkillDeck"
+            path: "Sources/SkillDeck",
+            // resources 数组告诉 SPM 将指定文件打包到 Bundle.module 中
+            // .process 会根据文件类型自动优化（如 PNG 压缩），.copy 则原样复制
+            // .icns 文件需要用 .copy 保持原始格式，因为 SPM 不认识 .icns 类型
+            resources: [
+                .copy("Resources/AppIcon.icns")
+            ]
         ),
 
         // 单元测试 target，类似 Go 的 _test.go 文件

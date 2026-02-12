@@ -19,6 +19,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 将应用激活到前台，确保窗口可见
         NSApplication.shared.activate(ignoringOtherApps: true)
+
+        // 设置应用图标：通过 swift run 启动的裸可执行文件没有 .app bundle，
+        // 所以 macOS 不会自动读取 Info.plist 中的 CFBundleIconFile。
+        // 需要手动从 SPM 的 Bundle.module 中加载 .icns 文件并设置到 NSApplication。
+        // Bundle.module 是 SPM 自动生成的属性，指向编译时打包的资源 bundle
+        // （类似 Android 的 R.drawable 或 Java 的 ClassLoader.getResource）
+        if let iconURL = Bundle.module.url(forResource: "AppIcon", withExtension: "icns") {
+            // NSImage(contentsOf:) 从文件 URL 加载图片，支持 .icns 多分辨率格式
+            NSApplication.shared.applicationIconImage = NSImage(contentsOf: iconURL)
+        }
     }
 }
 
