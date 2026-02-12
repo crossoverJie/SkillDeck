@@ -50,6 +50,87 @@
 
 ---
 
+## Feature List
+
+### Browsing & Search
+
+| Feature | Description |
+|---------|-------------|
+| Unified Dashboard | View all installed skills in one place, aggregated across agents |
+| Three-Pane Layout | Native macOS NavigationSplitView: Sidebar → List → Detail |
+| Multi-Field Search | Search by name, description, author, and repository source |
+| Filter by Agent | Click a specific agent in the sidebar to view its installed skills |
+| Sorting | Sort by name, scope, or agent count with ascending/descending toggle |
+| Symlink Deduplication | Automatically resolves symlinks so each canonical skill appears only once |
+
+### Agent Detection & Management
+
+| Feature | Description |
+|---------|-------------|
+| Auto-Detect Agents | Detects installed agents via CLI binaries and config directories |
+| Multi-Agent Support | Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode |
+| Agent Status Indicators | Sidebar shows skill count per agent; uninstalled agents shown dimmed |
+| Agent Assignment | Toggle switches to install/uninstall a skill to specific agents (auto-manages symlinks) |
+| Inherited Installation Protection | Inherited cross-agent installations are labeled with their source and toggle-disabled |
+
+### Skill Detail & Editing
+
+| Feature | Description |
+|---------|-------------|
+| Full Metadata Display | Shows name, description, author, version, license, scope, and more |
+| Lock File Info | Displays source repo, commit hash, install/update timestamps from the lock file |
+| Copy Path | One-click copy of the skill directory path to clipboard with visual feedback |
+| Open in Finder | Reveal the skill directory in macOS Finder |
+| Open in Terminal | Launch Terminal with the skill directory as the working directory |
+| SKILL.md Editor | Split-pane editor: metadata form + markdown editing on the left, live preview on the right |
+| Keyboard Shortcuts | Cmd+S to save, Esc to cancel in the editor |
+
+### Skill Installation & Deletion
+
+| Feature | Description |
+|---------|-------------|
+| Install from GitHub | Enter a repo URL or `owner/repo`, auto-clones and scans for skills |
+| Batch Install | Select multiple skills and multiple agents in a single installation |
+| Already-Installed Badge | Installation UI marks skills that are already installed to prevent duplicates |
+| Installation Progress | Real-time progress for cloning, scanning, and installing |
+| Delete with Confirmation | Confirmation dialog before deletion; auto-cleans symlinks, directories, and lock entries |
+
+### Update Checking
+
+| Feature | Description |
+|---------|-------------|
+| Per-Skill Update Check | Compares local vs. remote tree hash to detect available updates |
+| Batch Update Check | Toolbar button to check all skills for updates at once |
+| Update Available Indicator | Skills with updates show an orange badge with update count |
+| One-Click Update | Pull latest remote content and update local files |
+| GitHub Compare Link | Generates a GitHub compare URL to view exact changes |
+| Manual Repo Linking | Link untracked skills to a GitHub repository to enable update checking |
+
+### Lock File & Data Management
+
+| Feature | Description |
+|---------|-------------|
+| Lock File Read/Write | Reads and writes `~/.agents/.skill-lock.json`, preserving all existing fields |
+| Cache Management | Maintains `~/.agents/.skilldeck-cache.json` for commit hash caching |
+| Atomic Writes | File writes use atomic operations to prevent data corruption |
+
+### File System Monitoring
+
+| Feature | Description |
+|---------|-------------|
+| Auto-Refresh | Monitors skill directories via DispatchSource/FSEvents; syncs automatically after external CLI changes |
+| Debouncing | 0.5-second debounce to avoid excessive refreshes from rapid file changes |
+| Manual Refresh | Toolbar refresh button to manually rescan all skill directories |
+
+### Preferences
+
+| Feature | Description |
+|---------|-------------|
+| General Settings | Displays shared skills path and lock file path (Cmd+, to open) |
+| About | Shows app name, version, and description |
+
+---
+
 ## Quick Start
 
 ### Requirements

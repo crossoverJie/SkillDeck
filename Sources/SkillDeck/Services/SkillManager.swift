@@ -559,13 +559,18 @@ final class SkillManager {
         }
     }
 
-    /// 搜索 skill（按名称和描述）
+    /// 搜索 skill（按名称、描述和作者/来源）
+    /// 除了匹配 displayName 和 description 外，还支持：
+    /// - lockEntry?.source：来自 lock file 的仓库来源（如 "crossoverJie/skills"），适合按组织/作者筛选
+    /// - metadata.author：来自 SKILL.md frontmatter 的 author 字段（可选）
     func search(query: String) -> [Skill] {
         guard !query.isEmpty else { return skills }
         let lowered = query.lowercased()
         return skills.filter {
             $0.displayName.lowercased().contains(lowered) ||
-            $0.metadata.description.lowercased().contains(lowered)
+            $0.metadata.description.lowercased().contains(lowered) ||
+            ($0.lockEntry?.source.lowercased().contains(lowered) ?? false) ||
+            ($0.metadata.author?.lowercased().contains(lowered) ?? false)
         }
     }
 
