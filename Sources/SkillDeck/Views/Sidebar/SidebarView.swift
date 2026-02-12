@@ -76,13 +76,14 @@ struct SidebarView: View {
         // macOS 侧边栏标准样式
         .listStyle(.sidebar)
         .navigationTitle("SkillDeck")
-        // toolbar 添加工具栏按钮
+        // 侧边栏顶部 toolbar 操作按钮（原生 macOS 工具栏风格）
+        // 配合 ContentView 中的 .navigationSplitViewColumnWidth(min: 180) 最小宽度约束，
+        // 确保窗口状态恢复时侧边栏不会过窄导致 ToolbarItem 溢出隐藏
         .toolbar {
             // F10: 安装新 skill 的 "+" 按钮
+            // ToolbarItem 不指定 placement 时默认放在 toolbar 尾部（trailing）
             ToolbarItem {
                 Button {
-                    // 设置 installVM 为非 nil 即可触发 .sheet(item:) 显示
-                    // 不再需要额外的 showInstallSheet 布尔变量
                     installVM = SkillInstallViewModel(skillManager: skillManager)
                 } label: {
                     Image(systemName: "plus")
@@ -95,7 +96,7 @@ struct SidebarView: View {
                 Button {
                     Task { await skillManager.checkAllUpdates() }
                 } label: {
-                    // 检查中时显示旋转动画
+                    // 检查中时显示旋转进度指示器（ProgressView），否则显示静态图标
                     if skillManager.isCheckingUpdates {
                         ProgressView()
                             .controlSize(.small)
@@ -107,13 +108,14 @@ struct SidebarView: View {
                 .disabled(skillManager.isCheckingUpdates)
             }
 
+            // 刷新按钮：重新扫描文件系统
             ToolbarItem {
                 Button {
                     Task { await skillManager.refresh() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
-                .help("Refresh skills")  // 鼠标悬停提示
+                .help("Refresh skills")
             }
         }
         // F10: 安装 sheet 弹窗

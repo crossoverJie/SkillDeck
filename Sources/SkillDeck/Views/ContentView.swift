@@ -31,7 +31,10 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             // 左栏：侧边栏导航
+            // navigationSplitViewColumnWidth 约束侧边栏宽度范围，
+            // 防止窗口恢复时侧边栏过窄导致内容被裁剪
             SidebarView(selection: $selectedSidebarItem)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
         } content: {
             // 中栏：skill 列表
             if let vm = dashboardVM {
