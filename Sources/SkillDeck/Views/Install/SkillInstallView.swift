@@ -143,29 +143,31 @@ struct SkillInstallView: View {
 
             // Agent 选择区域 + 安装按钮
             VStack(spacing: 12) {
-                // Agent 复选框行
-                HStack(spacing: 16) {
+                // Agent 选择区域（两行布局，避免横向挤压）
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Install to:")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    // ForEach 遍历所有已检测到的 Agent
-                    ForEach(AgentType.allCases) { agentType in
-                        let isDetected = skillManager.agents.first { $0.type == agentType }?.isInstalled == true
-                        // Toggle 是 macOS 的开关/复选框组件
-                        Toggle(isOn: Binding(
-                            get: { viewModel.selectedAgents.contains(agentType) },
-                            set: { _ in viewModel.toggleAgentSelection(agentType) }
-                        )) {
-                            Label(agentType.displayName, systemImage: agentType.iconName)
-                                .font(.caption)
+                    // LazyVGrid 自适应列宽，根据可用空间自动换行
+                    // adaptive(minimum: 120) 表示每列最小 120pt，多余空间自动分配
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), alignment: .leading)], alignment: .leading, spacing: 8) {
+                        // ForEach 遍历所有已检测到的 Agent
+                        ForEach(AgentType.allCases) { agentType in
+                            let isDetected = skillManager.agents.first { $0.type == agentType }?.isInstalled == true
+                            // Toggle 是 macOS 的开关/复选框组件
+                            Toggle(isOn: Binding(
+                                get: { viewModel.selectedAgents.contains(agentType) },
+                                set: { _ in viewModel.toggleAgentSelection(agentType) }
+                            )) {
+                                Label(agentType.displayName, systemImage: agentType.iconName)
+                                    .font(.caption)
+                            }
+                            .toggleStyle(.checkbox)
+                            // 未安装的 Agent 降低透明度但仍可选择
+                            .opacity(isDetected ? 1.0 : 0.5)
                         }
-                        .toggleStyle(.checkbox)
-                        // 未安装的 Agent 降低透明度但仍可选择
-                        .opacity(isDetected ? 1.0 : 0.5)
                     }
-
-                    Spacer()
                 }
 
                 // 安装按钮
