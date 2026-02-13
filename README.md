@@ -29,7 +29,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/skill-detail.png![img.png](img.png)" alt="Skill Detail" width="260" />
+  <img src="docs/screenshots/skill-detail.png" alt="Skill Detail" width="260" />
   <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213122805.png" alt="install" width="260" />
   <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213123118.png" alt="update" width="260" />
 </p>
