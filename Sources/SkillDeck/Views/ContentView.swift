@@ -39,6 +39,9 @@ struct ContentView: View {
             // 中栏：skill 列表
             if let vm = dashboardVM {
                 DashboardView(viewModel: vm, selectedSkillID: $selectedSkillID)
+                    // 约束中栏（skill 列表）的宽度范围，
+                    // 防止首次打开时中栏过窄导致内容挤在一起
+                    .navigationSplitViewColumnWidth(min: 250, ideal: 320, max: 450)
             }
         } detail: {
             // 右栏：skill 详情
