@@ -1,0 +1,63 @@
+# release.yml — 标签触发的自动化发布工作流
+#
+# 当推送 v* 格式的 tag 时（如 v1.0.0），自动执行：
+#   1. 运行测试确保代码质量
+#   2. 构建通用二进制 .app bundle
+#   3. 创建 GitHub Release 并上传 zip 文件
+#
+# 用法：
+#   git tag v1.0.0
+#   git push origin v1.0.0
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+# 权限设置：需要写入权限来创建 Release
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Print Swift version
+        run: swift --version
+
+      # 先运行测试，确保发布版本质量
+      - name: Run tests
+        run: swift test
+
+      # 从 git tag 中提取版本号：v1.0.0 → 1.0.0
+      # GITHUB_REF_NAME 是触发工作流的 tag 名称
+      # ${GITHUB_REF_NAME#v} 是 bash 参数展开语法，去掉前缀 "v"
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # 构建通用 .app bundle
+      - name: Build .app bundle
+        run: ./scripts/package-app.sh --version ${{ steps.version.outputs.VERSION }}
+
+      # 验证构建产物的架构（应同时包含 arm64 和 x86_64）
+      - name: Verify universal binary
+        run: file build/SkillDeck.app/Contents/MacOS/SkillDeck
+
+      # 使用 ditto 打包 zip（比 zip 命令更好地保留 macOS 元数据和权限）
+      # --keepParent 保留 SkillDeck.app 目录结构
+      - name: Create zip archive
+        run: |
+          cd build
+          ditto -c -k --keepParent SkillDeck.app "SkillDeck-v${{ steps.version.outputs.VERSION }}-universal.zip"
+
+      # 创建 GitHub Release 并上传构建产物
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/SkillDeck-v${{ steps.version.outputs.VERSION }}-universal.zip
+          generate_release_notes: true
+          name: ${{ github.ref_name }}
