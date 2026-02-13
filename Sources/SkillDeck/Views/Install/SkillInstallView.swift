@@ -107,9 +107,70 @@ struct SkillInstallView: View {
             }
             .padding(.horizontal, 40)
 
+            // 历史记录列表：仅当 repoHistory 非空时显示
+            // 用户可以点击历史项快速填入 URL 并自动 Scan
+            if !viewModel.repoHistory.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recent Repositories")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 40)
+
+                    // ScrollView 包裹历史列表，防止条目过多时撑开整个视图
+                    // .frame(maxHeight: 150) 限制最大高度，超出时可滚动
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            // ForEach 需要 Identifiable 或提供 id 参数
+                            // 这里用 source 字段作为唯一标识（已去重）
+                            ForEach(viewModel.repoHistory, id: \.source) { entry in
+                                Button {
+                                    // 点击历史项：自动填入 URL 并触发 Scan
+                                    Task {
+                                        await viewModel.selectHistoryRepo(
+                                            source: entry.source,
+                                            sourceUrl: entry.sourceUrl
+                                        )
+                                    }
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        // 时钟箭头图标，表示"历史记录"
+                                        Image(systemName: "clock.arrow.circlepath")
+                                            .foregroundStyle(.secondary)
+                                            .font(.caption)
+                                        Text(entry.source)
+                                            .font(.callout)
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                    }
+                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 12)
+                                    // contentShape 扩大可点击区域到整行（默认只有文字可点击）
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+
+                                // 行与行之间的分隔线（最后一行不显示）
+                                if entry.source != viewModel.repoHistory.last?.source {
+                                    Divider()
+                                        .padding(.leading, 32)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                    .frame(maxHeight: 150)
+                    .padding(.horizontal, 36)
+                }
+            }
+
             Spacer()
         }
         .padding()
+        // .task 在视图首次出现时执行异步代码（类似 Android onResume + coroutine）
+        // 用于加载 repo 历史记录
+        .task {
+            await viewModel.loadHistory()
+        }
     }
 
     /// 阶段：正在克隆和扫描

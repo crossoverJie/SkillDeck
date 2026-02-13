@@ -586,6 +586,59 @@ final class SkillManager {
         await commitHashCache.getHash(for: skillName)
     }
 
+    /// 获取合并去重的 repo 历史列表（lock file 已安装来源 + scan 历史）
+    ///
+    /// 数据来源：
+    /// 1. `skills` 数组中已安装 skill 的 `lockEntry.source`/`sourceUrl`（来自 lock file）
+    /// 2. `commitHashCache.getRepoHistory()`（用户 scan 过的历史记录）
+    ///
+    /// 去重策略：按 `source` 字段去重，lock file 优先（因为有安装记录更可信）。
+    /// 返回格式为元组数组，方便 ViewModel 直接使用。
+    ///
+    /// - Returns: 去重后的 repo 列表，每项包含 source（如 "owner/repo"）和 sourceUrl
+    func getRepoHistory() async -> [(source: String, sourceUrl: String)] {
+        // 用 Set 记录已见过的 source（小写形式），实现 O(1) 忽略大小写去重
+        // GitHub 地址不区分大小写，"Owner/Repo" 和 "owner/repo" 视为同一仓库
+        var seen = Set<String>()
+        var result: [(source: String, sourceUrl: String)] = []
+
+        // 1. 从已安装的 skill 中提取唯一的 (source, sourceUrl)
+        // lock file 记录优先加入（安装过的仓库更有价值）
+        for skill in skills {
+            guard let entry = skill.lockEntry else { continue }
+            // 跳过空 source（理论上不会出现，但防御性编程）
+            guard !entry.source.isEmpty else { continue }
+            if seen.insert(entry.source.lowercased()).inserted {
+                // insert 返回 (inserted: Bool, memberAfterInsert)，类似 Go map 的 ok 模式
+                result.append((source: entry.source, sourceUrl: entry.sourceUrl))
+            }
+        }
+
+        // 2. 从 scan 历史中补充（lock file 没覆盖到的仓库）
+        let history = await commitHashCache.getRepoHistory()
+        for entry in history {
+            if seen.insert(entry.source.lowercased()).inserted {
+                result.append((source: entry.source, sourceUrl: entry.sourceUrl))
+            }
+        }
+
+        return result
+    }
+
+    /// 保存一条 repo scan 历史记录到缓存
+    ///
+    /// SkillInstallViewModel 在成功 scan 后调用此方法，
+    /// 将仓库信息记录到 CommitHashCache 的 repoHistory 中。
+    /// 这样下次打开 Install Sheet 时可以快速选择历史仓库。
+    ///
+    /// - Parameters:
+    ///   - source: 仓库来源标识（如 "crossoverJie/skills"）
+    ///   - sourceUrl: 完整仓库 URL（如 "https://github.com/crossoverJie/skills.git"）
+    func saveRepoHistory(source: String, sourceUrl: String) async {
+        await commitHashCache.addRepoHistory(source: source, sourceUrl: sourceUrl)
+        try? await commitHashCache.save()
+    }
+
     /// 按 Agent 过滤 skill
     func skills(for agentType: AgentType) -> [Skill] {
         skills.filter { skill in
