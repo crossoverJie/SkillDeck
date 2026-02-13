@@ -41,6 +41,7 @@ if [[ $# -lt 1 ]]; then
     echo ""
     echo "Examples:"
     echo "  $0 1.0.0        # Create and push v1.0.0 tag"
+    echo "  $0 v1.0.0       # Same as above (v prefix is optional)"
     echo "  $0 1.0.0 --dry  # Dry run, check only"
     echo ""
     echo "Recent tags:"
@@ -50,7 +51,7 @@ if [[ $# -lt 1 ]]; then
     exit 1
 fi
 
-VERSION="$1"
+INPUT="$1"
 DRY_RUN=false
 
 # 检查是否传入了 --dry 参数
@@ -60,13 +61,16 @@ fi
 
 # ── 验证版本号格式 ────────────────────────────────────────────
 # 语义化版本号（Semantic Versioning）格式：主版本.次版本.修订号
-# =~ 是 bash 的正则匹配运算符
-# ^[0-9]+\.[0-9]+\.[0-9]+$ 匹配 x.y.z 格式（纯数字）
+# 支持两种输入格式：v1.0.0 或 1.0.0，统一处理
+# ${INPUT#v} 是 bash 参数展开语法，去掉前缀 "v"（如果有的话）
+VERSION="${INPUT#v}"
 TAG="v${VERSION}"
 
+# =~ 是 bash 的正则匹配运算符
+# ^[0-9]+\.[0-9]+\.[0-9]+$ 匹配 x.y.z 格式（纯数字）
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    error "Invalid version format: '${VERSION}'"
-    echo "  Expected: x.y.z (e.g. 1.0.0, 0.2.1)"
+    error "Invalid version format: '${INPUT}'"
+    echo "  Expected: x.y.z or vx.y.z (e.g. 1.0.0, v0.2.1)"
     exit 1
 fi
 
