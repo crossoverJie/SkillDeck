@@ -42,8 +42,7 @@ Download the latest universal binary from [GitHub Releases](https://github.com/c
 ### Homebrew
 
 ```bash
-brew tap crossoverJie/skilldeck
-brew install --cask skilldeck
+brew tap crossoverJie/skilldeck && brew install --cask skilldeck
 ```
 
 ### Build from Source
