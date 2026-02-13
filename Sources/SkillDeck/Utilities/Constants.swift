@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Constants 集中管理应用的全局常量
-/// 使用 enum 作为命名空间（namespace），因为 enum 没有 case 时不能被实例化
-/// 这是 Swift 中创建纯命名空间的最佳实践（类似 Java 的 private constructor + static fields）
+/// Constants centralizes management of the app's global constants
+/// Uses enum as a namespace because enums without cases cannot be instantiated
+/// This is Swift's best practice for creating pure namespaces (similar to Java's private constructor + static fields)
 enum Constants {
 
-    /// 应用级别的 Agent 品牌色
-    /// SwiftUI 的 Color 类似 Android 的 Color 或 CSS 的 color
+    /// Agent brand colors at the app level
+    /// SwiftUI's Color is similar to Android's Color or CSS's color
     enum AgentColors {
         static func color(for agent: AgentType) -> Color {
             switch agent {
@@ -19,7 +19,7 @@ enum Constants {
         }
     }
 
-    /// Scope 徽章颜色
+    /// Scope badge colors
     enum ScopeColors {
         static func color(for scope: SkillScope) -> Color {
             switch scope {
@@ -30,9 +30,9 @@ enum Constants {
         }
     }
 
-    /// 共享 skills 目录路径
+    /// Shared skills directory path
     static let sharedSkillsPath = "~/.agents/skills"
 
-    /// Lock file 路径
+    /// Lock file path
     static let lockFilePath = "~/.agents/.skill-lock.json"
 }

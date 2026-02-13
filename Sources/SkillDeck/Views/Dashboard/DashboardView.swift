@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// DashboardView 是 skill 列表页面（F02）
+/// DashboardView is the skill list page (F02)
 ///
-/// 展示所有已安装的 skill，支持搜索、过滤和排序
+/// Displays all installed skills, supporting search, filtering, and sorting
 struct DashboardView: View {
 
-    /// @Bindable 让 @Observable 对象的属性可以用 $ 前缀创建 Binding
-    /// 例如 $viewModel.searchText 创建一个 Binding<String>
+    /// @Bindable allows @Observable object properties to be prefixed with $ to create Binding
+    /// For example, $viewModel.searchText creates a Binding<String>
     @Bindable var viewModel: DashboardViewModel
     @Binding var selectedSkillID: String?
     @Environment(SkillManager.self) private var skillManager
@@ -14,11 +14,11 @@ struct DashboardView: View {
     var body: some View {
         Group {
             if skillManager.isLoading && skillManager.skills.isEmpty {
-                // 首次加载时显示进度指示器
+                // Show progress indicator on first load
                 ProgressView("Scanning skills...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if viewModel.filteredSkills.isEmpty {
-                // 空状态
+                // Empty state
                 EmptyStateView(
                     icon: "magnifyingglass",
                     title: "No Skills Found",
@@ -27,11 +27,11 @@ struct DashboardView: View {
                         : "No skills match your search"
                 )
             } else {
-                // Skill 列表
+                // Skill list
                 List(viewModel.filteredSkills, selection: $selectedSkillID) { skill in
                     SkillRowView(skill: skill)
                         .tag(skill.id)
-                        // contextMenu 是 macOS 的右键菜单
+                        // contextMenu is macOS's right-click menu
                         .contextMenu {
                             Button("Open in Finder") {
                                 NSWorkspace.shared.selectFile(
@@ -39,7 +39,7 @@ struct DashboardView: View {
                                     inFileViewerRootedAtPath: skill.canonicalURL.path
                                 )
                             }
-                            Divider()  // 菜单分隔线
+                            Divider()  // Menu separator
                             Button("Delete", role: .destructive) {
                                 viewModel.requestDelete(skill: skill)
                             }
@@ -49,31 +49,31 @@ struct DashboardView: View {
             }
         }
         .navigationTitle(navigationTitle)
-        // 搜索栏（macOS 标准搜索框，显示在工具栏）
+        // Search bar (macOS standard search field, displayed in toolbar)
         .searchable(text: $viewModel.searchText, prompt: "Search skills...")
-        // 工具栏：排序和过滤
+        // Toolbar: sorting and filtering
         .toolbar {
-            // placement: .navigation 将工具栏项放在左侧（导航区域），默认 .automatic 会放在右侧
+            // placement: .navigation places toolbar items on the left (navigation area), default .automatic places on right
             ToolbarItemGroup(placement: .navigation) {
                 Menu {
-                    // Section 在菜单中创建带标题的分组，类似 Android 的 menu group
+                    // Section creates titled groups in menus, similar to Android's menu group
                     Section("Sort By") {
                         ForEach(DashboardViewModel.SortOrder.allCases, id: \.self) { order in
                             Button {
                                 if viewModel.sortOrder == order {
-                                    // 点击已选中的排序字段 → 切换升序/降序
+                                    // Click selected sort field → toggle ascending/descending
                                     viewModel.sortDirection = viewModel.sortDirection.toggled
                                 } else {
-                                    // 点击新的排序字段 → 切换到该字段，重置为升序
+                                    // Click new sort field → switch to that field, reset to ascending
                                     viewModel.sortOrder = order
                                     viewModel.sortDirection = .ascending
                                 }
                             } label: {
-                                // HStack 水平排列：图标 + 文字 + 排序方向箭头
+                                // HStack horizontal layout: icon + text + sort direction arrow
                                 HStack {
                                     Label(order.rawValue, systemImage: order.iconName)
                                     if viewModel.sortOrder == order {
-                                        // Spacer 把箭头推到右边
+                                        // Spacer pushes arrow to the right
                                         Spacer()
                                         Image(systemName: viewModel.sortDirection.iconName)
                                     }
@@ -82,21 +82,21 @@ struct DashboardView: View {
                         }
                     }
                 } label: {
-                    // 工具栏按钮的外观：排序图标 + 当前排序字段 + 方向箭头
-                    // Label 同时提供文字和图标，macOS 工具栏会根据空间决定显示哪个
+                    // Toolbar button appearance: sort icon + current sort field + direction arrow
+                    // Label provides both text and icon, macOS toolbar decides which to display based on space
                     HStack(spacing: 2) {
                         Image(systemName: "line.3.horizontal.decrease")
                         Text(viewModel.sortOrder.rawValue)
                         Image(systemName: viewModel.sortDirection.iconName)
                             .font(.caption2)
-                            // imageScale 控制 SF Symbol 的大小
+                            // imageScale controls SF Symbol size
                             .imageScale(.small)
                     }
                 }
             }
         }
-        // 删除确认弹窗
-        // .alert 类似 Android 的 AlertDialog 或 Web 的 confirm()
+        // Delete confirmation dialog
+        // .alert similar to Android's AlertDialog or Web's confirm()
         .alert("Delete Skill", isPresented: $viewModel.showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
                 viewModel.cancelDelete()
@@ -109,7 +109,7 @@ struct DashboardView: View {
                 Text("Are you sure you want to delete \"\(skill.displayName)\"? This will remove the skill directory and all symlinks. This action cannot be undone.")
             }
         }
-        // 错误提示
+        // Error message
         .overlay(alignment: .bottom) {
             if let error = skillManager.errorMessage {
                 HStack {

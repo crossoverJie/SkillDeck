@@ -1,35 +1,35 @@
 import SwiftUI
 
-/// SkillInstallView 是 F10（一键安装）的弹窗界面
+/// SkillInstallView is the F10 (one-click install) dialog interface
 ///
-/// 两步流程：
-/// 1. 输入 GitHub 仓库 URL → 点击 "Scan" 扫描
-/// 2. 选择要安装的 skill 和目标 Agent → 点击 "Install" 安装
+/// Two-step process:
+/// 1. Enter GitHub repository URL → click "Scan" to scan
+/// 2. Select skills to install and target Agent → click "Install" to install
 ///
-/// 使用 `.sheet()` 从 SidebarView 弹出，关闭时自动清理临时目录
+/// Uses `.sheet()` to popup from SidebarView, automatically cleans up temp directory on close
 struct SkillInstallView: View {
 
-    /// ViewModel 管理安装流程状态
-    /// @Bindable 让 @Observable 对象的属性可以创建 Binding（双向绑定）
+    /// ViewModel manages installation process state
+    /// @Bindable allows @Observable object properties to create Binding (two-way binding)
     @Bindable var viewModel: SkillInstallViewModel
 
-    /// 从环境中获取 dismiss 动作，用于关闭 sheet
-    /// @Environment(\.dismiss) 是 SwiftUI 提供的标准方式来关闭当前呈现的视图（sheet/popover 等）
-    /// 替代之前的 @Binding var isPresented，更解耦——子视图不需要知道父视图用什么方式控制显示
+    /// Get dismiss action from environment, used to close sheet
+    /// @Environment(\.dismiss) is SwiftUI's standard way to close currently presented view (sheet/popover, etc.)
+    /// Replaces previous @Binding var isPresented, more decoupled — child view doesn't need to know how parent controls display
     @Environment(\.dismiss) private var dismiss
 
-    /// 从环境中获取 SkillManager（用于检查已检测到的 Agent）
+    /// Get SkillManager from environment (for checking detected Agents)
     @Environment(SkillManager.self) private var skillManager
 
     var body: some View {
         VStack(spacing: 0) {
-            // 标题栏
+            // Header bar
             headerBar
 
             Divider()
 
-            // 根据当前阶段显示不同内容
-            // Swift 的 switch 是表达式，可以直接在 ViewBuilder 中使用
+            // Display different content based on current phase
+            // Swift's switch is an expression, can be used directly in ViewBuilder
             switch viewModel.phase {
             case .inputURL:
                 inputURLPhase
@@ -45,22 +45,22 @@ struct SkillInstallView: View {
                 errorPhase(message)
             }
         }
-        // sheet 弹窗的最小尺寸（macOS 标准做法）
+        // Sheet modal minimum size (macOS standard practice)
         .frame(minWidth: 550, minHeight: 400)
     }
 
     // MARK: - Header
 
-    /// 标题栏（所有阶段通用）
+    /// Header bar (common to all phases)
     private var headerBar: some View {
         HStack {
             Text("Install Skills from GitHub")
                 .font(.headline)
             Spacer()
-            // 关闭按钮
+            // Close button
             Button {
-                // dismiss() 关闭当前 sheet，由 SwiftUI 环境提供
-                // 父视图的 .sheet(item:) onDismiss 回调会自动触发 cleanup
+                // dismiss() closes current sheet, provided by SwiftUI environment
+                // Parent view's .sheet(item:) onDismiss callback will automatically trigger cleanup
                 dismiss()
             } label: {
                 Image(systemName: "xmark.circle.fill")
@@ -73,12 +73,12 @@ struct SkillInstallView: View {
 
     // MARK: - Phase Views
 
-    /// 阶段 1：输入 URL
+    /// Phase 1: Input URL
     private var inputURLPhase: some View {
         VStack(spacing: 16) {
             Spacer()
 
-            // 图标和说明
+            // Icon and description
             Image(systemName: "arrow.down.circle")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
@@ -87,12 +87,12 @@ struct SkillInstallView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            // URL 输入框
-            // TextField 类似 HTML 的 <input type="text">，placeholder 是灰色提示文字
+            // URL input field
+            // TextField is similar to HTML's <input type="text">, placeholder is gray hint text
             HStack {
                 TextField("owner/repo or GitHub URL", text: $viewModel.repoURLInput)
                     .textFieldStyle(.roundedBorder)
-                    // onSubmit 监听回车键事件（类似 HTML form 的 submit）
+                    // onSubmit listens for return key event (similar to HTML form submit)
                     .onSubmit {
                         guard !viewModel.repoURLInput.isEmpty else { return }
                         Task { await viewModel.fetchRepository() }
@@ -102,7 +102,7 @@ struct SkillInstallView: View {
                     Task { await viewModel.fetchRepository() }
                 }
                 .disabled(viewModel.repoURLInput.trimmingCharacters(in: .whitespaces).isEmpty)
-                // .keyboardShortcut(.return) 让按钮响应回车键
+                // .keyboardShortcut(.return) makes button respond to return key
                 .keyboardShortcut(.return, modifiers: [])
             }
             .padding(.horizontal, 40)
@@ -173,11 +173,11 @@ struct SkillInstallView: View {
         }
     }
 
-    /// 阶段：正在克隆和扫描
+    /// Phase: Cloning and scanning in progress
     private var fetchingPhase: some View {
         VStack(spacing: 16) {
             Spacer()
-            // ProgressView 是 macOS 原生的加载指示器（旋转的菊花）
+            // ProgressView is macOS native loading indicator (spinning spinner)
             ProgressView()
                 .controlSize(.large)
             Text(viewModel.progressMessage)
@@ -186,11 +186,11 @@ struct SkillInstallView: View {
         }
     }
 
-    /// 阶段 2：选择 skill 和 Agent
+    /// Phase 2: Select skills and Agent
     private var selectSkillsPhase: some View {
         VStack(spacing: 0) {
-            // Skill 列表（可滚动）
-            // List 是 macOS 原生列表组件，自带选中、滚动等行为
+            // Skill list (scrollable)
+            // List is macOS native list component, with built-in selection, scrolling, etc.
             List {
                 Section("Skills Found (\(viewModel.discoveredSkills.count))") {
                     ForEach(viewModel.discoveredSkills) { skill in
@@ -202,21 +202,21 @@ struct SkillInstallView: View {
 
             Divider()
 
-            // Agent 选择区域 + 安装按钮
+            // Agent selection area + install button
             VStack(spacing: 12) {
-                // Agent 选择区域（两行布局，避免横向挤压）
+                // Agent selection area (two-row layout to avoid horizontal squeezing)
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Install to:")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    // LazyVGrid 自适应列宽，根据可用空间自动换行
-                    // adaptive(minimum: 120) 表示每列最小 120pt，多余空间自动分配
+                    // LazyVGrid adapts column width, automatically wraps based on available space
+                    // adaptive(minimum: 120) means each column is at least 120pt, extra space is automatically distributed
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), alignment: .leading)], alignment: .leading, spacing: 8) {
-                        // ForEach 遍历所有已检测到的 Agent
+                        // ForEach iterates through all detected Agents
                         ForEach(AgentType.allCases) { agentType in
                             let isDetected = skillManager.agents.first { $0.type == agentType }?.isInstalled == true
-                            // Toggle 是 macOS 的开关/复选框组件
+                            // Toggle is macOS switch/checkbox component
                             Toggle(isOn: Binding(
                                 get: { viewModel.selectedAgents.contains(agentType) },
                                 set: { _ in viewModel.toggleAgentSelection(agentType) }
@@ -225,15 +225,15 @@ struct SkillInstallView: View {
                                     .font(.caption)
                             }
                             .toggleStyle(.checkbox)
-                            // 未安装的 Agent 降低透明度但仍可选择
+                            // Uninstalled Agents have reduced opacity but are still selectable
                             .opacity(isDetected ? 1.0 : 0.5)
                         }
                     }
                 }
 
-                // 安装按钮
+                // Install button
                 HStack {
-                    // 选中数量提示
+                    // Selected count hint
                     let selectedCount = viewModel.selectedSkillNames.count
                     Text("\(selectedCount) skill\(selectedCount == 1 ? "" : "s") selected")
                         .font(.caption)
@@ -245,7 +245,7 @@ struct SkillInstallView: View {
                         Task { await viewModel.installSelected() }
                     }
                     .disabled(viewModel.selectedSkillNames.isEmpty || viewModel.selectedAgents.isEmpty)
-                    // .buttonStyle(.borderedProminent) 使按钮显示为填充的强调色样式
+                    // .buttonStyle(.borderedProminent) makes button display filled prominent color style
                     .buttonStyle(.borderedProminent)
                 }
             }
@@ -253,7 +253,7 @@ struct SkillInstallView: View {
         }
     }
 
-    /// 阶段：正在安装
+    /// Phase: Installing in progress
     private var installingPhase: some View {
         VStack(spacing: 16) {
             Spacer()
@@ -265,7 +265,7 @@ struct SkillInstallView: View {
         }
     }
 
-    /// 阶段：安装完成
+    /// Phase: Installation completed
     private var completedPhase: some View {
         VStack(spacing: 16) {
             Spacer()
@@ -281,13 +281,13 @@ struct SkillInstallView: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 12) {
-                // "Install More" 按钮：重置状态重新开始
+                // "Install More" button: reset state and start over
                 Button("Install More") {
                     viewModel.reset()
                 }
 
                 Button("Done") {
-                    // dismiss() 关闭当前 sheet
+                    // dismiss() closes current sheet
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
@@ -297,8 +297,8 @@ struct SkillInstallView: View {
         }
     }
 
-    /// 阶段：错误
-    /// - Parameter message: 错误信息
+    /// Phase: Error
+    /// - Parameter message: Error message
     private func errorPhase(_ message: String) -> some View {
         VStack(spacing: 16) {
             Spacer()
@@ -325,14 +325,14 @@ struct SkillInstallView: View {
 
     // MARK: - Skill Row
 
-    /// Skill 列表行：复选框 + 名称 + 描述 + "Already installed" 徽章
+    /// Skill list row: checkbox + name + description + "Already installed" badge
     @ViewBuilder
     private func skillRow(_ skill: GitService.DiscoveredSkill) -> some View {
         let isAlreadyInstalled = viewModel.alreadyInstalledNames.contains(skill.id)
 
         HStack {
-            // 复选框
-            // Toggle + checkbox 样式 = macOS 原生复选框
+            // Checkbox
+            // Toggle + checkbox style = macOS native checkbox
             Toggle(isOn: Binding(
                 get: { viewModel.selectedSkillNames.contains(skill.id) },
                 set: { _ in viewModel.toggleSkillSelection(skill.id) }
@@ -342,14 +342,14 @@ struct SkillInstallView: View {
             .toggleStyle(.checkbox)
             .disabled(isAlreadyInstalled)
 
-            // Skill 信息
+            // Skill info
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text(skill.metadata.name.isEmpty ? skill.id : skill.metadata.name)
                         .font(.body)
                         .fontWeight(.medium)
 
-                    // "Already installed" 徽章
+                    // "Already installed" badge
                     if isAlreadyInstalled {
                         Text("Installed")
                             .font(.caption2)
@@ -357,7 +357,7 @@ struct SkillInstallView: View {
                             .padding(.vertical, 2)
                             .background(Color.green.opacity(0.15))
                             .foregroundStyle(.green)
-                            // clipShape 裁剪视图形状为胶囊形（两端圆角的矩形）
+                            // clipShape crops view shape to capsule (rounded rectangle on both ends)
                             .clipShape(Capsule())
                     }
                 }
@@ -372,7 +372,7 @@ struct SkillInstallView: View {
 
             Spacer()
         }
-        // 行透明度：已安装的 skill 降低透明度
+        // Row opacity: installed skills have reduced opacity
         .opacity(isAlreadyInstalled ? 0.6 : 1.0)
     }
 }

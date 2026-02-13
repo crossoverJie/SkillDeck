@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// ScopeBadge 显示 skill 的作用域徽章
+/// ScopeBadge displays the skill's scope badge
 ///
-/// 三种作用域有不同的颜色和图标：
-/// - Global（蓝色）：共享全局 skill
-/// - Local（灰色）：Agent 本地 skill
-/// - Project（绿色）：项目级 skill
+/// Three scopes have different colors and icons:
+/// - Global (blue): shared global skill
+/// - Local (gray): Agent local skill
+/// - Project (green): project-level skill
 struct ScopeBadge: View {
 
     let scope: SkillScope

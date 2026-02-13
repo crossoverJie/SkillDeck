@@ -1,69 +1,69 @@
 import Foundation
 
-/// DashboardViewModel 管理 Dashboard 页面的状态和交互逻辑
+/// DashboardViewModel manages the state and interaction logic for the Dashboard page
 ///
-/// 在 MVVM 架构中，ViewModel 是 View 和 Model 之间的桥梁：
-/// - View 通过数据绑定观察 ViewModel 的状态变化
-/// - View 的用户操作调用 ViewModel 的方法
-/// - ViewModel 调用 Service 层处理业务逻辑
+/// In the MVVM architecture, the ViewModel acts as a bridge between View and Model:
+/// - View observes ViewModel state changes through data binding
+/// - View user actions invoke ViewModel methods
+/// - ViewModel calls Service layer to handle business logic
 ///
-/// @Observable 让 SwiftUI 自动追踪属性变化并刷新 UI
-/// @MainActor 确保所有状态修改在主线程上执行（UI 安全）
+/// @Observable enables SwiftUI to automatically track property changes and refresh the UI
+/// @MainActor ensures all state modifications happen on the main thread (UI-safe)
 @MainActor
 @Observable
 final class DashboardViewModel {
 
-    /// 搜索关键词
+    /// Search keyword
     var searchText = ""
 
-    /// 当前选中的 Agent 过滤器（nil 表示显示全部）
+    /// Currently selected Agent filter (nil means show all)
     var selectedAgentFilter: AgentType?
 
-    /// 排序方式
+    /// Sort order
     var sortOrder: SortOrder = .name
 
-    /// 排序方向（升序/降序）
+    /// Sort direction (ascending/descending)
     var sortDirection: SortDirection = .ascending
 
-    /// 当前选中的 skill（用于导航到详情页）
+    /// Currently selected skill (used for navigation to detail page)
     var selectedSkillID: String?
 
-    /// 是否显示删除确认弹窗
+    /// Whether to show delete confirmation dialog
     var showDeleteConfirmation = false
 
-    /// 待删除的 skill
+    /// Skill pending deletion
     var skillToDelete: Skill?
 
-    /// 排序方向枚举
-    /// Swift 的 enum 可以实现多个协议：
-    /// - CaseIterable: 提供 allCases 集合，用于遍历所有枚举值
+    /// Sort direction enum
+    /// Swift enums can conform to multiple protocols:
+    /// - CaseIterable: provides allCases collection for iterating over enum values
     enum SortDirection: CaseIterable {
         case ascending
         case descending
 
-        /// 切换排序方向，返回相反方向
+        /// Toggle sort direction, returning the opposite direction
         var toggled: SortDirection {
             self == .ascending ? .descending : .ascending
         }
 
-        /// SF Symbols 图标名：升序用向上箭头，降序用向下箭头
+        /// SF Symbols icon name: ascending uses up arrow, descending uses down arrow
         var iconName: String {
             self == .ascending ? "arrowtriangle.up.fill" : "arrowtriangle.down.fill"
         }
 
-        /// 显示文本
+        /// Display text
         var displayName: String {
             self == .ascending ? "Ascending" : "Descending"
         }
     }
 
-    /// 排序方式枚举
+    /// Sort order enum
     enum SortOrder: String, CaseIterable {
         case name = "Name"
         case scope = "Scope"
         case agent = "Agent Count"
 
-        /// 每种排序方式对应一个 SF Symbol 图标
+        /// Each sort order corresponds to an SF Symbol icon
         var iconName: String {
             switch self {
             case .name: return "textformat.abc"
@@ -73,32 +73,32 @@ final class DashboardViewModel {
         }
     }
 
-    /// 引用全局的 SkillManager（依赖注入）
+    /// Reference to global SkillManager (dependency injection)
     let skillManager: SkillManager
 
     init(skillManager: SkillManager) {
         self.skillManager = skillManager
     }
 
-    /// 根据当前的搜索、过滤和排序条件，计算要显示的 skill 列表
-    /// computed property（计算属性）：每次访问时动态计算，类似 Java 的 getter
+    /// Calculates the list of skills to display based on current search, filter, and sort conditions
+    /// Computed property: dynamically calculated on each access, similar to Java getter
     var filteredSkills: [Skill] {
         var result = skillManager.skills
 
-        // 1. 搜索过滤
+        // 1. Search filtering
         if !searchText.isEmpty {
             result = skillManager.search(query: searchText)
         }
 
-        // 2. Agent 过滤
+        // 2. Agent filtering
         if let agent = selectedAgentFilter {
             result = result.filter { skill in
                 skill.installations.contains { $0.agentType == agent }
             }
         }
 
-        // 3. 排序（根据排序方向决定升序或降序）
-        // Swift 的闭包中 $0、$1 是匿名参数，类似 Kotlin 的 it
+        // 3. Sorting (ascending or descending based on sort direction)
+        // In Swift closures, $0 and $1 are anonymous parameters, similar to Kotlin's it
         let ascending = sortDirection == .ascending
         switch sortOrder {
         case .name:
@@ -114,7 +114,7 @@ final class DashboardViewModel {
                     : $0.scope.displayName > $1.scope.displayName
             }
         case .agent:
-            // Agent Count 默认降序更直观（最多的排前面）
+            // Agent Count defaults to descending (most first) for better visibility
             result.sort {
                 ascending
                     ? $0.installations.count < $1.installations.count
@@ -125,13 +125,13 @@ final class DashboardViewModel {
         return result
     }
 
-    /// 请求删除 skill（先显示确认弹窗）
+    /// Requests skill deletion (shows confirmation dialog first)
     func requestDelete(skill: Skill) {
         skillToDelete = skill
         showDeleteConfirmation = true
     }
 
-    /// 确认删除
+    /// Confirms deletion
     func confirmDelete() async {
         guard let skill = skillToDelete else { return }
         do {
@@ -143,7 +143,7 @@ final class DashboardViewModel {
         showDeleteConfirmation = false
     }
 
-    /// 取消删除
+    /// Cancels deletion
     func cancelDelete() {
         skillToDelete = nil
         showDeleteConfirmation = false

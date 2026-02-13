@@ -1,53 +1,53 @@
 import Foundation
 import AppKit
 
-/// SkillDetailViewModel 管理 Skill 详情页的状态
+/// SkillDetailViewModel manages the state for the Skill detail page
 @MainActor
 @Observable
 final class SkillDetailViewModel {
 
     let skillManager: SkillManager
 
-    /// 是否显示编辑器
+    /// Whether to show the editor
     var isEditing = false
 
-    /// 操作反馈消息
+    /// Operation feedback message
     var feedbackMessage: String?
 
-    /// F12: 是否正在检查更新
+    /// F12: Whether currently checking for updates
     var isCheckingUpdate = false
 
-    /// F12: 是否正在执行更新
+    /// F12: Whether currently performing an update
     var isUpdating = false
 
-    /// F12: 更新操作的错误信息
+    /// F12: Error message from update operation
     var updateError: String?
 
-    /// F12: 检查结果 —— 是否为最新（用于显示 "Up to Date" 提示）
+    /// F12: Check result — whether skill is up to date (for showing "Up to Date" message)
     var showUpToDate = false
 
-    // MARK: - Link to Repository State（手动关联仓库状态）
+    // MARK: - Link to Repository State
 
-    /// 用户输入的仓库地址（支持 "owner/repo" 或完整 URL）
+    /// User input repository address (supports "owner/repo" or full URL)
     var repoURLInput = ""
 
-    /// 是否正在执行关联操作（shallow clone + 扫描 + 写缓存）
+    /// Whether currently performing link operation (shallow clone + scan + write cache)
     var isLinking = false
 
-    /// 关联操作的错误信息
+    /// Error message from link operation
     var linkError: String?
 
     init(skillManager: SkillManager) {
         self.skillManager = skillManager
     }
 
-    /// 获取指定 skill 的最新数据
-    /// 因为 skills 可能被外部修改，每次都从 SkillManager 获取最新版本
+    /// Gets the latest data for a specific skill
+    /// Since skills may be modified externally, always fetch the latest version from SkillManager
     func skill(id: String) -> Skill? {
         skillManager.skills.first { $0.id == id }
     }
 
-    /// 切换 Agent 分配状态
+    /// Toggle Agent assignment status
     func toggleAgent(_ agentType: AgentType, for skill: Skill) async {
         do {
             try await skillManager.toggleAssignment(skill, agent: agentType)
@@ -57,23 +57,23 @@ final class SkillDetailViewModel {
         }
     }
 
-    /// 在 Finder 中显示 skill 目录
-    /// NSWorkspace 是 macOS AppKit 框架提供的系统交互类
+    /// Reveal skill directory in Finder
+    /// NSWorkspace is the system interaction class provided by macOS AppKit framework
     func revealInFinder(skill: Skill) {
         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: skill.canonicalURL.path)
     }
 
-    /// 在 Terminal 中打开 skill 目录
+    /// Open skill directory in Terminal
     func openInTerminal(skill: Skill) {
         let url = skill.canonicalURL
-        // AppleScript 是 macOS 的自动化脚本语言，这里用它来打开 Terminal
+        // AppleScript is macOS's automation scripting language, used here to open Terminal
         let script = """
         tell application "Terminal"
             do script "cd '\(url.path)'"
             activate
         end tell
         """
-        // NSAppleScript 执行 AppleScript 代码
+        // NSAppleScript executes AppleScript code
         if let appleScript = NSAppleScript(source: script) {
             var error: NSDictionary?
             appleScript.executeAndReturnError(&error)
@@ -82,10 +82,10 @@ final class SkillDetailViewModel {
 
     // MARK: - F12: Update Check
 
-    /// 检查单个 skill 是否有可用更新
+    /// Check if a specific skill has an available update
     ///
-    /// 调用 SkillManager.checkForUpdate，更新 UI 状态。
-    /// 返回值包含 remoteCommitHash，用于生成 GitHub compare URL 显示差异链接。
+    /// Calls SkillManager.checkForUpdate and updates UI state.
+    /// Return value includes remoteCommitHash for generating GitHub compare URL to show diff link.
     func checkForUpdate(skill: Skill) async {
         isCheckingUpdate = true
         updateError = nil
@@ -94,23 +94,23 @@ final class SkillDetailViewModel {
         do {
             let (hasUpdate, remoteHash, remoteCommitHash) = try await skillManager.checkForUpdate(skill: skill)
 
-            // 更新 SkillManager 中对应 skill 的状态
+            // Update the corresponding skill state in SkillManager
             if let index = skillManager.skills.firstIndex(where: { $0.id == skill.id }) {
                 skillManager.skills[index].hasUpdate = hasUpdate
                 skillManager.skills[index].remoteTreeHash = remoteHash
-                // 存储远程 commit hash，用于 UI 显示 hash 对比和 GitHub 链接
+                // Store remote commit hash for UI hash comparison and GitHub link
                 skillManager.skills[index].remoteCommitHash = hasUpdate ? remoteCommitHash : nil
                 skillManager.updateStatuses[skill.id] = hasUpdate ? .hasUpdate : .upToDate
 
-                // 更新本地 commit hash（checkForUpdate 中可能执行了 backfill）
+                // Update local commit hash (backfill may have been executed in checkForUpdate)
                 let cachedLocalHash = await skillManager.getCachedCommitHash(for: skill.id)
                 skillManager.skills[index].localCommitHash = cachedLocalHash
             }
 
             if !hasUpdate {
                 showUpToDate = true
-                // 2 秒后自动隐藏 "Up to Date" 提示
-                // Task.sleep 类似 Go 的 time.Sleep，但不阻塞线程
+                // Auto-hide "Up to Date" message after 2 seconds
+                // Task.sleep is similar to Go's time.Sleep but non-blocking
                 Task {
                     try? await Task.sleep(for: .seconds(2))
                     showUpToDate = false
@@ -123,9 +123,9 @@ final class SkillDetailViewModel {
         isCheckingUpdate = false
     }
 
-    /// 执行 skill 更新
+    /// Execute skill update
     ///
-    /// 从远程拉取最新文件覆盖本地，更新 lock entry
+    /// Pull latest files from remote to overwrite local, update lock entry
     func updateSkill(_ skill: Skill) async {
         guard let remoteHash = skill.remoteTreeHash else { return }
 
@@ -143,10 +143,10 @@ final class SkillDetailViewModel {
 
     // MARK: - Link to Repository
 
-    /// 将 skill 手动关联到 GitHub 仓库
+    /// Manually link skill to GitHub repository
     ///
-    /// 调用 SkillManager.linkSkillToRepository，完成后 refresh 会自动
-    /// 从缓存合成 LockEntry，UI 会从 linkToRepoSection 切换到 lockFileSection。
+    /// Calls SkillManager.linkSkillToRepository; after completion, refresh will automatically
+    /// synthesize LockEntry from cache, and UI will switch from linkToRepoSection to lockFileSection.
     func linkToRepository(skill: Skill) async {
         let input = repoURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty else { return }
@@ -156,7 +156,7 @@ final class SkillDetailViewModel {
 
         do {
             try await skillManager.linkSkillToRepository(skill, repoInput: input)
-            // 成功后清空输入（UI 会自动切换到 lockFileSection）
+            // Clear input on success (UI will automatically switch to lockFileSection)
             repoURLInput = ""
         } catch {
             linkError = error.localizedDescription

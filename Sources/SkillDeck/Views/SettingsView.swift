@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// SettingsView 是应用的设置页面（通过 Cmd+, 打开）
+/// SettingsView is the app settings page (opened via Cmd+,)
 ///
-/// TabView 在 macOS 上会渲染成系统标准的偏好设置窗口样式（带标签栏）
+/// TabView renders as system standard preferences window style (with tab bar) on macOS
 struct SettingsView: View {
 
     var body: some View {
@@ -17,19 +17,19 @@ struct SettingsView: View {
                     Label("About", systemImage: "info.circle")
                 }
         }
-        // 增加高度以容纳更新状态 UI（从 250 调至 350）
+        // Increased height to accommodate update status UI (from 250 to 350)
         .frame(width: 450, height: 350)
     }
 }
 
-/// 通用设置
+/// General settings
 struct GeneralSettingsView: View {
     var body: some View {
         Form {
             Section("Paths") {
                 LabeledContent("Shared Skills") {
                     Text(Constants.sharedSkillsPath)
-                        .textSelection(.enabled)  // 允许用户选中复制
+                        .textSelection(.enabled)  // Allow users to select and copy
                         .foregroundStyle(.secondary)
                 }
                 LabeledContent("Lock File") {
@@ -44,14 +44,14 @@ struct GeneralSettingsView: View {
     }
 }
 
-/// 关于页面（含应用更新检查 UI）
+/// About page (with app update check UI)
 ///
-/// @Environment(SkillManager.self) 从 View 树中获取 SkillManager 实例。
-/// SkillDeckApp 中通过 Settings { ... .environment(skillManager) } 注入。
+/// @Environment(SkillManager.self) gets SkillManager instance from View tree.
+/// Injected via Settings { ... .environment(skillManager) } in SkillDeckApp.
 struct AboutSettingsView: View {
 
-    /// 从 View 环境中获取 SkillManager
-    /// @Environment 类似 React 的 useContext 或 Android 的依赖注入
+    /// Get SkillManager from View environment
+    /// @Environment is similar to React's useContext or Android's dependency injection
     @Environment(SkillManager.self) private var skillManager
 
     var body: some View {
@@ -67,44 +67,44 @@ struct AboutSettingsView: View {
             Text("Native macOS Agent Skills Manager")
                 .foregroundStyle(.secondary)
 
-            // 从 Info.plist 读取版本号，.app bundle 运行时 Bundle.main 包含 Info.plist
-            // CFBundleShortVersionString 是用户可见的版本号（如 "1.0.0"）
-            // 如果是 swift run 直接运行（无 .app bundle），则回退到 "dev"
+            // Read version number from Info.plist, Bundle.main contains Info.plist when running as .app bundle
+            // CFBundleShortVersionString is the user-visible version number (e.g., "1.0.0")
+            // Falls back to "dev" if running via swift run (no .app bundle)
             Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev")")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
 
-            // Link 是 SwiftUI 内置的超链接组件，点击后会调用系统默认浏览器打开 URL
-            // 在 macOS 上渲染为蓝色可点击文字，类似 HTML 的 <a> 标签
+            // Link is SwiftUI built-in hyperlink component, calls system default browser to open URL when clicked
+            // Renders as blue clickable text on macOS, similar to HTML's <a> tag
             Link("GitHub", destination: URL(string: "https://github.com/crossoverjie/SkillDeck")!)
                 .font(.caption)
 
-            // Divider 是水平分隔线（类似 HTML 的 <hr>），用于视觉上区分应用信息和更新状态区域
+            // Divider is horizontal separator line (similar to HTML's <hr>), used to visually separate app info and update status area
             Divider()
                 .padding(.horizontal)
 
-            // 更新状态区域：根据 SkillManager 中的状态显示不同 UI
+            // Update status area: shows different UI based on SkillManager state
             updateStatusView
         }
         .padding()
-        // .task 在 View 首次出现时自动触发更新检查（受 4 小时间隔限制）
-        // 这样用户每次打开设置页面时，如果距上次检查超过 4 小时就会自动检查
+        // .task automatically triggers update check when View first appears (subject to 4-hour interval limit)
+        // This way when user opens settings page, if more than 4 hours since last check, it will automatically check
         .task {
             await skillManager.checkForAppUpdate()
         }
     }
 
-    /// 更新状态视图：根据 SkillManager 的更新相关状态属性动态显示不同 UI
+    /// Update status view: dynamically displays different UI based on SkillManager's update-related state properties
     ///
-    /// @ViewBuilder 允许在计算属性中使用 if-else 返回不同的 View 类型
-    /// （Swift 的 View 是强类型的，不同分支返回不同类型时需要 @ViewBuilder 统一包装）
+    /// @ViewBuilder allows using if-else in computed properties to return different View types
+    /// (Swift's View is strongly typed, different branches returning different types need @ViewBuilder to wrap uniformly)
     @ViewBuilder
     private var updateStatusView: some View {
         if skillManager.isCheckingAppUpdate {
-            // 检测中状态：显示旋转指示器
+            // Checking state: show spinning indicator
             HStack(spacing: 8) {
-                // ProgressView() 无参数时显示不确定进度的旋转指示器（spinner）
-                // controlSize(.small) 控制大小为小号
+                // ProgressView() without arguments shows indeterminate spinning indicator (spinner)
+                // controlSize(.small) controls size to small
                 ProgressView()
                     .controlSize(.small)
                 Text("Checking for updates...")
@@ -112,23 +112,23 @@ struct AboutSettingsView: View {
                     .foregroundStyle(.secondary)
             }
         } else if skillManager.isDownloadingUpdate {
-            // 下载中状态：显示确定进度的进度条
+            // Downloading state: show determinate progress bar
             VStack(spacing: 6) {
-                // ProgressView(value:total:) 显示确定进度的水平进度条
-                // value 是当前值，total 是最大值（默认 1.0）
+                // ProgressView(value:total:) shows determinate horizontal progress bar
+                // value is current value, total is maximum value (default 1.0)
                 ProgressView(value: skillManager.downloadProgress)
                     .progressViewStyle(.linear)
                     .frame(width: 200)
 
-                // 显示百分比（乘 100 并保留整数）
-                // Int() 将 Double 截断为整数（类似 Java 的 (int) 强制转换）
+                // Show percentage (multiply by 100 and keep integer)
+                // Int() truncates Double to integer (similar to Java's (int) cast)
                 Text("Downloading... \(Int(skillManager.downloadProgress * 100))%")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .monospacedDigit()  // 等宽数字字体，避免百分比变化时文字抖动
+                    .monospacedDigit()  // Monospaced digit font, avoids text jitter when percentage changes
             }
         } else if let error = skillManager.updateError {
-            // 错误状态：显示红色错误信息和重试按钮
+            // Error state: show red error message and retry button
             VStack(spacing: 6) {
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -137,7 +137,7 @@ struct AboutSettingsView: View {
                     Text(error)
                         .font(.caption)
                         .foregroundStyle(.red)
-                        .lineLimit(2)  // 限制错误信息最多 2 行
+                        .lineLimit(2)  // Limit error message to max 2 lines
                 }
 
                 Button("Retry") {
@@ -147,10 +147,10 @@ struct AboutSettingsView: View {
                 .controlSize(.small)
             }
         } else if let updateInfo = skillManager.appUpdateInfo {
-            // 有可用更新状态：显示新版本号、更新按钮和 GitHub 链接
+            // Has available update state: show new version number, update button and GitHub link
             VStack(spacing: 8) {
                 HStack(spacing: 6) {
-                    // 使用橙色箭头图标表示有更新可用
+                    // Use orange arrow icon to indicate update is available
                     Image(systemName: "arrow.up.circle.fill")
                         .foregroundStyle(.orange)
                     Text("Update available: v\(updateInfo.version)")
@@ -159,16 +159,16 @@ struct AboutSettingsView: View {
                 }
 
                 HStack(spacing: 12) {
-                    // "Update Now" 按钮触发下载并安装更新
-                    // .borderedProminent 是带填充背景的强调按钮样式（类似 Material Design 的 Filled Button）
+                    // "Update Now" button triggers download and install update
+                    // .borderedProminent is filled prominent button style (similar to Material Design's Filled Button)
                     Button("Update Now") {
                         Task { await skillManager.performUpdate() }
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
 
-                    // "View on GitHub" 链接在浏览器中打开 Release 页面
-                    // 使用 Link 组件而非 Button，因为它是外部导航（打开浏览器）
+                    // "View on GitHub" link opens Release page in browser
+                    // Uses Link component instead of Button because it's external navigation (opens browser)
                     if let url = URL(string: updateInfo.htmlUrl) {
                         Link("View on GitHub", destination: url)
                             .font(.caption)
@@ -176,8 +176,8 @@ struct AboutSettingsView: View {
                 }
             }
         } else {
-            // 无更新/未检查状态：显示手动检查按钮
-            // force: true 忽略 4 小时间隔限制，立即执行检查
+            // No update/not checked state: show manual check button
+            // force: true ignores 4-hour interval limit, executes check immediately
             Button("Check for Updates") {
                 Task { await skillManager.checkForAppUpdate(force: true) }
             }

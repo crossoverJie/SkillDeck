@@ -1,19 +1,19 @@
 #!/bin/bash
-# generate-icns.sh — 将 SVG 图标转换为 macOS .icns 文件
+# generate-icns.sh — Convert SVG icon to macOS .icns file
 #
-# 依赖：
+# Dependencies:
 #   - swift (Xcode Command Line Tools)
-#   - iconutil (macOS 内置)
+#   - iconutil (macOS builtin)
 #
-# 用法：
+# Usage:
 #   ./scripts/generate-icns.sh
 #
-# 输出：
+# Output:
 #   Sources/SkillDeck/Resources/AppIcon.icns
 
 set -euo pipefail
 
-# 获取项目根目录（脚本所在目录的上一级）
+# Get project root directory (parent directory of script location)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
@@ -22,7 +22,7 @@ TMPDIR_ROOT="$(mktemp -d)"
 ICONSET_DIR="$TMPDIR_ROOT/AppIcon.iconset"
 OUTPUT_ICNS="$PROJECT_ROOT/Sources/SkillDeck/Resources/AppIcon.icns"
 
-# 检查依赖
+# Check dependencies
 if ! command -v swift &>/dev/null; then
     echo "Error: swift not found. Install Xcode Command Line Tools."
     exit 1
@@ -38,19 +38,19 @@ if [ ! -f "$SVG_FILE" ]; then
     exit 1
 fi
 
-# 创建 .iconset 目录
+# Create .iconset directory
 mkdir -p "$ICONSET_DIR"
 
 echo "Generating PNGs from $SVG_FILE ..."
 
-# 使用 Swift + AppKit 的 NSImage 将 SVG 渲染为多尺寸 PNG
-# NSImage 原生支持 SVG，无需额外依赖
+# Use Swift + AppKit NSImage to render SVG to multi-size PNGs
+# NSImage natively supports SVG, no extra dependencies needed
 SWIFT_SCRIPT="$TMPDIR_ROOT/svg2png.swift"
 cat > "$SWIFT_SCRIPT" << 'SWIFT_EOF'
 import AppKit
 import Foundation
 
-// 命令行参数: svg2png <svgPath> <outputDir>
+// Command line arguments: svg2png <svgPath> <outputDir>
 let args = CommandLine.arguments
 guard args.count == 3 else {
     fputs("Usage: svg2png <svgPath> <outputDir>\n", stderr)
@@ -60,13 +60,13 @@ guard args.count == 3 else {
 let svgPath = args[1]
 let outputDir = args[2]
 
-// 加载 SVG 文件为 NSImage
+// Load SVG file as NSImage
 guard let image = NSImage(contentsOfFile: svgPath) else {
     fputs("Error: Failed to load SVG from \(svgPath)\n", stderr)
     exit(1)
 }
 
-// macOS .icns 需要以下 10 个尺寸的 PNG：
+// macOS .icns requires the following 10 PNG sizes:
 // icon_16x16.png (16), icon_16x16@2x.png (32),
 // icon_32x32.png (32), icon_32x32@2x.png (64),
 // icon_128x128.png (128), icon_128x128@2x.png (256),
@@ -88,7 +88,7 @@ let sizes: [(label: String, pixels: Int)] = [
 for entry in sizes {
     let pixelSize = entry.pixels
 
-    // 创建指定像素尺寸的位图上下文（RGBA, 8位/通道）
+    // Create bitmap context of specified pixel size (RGBA, 8 bits/channel)
     guard let rep = NSBitmapImageRep(
         bitmapDataPlanes: nil,
         pixelsWide: pixelSize,
@@ -105,10 +105,10 @@ for entry in sizes {
         exit(1)
     }
 
-    // 设置 size 属性为像素尺寸（1:1 映射，避免 HiDPI 缩放问题）
+    // Set size property to pixel size (1:1 mapping, avoiding HiDPI scaling issues)
     rep.size = NSSize(width: pixelSize, height: pixelSize)
 
-    // 在位图上下文中绘制 SVG
+    // Draw SVG in bitmap context
     NSGraphicsContext.saveGraphicsState()
     guard let context = NSGraphicsContext(bitmapImageRep: rep) else {
         fputs("Error: Failed to create graphics context for \(entry.label)\n", stderr)
@@ -116,11 +116,11 @@ for entry in sizes {
     }
     NSGraphicsContext.current = context
 
-    // 清除背景为透明（SVG 中 clipPath 外的区域需要保持透明）
+    // Clear background to transparent (areas outside clipPath in SVG need to remain transparent)
     NSColor.clear.set()
     NSRect(x: 0, y: 0, width: pixelSize, height: pixelSize).fill()
 
-    // 绘制 SVG 图像到整个位图区域
+    // Draw SVG image to entire bitmap area
     image.draw(
         in: NSRect(x: 0, y: 0, width: pixelSize, height: pixelSize),
         from: .zero,
@@ -130,7 +130,7 @@ for entry in sizes {
 
     NSGraphicsContext.restoreGraphicsState()
 
-    // 导出为 PNG
+    // Export as PNG
     guard let pngData = rep.representation(using: .png, properties: [:]) else {
         fputs("Error: Failed to create PNG data for \(entry.label)\n", stderr)
         exit(1)
@@ -149,19 +149,19 @@ for entry in sizes {
 print("All PNGs generated successfully.")
 SWIFT_EOF
 
-# 编译 Swift 脚本（链接 AppKit 框架）
+# Compile Swift script (linking AppKit framework)
 echo "Compiling SVG renderer ..."
 SWIFT_BIN="$TMPDIR_ROOT/svg2png"
 swiftc "$SWIFT_SCRIPT" -o "$SWIFT_BIN" -framework AppKit 2>&1
 
-# 运行 SVG → PNG 转换
+# Run SVG -> PNG conversion
 "$SWIFT_BIN" "$SVG_FILE" "$ICONSET_DIR"
 
 echo ""
 echo "Creating .icns with iconutil ..."
 iconutil -c icns "$ICONSET_DIR" -o "$OUTPUT_ICNS"
 
-# 清理临时目录
+# Clean up temp directory
 rm -rf "$TMPDIR_ROOT"
 
 echo ""

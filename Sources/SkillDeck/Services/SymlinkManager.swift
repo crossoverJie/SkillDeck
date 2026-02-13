@@ -1,13 +1,13 @@
 import Foundation
 
-/// SymlinkManager 负责创建和删除 symlink（F06 Agent Assignment）
+/// SymlinkManager is responsible for creating and removing symlinks (F06 Agent Assignment)
 ///
-/// 核心概念：
-/// - 所有 skill 的「真实副本」存储在 ~/.agents/skills/（canonical location）
-/// - 各 Agent 通过 symlink（符号链接）引用共享的 skill
-/// - 例如：~/.claude/skills/agent-notifier -> ~/.agents/skills/agent-notifier
+/// Core Concepts:
+/// - The "real copy" of all skills is stored in ~/.agents/skills/ (canonical location)
+/// - Each Agent references the shared skill via symlink
+/// - Example: ~/.claude/skills/agent-notifier -> ~/.agents/skills/agent-notifier
 ///
-/// symlink 类似 Linux/macOS 的 `ln -s`，是一个指向另一个文件/目录的特殊文件
+/// symlink is similar to Linux/macOS `ln -s`, a special file pointing to another file/directory
 enum SymlinkManager {
 
     enum SymlinkError: Error, LocalizedError {
@@ -30,54 +30,54 @@ enum SymlinkManager {
         }
     }
 
-    /// 为 skill 创建 symlink 到指定 Agent 的 skills 目录
+    /// Create symlink for skill to specified Agent's skills directory
     ///
     /// - Parameters:
-    ///   - source: skill 的 canonical 路径（如 ~/.agents/skills/agent-notifier/）
-    ///   - agent: 目标 Agent 类型
+    ///   - source: canonical path of the skill (e.g. ~/.agents/skills/agent-notifier/)
+    ///   - agent: target Agent type
     /// - Throws: SymlinkError
     ///
-    /// 效果：agent.skillsDirectoryURL/skillName -> source
+    /// Effect: agent.skillsDirectoryURL/skillName -> source
     static func createSymlink(from source: URL, to agent: AgentType) throws {
         let fm = FileManager.default
         let skillName = source.lastPathComponent
         let targetDir = agent.skillsDirectoryURL
         let targetURL = targetDir.appendingPathComponent(skillName)
 
-        // 1. 验证源目录存在
+        // 1. Verify source directory exists
         guard fm.fileExists(atPath: source.path) else {
             throw SymlinkError.sourceNotFound(source)
         }
 
-        // 2. 确保目标 Agent 的 skills 目录存在，不存在则创建
+        // 2. Ensure target Agent's skills directory exists, create if not
         if !fm.fileExists(atPath: targetDir.path) {
-            // withIntermediateDirectories: true 类似 mkdir -p，会递归创建父目录
+            // withIntermediateDirectories: true is similar to mkdir -p, creates parent directories recursively
             try fm.createDirectory(at: targetDir, withIntermediateDirectories: true)
         }
 
-        // 3. 检查目标位置是否已存在
+        // 3. Check if target location already exists
         guard !fm.fileExists(atPath: targetURL.path) else {
             throw SymlinkError.targetAlreadyExists(targetURL)
         }
 
-        // 4. 创建 symlink
-        // createSymbolicLink 等价于 ln -s source targetURL
+        // 4. Create symlink
+        // createSymbolicLink is equivalent to ln -s source targetURL
         try fm.createSymbolicLink(at: targetURL, withDestinationURL: source)
     }
 
-    /// 删除指定 Agent 下某个 skill 的 symlink
+    /// Remove symlink of a skill under specified Agent
     ///
     /// - Parameters:
-    ///   - skillName: skill 目录名
-    ///   - agent: Agent 类型
+    ///   - skillName: skill directory name
+    ///   - agent: Agent type
     /// - Throws: SymlinkError
     static func removeSymlink(skillName: String, from agent: AgentType) throws {
         let fm = FileManager.default
         let targetURL = agent.skillsDirectoryURL.appendingPathComponent(skillName)
 
-        // 验证路径确实是 symlink，避免误删真实目录
+        // Verify path is indeed a symlink to avoid deleting real directory by mistake
         guard isSymlink(at: targetURL) else {
-            return // 不是 symlink，静默返回
+            return // Not a symlink, return silently
         }
 
         do {
@@ -87,10 +87,10 @@ enum SymlinkManager {
         }
     }
 
-    /// 检查给定路径是否是 symlink
+    /// Check if given path is a symlink
     ///
-    /// FileManager.fileExists 会自动解析 symlink（跟随链接），
-    /// 所以我们需要用 attributesOfItem 直接读取文件属性来判断
+    /// FileManager.fileExists automatically resolves symlinks (follows links),
+    /// so we need to use attributesOfItem to read file attributes directly to judge
     static func isSymlink(at url: URL) -> Bool {
         let fm = FileManager.default
         guard let attrs = try? fm.attributesOfItem(atPath: url.path),
@@ -100,57 +100,57 @@ enum SymlinkManager {
         return fileType == .typeSymbolicLink
     }
 
-    /// 解析 symlink 指向的真实路径（递归解析多级 symlink 链）
+    /// Resolve real path pointed to by symlink (recursively resolve multi-level symlink chain)
     ///
-    /// 使用 URL.resolvingSymlinksInPath() 而非单级的 destinationOfSymbolicLink，
-    /// 以正确处理多级 symlink 链。例如：
+    /// Use URL.resolvingSymlinksInPath() instead of single-level destinationOfSymbolicLink,
+    /// to correctly handle multi-level symlink chains. Example:
     ///   ~/.copilot/skills/foo → ~/.claude/skills/foo → ~/.agents/skills/foo
-    /// resolvingSymlinksInPath() 会递归解析到最终的真实路径 ~/.agents/skills/foo
+    /// resolvingSymlinksInPath() will recursively resolve to the final real path ~/.agents/skills/foo
     ///
-    /// 如果不是 symlink，返回原路径（标准化后）
+    /// If not a symlink, return original path (standardized)
     static func resolveSymlink(at url: URL) -> URL {
-        // resolvingSymlinksInPath() 是 Foundation 提供的递归 symlink 解析方法，
-        // 类似 Python 的 os.path.realpath() 或 Go 的 filepath.EvalSymlinks()
-        // 它会一直跟随 symlink 直到找到最终的真实路径
+        // resolvingSymlinksInPath() is a recursive symlink resolution method provided by Foundation,
+        // similar to Python's os.path.realpath() or Go's filepath.EvalSymlinks()
+        // It will follow symlinks until the final real path is found
         return url.resolvingSymlinksInPath()
     }
 
-    /// 获取 skill 在所有 Agent 中的安装信息（含继承安装）
+    /// Get installation info of skill across all Agents (including inherited installations)
     ///
-    /// 采用两遍扫描策略：
-    /// 1. 第一遍：检查每个 Agent 自身 skills 目录下的直接安装
-    /// 2. 第二遍：对于没有直接安装的 Agent，检查其 additionalReadableSkillsDirectories，
-    ///    若找到则标记为继承安装（isInherited: true）
+    /// Uses two-pass scan strategy:
+    /// 1. First pass: Check direct installations under each Agent's own skills directory
+    /// 2. Second pass: For Agents without direct installation, check their additionalReadableSkillsDirectories,
+    ///    mark as inherited installation (isInherited: true) if found
     ///
-    /// 优先级规则：如果 Agent 在自身目录中已有该 skill（直接安装），则不再添加继承安装
-    /// 例如 ~/.copilot/skills/foo 已存在，则不会再从 ~/.claude/skills/foo 继承
+    /// Priority rule: If Agent already has this skill in its own directory (direct installation), do not add inherited installation
+    /// e.g. if ~/.copilot/skills/foo exists, do not inherit from ~/.claude/skills/foo
     static func findInstallations(skillName: String, canonicalURL: URL) -> [SkillInstallation] {
         var installations: [SkillInstallation] = []
-        /// 记录哪些 Agent 已有直接安装，用于第二遍过滤
-        /// Set 类似 Java 的 HashSet，用于 O(1) 查找
+        /// Record which Agents have direct installation, for second pass filtering
+        /// Set is similar to Java's HashSet, used for O(1) lookup
         var agentsWithDirectInstallation = Set<AgentType>()
 
-        // ========== 第一遍：直接安装扫描 ==========
+        // ========== First pass: Direct installation scan ==========
         for agentType in AgentType.allCases {
-            // Codex 的 skillsDirectoryURL 是 ~/.agents/skills/（canonical 共享目录），
-            // 不是独立的 Agent skills 目录。所有 canonical skill 都存储在那里，
-            // 不应视为"已安装到 Codex"。与 SkillScanner.scanAll() 的处理保持一致。
+            // Codex's skillsDirectoryURL is ~/.agents/skills/ (canonical shared directory),
+            // not an independent Agent skills directory. All canonical skills are stored there,
+            // should not be considered "installed to Codex". Consistent with SkillScanner.scanAll() handling.
             if agentType == .codex { continue }
 
             let skillURL = agentType.skillsDirectoryURL.appendingPathComponent(skillName)
 
-            // 检查 skill 是否存在于该 Agent 的 skills 目录
+            // Check if skill exists in this Agent's skills directory
             guard FileManager.default.fileExists(atPath: skillURL.path) else {
                 continue
             }
 
             let isLink = isSymlink(at: skillURL)
 
-            // 如果是 symlink，验证它最终指向的是同一个 canonical 位置
-            // 使用 resolvingSymlinksInPath() 递归解析，处理多级 symlink 链
+            // If it's a symlink, verify it ultimately points to the same canonical location
+            // Use resolvingSymlinksInPath() to recursively resolve, handling multi-level symlink chains
             if isLink {
                 let resolved = resolveSymlink(at: skillURL)
-                // standardized 会规范化路径（去除 .. 和 . 等）
+                // standardized normalizes path (removes .. and . etc)
                 if resolved.standardized.path == canonicalURL.standardized.path {
                     installations.append(SkillInstallation(
                         agentType: agentType,
@@ -160,7 +160,7 @@ enum SymlinkManager {
                     agentsWithDirectInstallation.insert(agentType)
                 }
             } else {
-                // 不是 symlink，说明是原始文件（agent-local skill）
+                // Not a symlink, means it's an original file (agent-local skill)
                 installations.append(SkillInstallation(
                     agentType: agentType,
                     path: skillURL,
@@ -170,15 +170,15 @@ enum SymlinkManager {
             }
         }
 
-        // ========== 第二遍：继承安装扫描 ==========
-        // 对于没有直接安装的 Agent，检查它能额外读取的其他 Agent 目录
+        // ========== Second pass: Inherited installation scan ==========
+        // For Agents without direct installation, check other Agent directories it can additionally read
         for agentType in AgentType.allCases {
-            // Codex 跳过，原因同第一遍（canonical 共享目录不等于 Codex 独立安装）
+            // Codex skipped, reason same as first pass (canonical shared directory != Codex independent installation)
             if agentType == .codex { continue }
-            // 如果已有直接安装，跳过（直接安装优先级更高）
+            // If already has direct installation, skip (direct installation has higher priority)
             guard !agentsWithDirectInstallation.contains(agentType) else { continue }
 
-            // 遍历该 Agent 可额外读取的目录列表
+            // Iterate through list of directories this Agent can additionally read
             for additionalDir in agentType.additionalReadableSkillsDirectories {
                 let skillURL = additionalDir.url.appendingPathComponent(skillName)
 
@@ -186,7 +186,7 @@ enum SymlinkManager {
                     continue
                 }
 
-                // 验证该路径（解析 symlink 后）确实指向同一个 canonical skill
+                // Verify this path (after resolving symlink) indeed points to the same canonical skill
                 let resolved: URL
                 if isSymlink(at: skillURL) {
                     resolved = resolveSymlink(at: skillURL)
@@ -195,7 +195,7 @@ enum SymlinkManager {
                 }
 
                 if resolved.standardized.path == canonicalURL.standardized.path {
-                    // 找到继承安装：skill 存在于源 Agent 目录中，当前 Agent 可以读取
+                    // Inherited installation found: skill exists in source Agent directory, current Agent can read it
                     installations.append(SkillInstallation(
                         agentType: agentType,
                         path: skillURL,
@@ -203,27 +203,27 @@ enum SymlinkManager {
                         isInherited: true,
                         inheritedFrom: additionalDir.sourceAgent
                     ))
-                    // 找到第一个匹配就停止（避免同一 Agent 重复添加继承安装）
+                    // Stop on first match (avoid duplicate inherited installations for same Agent)
                     break
                 }
             }
         }
 
-        // ========== 第三遍：Codex 特殊处理 ==========
-        // Codex 直接从 ~/.agents/skills/ 读取用户级 skills，
-        // 其 skillsDirectoryURL 与 canonical 共享目录相同。
-        // 因此所有 canonical skill 天然对 Codex 可用，
-        // 这里为 Codex 创建一个 isSymlink: false 的安装记录，
-        // 使得 sidebar badge、dashboard 过滤等 UI 能正确显示 Codex 状态。
+        // ========== Third pass: Codex special handling ==========
+        // Codex reads user-level skills directly from ~/.agents/skills/,
+        // its skillsDirectoryURL is same as canonical shared directory.
+        // Therefore all canonical skills are naturally available to Codex,
+        // here create an isSymlink: false installation record for Codex,
+        // so that sidebar badge, dashboard filtering etc. UI can correctly display Codex status.
         let codexSkillURL = AgentType.codex.skillsDirectoryURL.appendingPathComponent(skillName)
         if FileManager.default.fileExists(atPath: codexSkillURL.path) {
             let resolved = resolveSymlink(at: codexSkillURL)
-            // 验证路径确实指向同一个 canonical skill（防止巧合同名但不同路径的情况）
+            // Verify path indeed points to same canonical skill (prevent accidental same name but different path cases)
             if resolved.standardized.path == canonicalURL.standardized.path {
                 installations.append(SkillInstallation(
                     agentType: .codex,
                     path: codexSkillURL,
-                    isSymlink: false  // canonical 原始文件，不是 symlink
+                    isSymlink: false  // canonical original file, not a symlink
                 ))
             }
         }

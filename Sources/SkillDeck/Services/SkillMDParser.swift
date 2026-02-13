@@ -1,9 +1,9 @@
 import Foundation
 import Yams
 
-/// SkillMDParser 负责解析 SKILL.md 文件（YAML frontmatter + Markdown body）
+/// SkillMDParser is responsible for parsing SKILL.md files (YAML frontmatter + Markdown body)
 ///
-/// SKILL.md 文件格式：
+/// SKILL.md file format:
 /// ```
 /// ---
 /// name: my-skill
@@ -16,27 +16,27 @@ import Yams
 /// # Markdown content here
 /// ```
 ///
-/// 解析流程：
-/// 1. 找到 `---` 分隔符，提取 frontmatter 和 body
-/// 2. 用 Yams 库解析 YAML frontmatter 为 SkillMetadata
-/// 3. 剩余部分作为 markdown body
+/// Parsing process:
+/// 1. Find `---` delimiters to extract frontmatter and body
+/// 2. Parse YAML frontmatter into SkillMetadata using Yams library
+/// 3. The remaining part serves as the markdown body
 enum SkillMDParser {
 
-    /// 解析结果：包含元数据和正文
+    /// Parse result: contains metadata and body
     struct ParseResult {
         let metadata: SkillMetadata
         let markdownBody: String
     }
 
-    /// 解析错误类型
-    /// Swift 的 Error 协议类似 Java 的 Exception，但更轻量
+    /// Parse error types
+    /// Swift's Error protocol is similar to Java's Exception but more lightweight
     enum ParseError: Error, LocalizedError {
         case fileNotFound(URL)
         case invalidEncoding
         case noFrontmatter
         case invalidYAML(String)
 
-        /// 错误描述（类似 Java 的 getMessage()）
+        /// Error description (similar to Java's getMessage())
         var errorDescription: String? {
             switch self {
             case .fileNotFound(let url):
@@ -51,12 +51,12 @@ enum SkillMDParser {
         }
     }
 
-    /// 从文件 URL 解析 SKILL.md
-    /// - Parameter url: SKILL.md 文件的路径
-    /// - Returns: 解析结果（metadata + body）
+    /// Parse SKILL.md from file URL
+    /// - Parameter url: Path to SKILL.md file
+    /// - Returns: Parse result (metadata + body)
     /// - Throws: ParseError
     ///
-    /// `throws` 类似 Java 的 checked exception 或 Go 的 error return
+    /// `throws` is similar to Java's checked exception or Go's error return
     static func parse(fileURL url: URL) throws -> ParseResult {
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw ParseError.fileNotFound(url)
@@ -70,14 +70,14 @@ enum SkillMDParser {
         return try parse(content: content)
     }
 
-    /// 从字符串内容解析 SKILL.md
-    /// 这个方法也暴露出来方便单元测试
+    /// Parse SKILL.md from string content
+    /// Exposed for unit testing
     static func parse(content: String) throws -> ParseResult {
-        // 提取 frontmatter 和 body
+        // Extract frontmatter and body
         let (yamlString, body) = try extractFrontmatter(from: content)
 
-        // 使用 Yams 库将 YAML 字符串解析为 SkillMetadata
-        // YAMLDecoder 类似 Java 的 ObjectMapper 或 Go 的 json.Unmarshal
+        // Parse YAML string into SkillMetadata using Yams library
+        // YAMLDecoder is similar to Java's ObjectMapper or Go's json.Unmarshal
         let decoder = YAMLDecoder()
         let metadata: SkillMetadata
         do {
@@ -89,18 +89,18 @@ enum SkillMDParser {
         return ParseResult(metadata: metadata, markdownBody: body.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
-    /// 从内容中提取 YAML frontmatter 和 markdown body
-    /// - Returns: (YAML 字符串, Markdown body)
+    /// Extract YAML frontmatter and markdown body from content
+    /// - Returns: (YAML string, Markdown body)
     private static func extractFrontmatter(from content: String) throws -> (String, String) {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // frontmatter 必须以 --- 开头
+        // frontmatter must start with ---
         guard trimmed.hasPrefix("---") else {
             throw ParseError.noFrontmatter
         }
 
-        // 找到第二个 --- 的位置
-        // Swift 的字符串索引比较特殊，不是简单的 Int（因为 Unicode 字符长度不固定）
+        // Find the position of the second ---
+        // Swift string indices are special, not simple Ints (due to variable Unicode character length)
         let afterFirstSeparator = trimmed.index(trimmed.startIndex, offsetBy: 3)
         let rest = trimmed[afterFirstSeparator...]
 
@@ -115,8 +115,8 @@ enum SkillMDParser {
         return (yamlString, body)
     }
 
-    /// 将 SkillMetadata 序列化回 SKILL.md 格式的字符串
-    /// 用于编辑后保存
+    /// Serialize SkillMetadata back to SKILL.md format string
+    /// Used for saving after editing
     static func serialize(metadata: SkillMetadata, markdownBody: String) throws -> String {
         let encoder = YAMLEncoder()
         let yamlString = try encoder.encode(metadata)

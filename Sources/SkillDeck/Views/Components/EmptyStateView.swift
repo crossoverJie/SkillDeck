@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// EmptyStateView 是通用的空状态占位视图
+/// EmptyStateView is a generic empty state placeholder view
 ///
-/// 当列表为空或未选中任何项目时显示
+/// Displayed when list is empty or no item is selected
 struct EmptyStateView: View {
 
     let icon: String

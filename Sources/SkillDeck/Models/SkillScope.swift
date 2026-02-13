@@ -1,16 +1,16 @@
 import Foundation
 
-/// SkillScope 表示 skill 的作用域
-/// Swift enum 可以有关联值（associated values），这是 Java/Go enum 做不到的
-/// 类似 Rust 的 enum / Go 的 tagged union
+/// SkillScope represents the scope of a skill
+/// Swift enums can have associated values, which Java/Go enums cannot do
+/// Similar to Rust enum / Go tagged union
 enum SkillScope: Hashable, Identifiable {
-    /// 共享全局：位于 ~/.agents/skills/，可被所有 Agent 通过 symlink 引用
+    /// Shared global: located in ~/.agents/skills/, can be referenced by all Agents via symlink
     case sharedGlobal
 
-    /// Agent 本地：仅存在于某个 Agent 的 skills 目录（非 symlink）
+    /// Agent local: only exists in a specific Agent's skills directory (not symlink)
     case agentLocal(AgentType)
 
-    /// 项目级：位于项目目录的 .agents/skills/ 或 .claude/skills/
+    /// Project level: located in project directory .agents/skills/ or .claude/skills/
     case project(URL)
 
     var id: String {
@@ -29,7 +29,7 @@ enum SkillScope: Hashable, Identifiable {
         }
     }
 
-    /// UI 徽章颜色
+    /// UI badge color
     var badgeColor: String {
         switch self {
         case .sharedGlobal: "blue"
