@@ -25,13 +25,13 @@
 <!-- Replace the placeholder images below with actual screenshots -->
 
 <p align="center">
-  <img src="https://placehold.co/800x500/f8f4ff/7c3aed?text=Dashboard+Overview" alt="Dashboard Overview" width="800" />
+  <img src="docs/screenshots/dash.png" alt="Dashboard Overview" width="800" />
 </p>
 
 <p align="center">
-  <img src="https://placehold.co/380x260/f8f4ff/7c3aed?text=Skill+Detail" alt="Skill Detail" width="260" />
-  <img src="https://placehold.co/380x260/f8f4ff/7c3aed?text=SKILL.md+Editor" alt="SKILL.md Editor" width="260" />
-  <img src="https://placehold.co/380x260/f8f4ff/7c3aed?text=Agent+Assignment" alt="Agent Assignment" width="260" />
+  <img src="docs/screenshots/skill-detail.png![img.png](img.png)" alt="Skill Detail" width="260" />
+  <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213122805.png" alt="install" width="260" />
+  <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213123118.png" alt="update" width="260" />
 </p>
 
 ## Features
