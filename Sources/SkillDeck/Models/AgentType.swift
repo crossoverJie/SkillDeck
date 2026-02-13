@@ -91,6 +91,8 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     /// This is the "Single Source of Truth" for cross-directory reading rules:
     /// - Copilot CLI can read both ~/.copilot/skills/ and ~/.claude/skills/
     ///   (See GitHub official documentation: https://docs.github.com/en/copilot/concepts/agents/about-agent-skills)
+    /// - OpenCode can read both ~/.claude/skills/ and ~/.agents/skills/
+    ///   (See: https://opencode.ai/docs/skills/#place-files)
     /// - Other Agents currently do not have cross-directory reading behavior
     ///
     /// Returns an array of tuples: (Directory URL, Source Agent Type)
@@ -100,6 +102,13 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .copilotCLI:
             // Copilot CLI can also read Claude Code's skills directory
             return [(AgentType.claudeCode.skillsDirectoryURL, .claudeCode)]
+        case .openCode:
+            // OpenCode can also read Claude Code's and Codex's skills directories
+            // See: https://opencode.ai/docs/skills/#place-files
+            return [
+                (AgentType.claudeCode.skillsDirectoryURL, .claudeCode),
+                (AgentType.codex.skillsDirectoryURL, .codex)
+            ]
         default:
             return []
         }
