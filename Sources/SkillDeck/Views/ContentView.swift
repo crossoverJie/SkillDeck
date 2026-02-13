@@ -57,6 +57,8 @@ struct ContentView: View {
             dashboardVM = DashboardViewModel(skillManager: skillManager)
             detailVM = SkillDetailViewModel(skillManager: skillManager)
             await skillManager.refresh()
+            // 应用启动时自动检查更新（受 4 小时间隔限制，不会每次都请求 GitHub API）
+            await skillManager.checkForAppUpdate()
         }
         // .onChange(of:) 在指定值变化时触发闭包（类似 React 的 useEffect 带依赖数组）
         // 当用户点击侧边栏导航项时，将选中项映射为 Agent 过滤器并同步到 DashboardViewModel

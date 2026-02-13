@@ -59,12 +59,33 @@ final class SkillManager {
     /// 类型从 [String: Bool] 改为 [String: SkillUpdateStatus]，支持更丰富的 UI 反馈
     var updateStatuses: [String: SkillUpdateStatus] = [:]
 
+    // MARK: - App Update State（应用自身更新状态）
+
+    /// 最新版本的 Release 信息（为 nil 表示无可用更新或尚未检查）
+    /// 多个 View 需要访问（Settings About 页面、SidebarView toolbar 提醒图标），
+    /// 所以放在全局的 SkillManager 中而非 ViewModel 中
+    var appUpdateInfo: AppUpdateInfo?
+
+    /// 是否正在检查应用更新（显示加载指示器）
+    var isCheckingAppUpdate = false
+
+    /// 是否正在下载更新（显示进度条）
+    var isDownloadingUpdate = false
+
+    /// 下载进度（0.0 ~ 1.0），用于进度条显示
+    var downloadProgress: Double = 0
+
+    /// 更新过程中的错误信息（显示给用户，可重试）
+    var updateError: String?
+
     // MARK: - Dependencies（依赖的子服务）
 
     private let scanner = SkillScanner()
     private let detector = AgentDetector()
     private let lockFileManager = LockFileManager()
     private let watcher = FileSystemWatcher()
+    /// 应用自身更新检查器（GitHub Release 检查、下载、安装）
+    private let updateChecker = UpdateChecker()
     /// F10/F12: Git 操作服务，用于安装和更新检查
     private let gitService = GitService()
     /// F12: SkillDeck 私有的 commit hash 缓存，独立于 .skill-lock.json
@@ -674,5 +695,108 @@ final class SkillManager {
 
         // 7. 刷新 UI —— refresh 会从缓存读取关联信息，合成 LockEntry
         await refresh()
+    }
+
+    // MARK: - App Update（应用自身更新）
+
+    /// 检查 SkillDeck 应用自身是否有新版本
+    ///
+    /// 流程：
+    /// 1. 读取当前版本号（从 Info.plist 或回退到 "dev"）
+    /// 2. "dev" 版本跳过检查（开发环境 swift run 启动时没有 .app bundle）
+    /// 3. 非 force 模式下受 4 小时间隔限制（避免频繁请求 GitHub API）
+    /// 4. 调用 GitHub API 获取最新 Release
+    /// 5. 用 VersionComparator 比较版本号
+    /// 6. 如果有更新，设置 appUpdateInfo 触发 UI 刷新
+    ///
+    /// - Parameter force: 是否强制检查（忽略 4 小时间隔，用于手动触发）
+    func checkForAppUpdate(force: Bool = false) async {
+        // 读取当前版本号
+        // CFBundleShortVersionString 是 Info.plist 中的版本号字段
+        // 通过 swift run 启动时 Bundle.main 没有 Info.plist，回退到 "dev"
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
+
+        // "dev" 版本仅跳过自动检查（应用启动时的自动触发）
+        // 用户手动点击 "Check for Updates" 时（force=true），即使是 dev 版本也应执行检查并展示结果
+        // 这样开发环境下也能测试更新检查流程
+        if currentVersion == "dev" && !force { return }
+
+        // 非强制模式下检查 4 小时间隔
+        // force = true 用于设置页面的 "Check for Updates" 按钮（手动触发，不受间隔限制）
+        if !force && !updateChecker.shouldAutoCheck() { return }
+
+        isCheckingAppUpdate = true
+        updateError = nil
+
+        do {
+            // 调用 GitHub API 获取最新 Release（throws 版本，错误不再静默吞掉）
+            let releaseInfo = try await updateChecker.fetchLatestRelease()
+
+            // 记录本次检查时间（无论是否有更新都记录，避免短时间内重复请求）
+            updateChecker.recordCheckTime()
+
+            // "dev" 版本视为始终有更新（开发环境下任何 Release 都算新版本）
+            // 正式版本使用 VersionComparator 做语义化比较
+            if currentVersion == "dev" || VersionComparator.isNewer(current: currentVersion, latest: releaseInfo.version) {
+                appUpdateInfo = releaseInfo
+            } else {
+                // 当前已是最新版本，清除之前的更新提醒（如果有的话）
+                appUpdateInfo = nil
+            }
+        } catch {
+            // 自动检查时静默忽略错误（不打扰用户）
+            // 用户手动触发（force=true）时显示具体错误信息，方便排查
+            if force {
+                updateError = error.localizedDescription
+            }
+        }
+
+        isCheckingAppUpdate = false
+    }
+
+    /// 执行应用更新：下载 zip → 解压 → 替换 .app → 重启
+    ///
+    /// 调用时机：用户在 Settings About 页面点击 "Update Now" 按钮
+    ///
+    /// 流程：
+    /// 1. 从 appUpdateInfo 获取下载 URL
+    /// 2. 通过 UpdateChecker.downloadUpdate 下载 zip 并报告进度
+    /// 3. 通过 UpdateChecker.installUpdate 解压并替换
+    /// 4. 应用会自动重启（由 shell 脚本完成）
+    ///
+    /// 错误处理：与检测阶段不同，下载/安装阶段的错误会显示给用户
+    func performUpdate() async {
+        guard let updateInfo = appUpdateInfo else { return }
+
+        isDownloadingUpdate = true
+        downloadProgress = 0
+        updateError = nil
+
+        do {
+            // 下载 zip 文件，通过闭包回调更新进度
+            // @MainActor 在此类中已标记，所以 self.downloadProgress 的赋值在主线程执行
+            // @Sendable 闭包需要通过 Task { @MainActor in } 回到主线程更新 UI 状态
+            let zipPath = try await updateChecker.downloadUpdate(
+                from: updateInfo.downloadURL
+            ) { [weak self] progress in
+                Task { @MainActor in
+                    self?.downloadProgress = progress
+                }
+            }
+
+            // 安装更新（解压 → 替换 → 重启）
+            // 注意：如果安装成功，应用会被终止，后续代码不会执行
+            try await updateChecker.installUpdate(zipPath: zipPath)
+        } catch {
+            // 下载或安装失败，显示错误信息给用户
+            updateError = error.localizedDescription
+            isDownloadingUpdate = false
+        }
+    }
+
+    /// 清除应用更新提醒（用户手动忽略）
+    func dismissAppUpdate() {
+        appUpdateInfo = nil
+        updateError = nil
     }
 }

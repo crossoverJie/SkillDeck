@@ -67,8 +67,12 @@ struct SkillDeckApp: App {
 
         // Settings 场景：macOS 应用的「偏好设置」窗口
         // 用户可以通过 Cmd+, 打开
+        // .environment(skillManager) 注入 SkillManager，
+        // 使 AboutSettingsView 可以通过 @Environment 访问更新状态
+        // Settings 场景与 WindowGroup 是独立的 View 层级，需要单独注入环境依赖
         Settings {
             SettingsView()
+                .environment(skillManager)
         }
     }
 }

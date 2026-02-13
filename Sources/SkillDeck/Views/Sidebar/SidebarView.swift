@@ -33,6 +33,11 @@ struct SidebarView: View {
     @Binding var selection: SidebarItem?
     @Environment(SkillManager.self) private var skillManager
 
+    /// macOS 14+ 提供的 SwiftUI 原生打开设置窗口的 action
+    /// @Environment(\.openSettings) 从环境中获取系统提供的 OpenSettingsAction，
+    /// 调用 openSettings() 等价于用户按 Cmd+,（比 NSApp.sendAction 更可靠）
+    @Environment(\.openSettings) private var openSettings
+
     /// 当前鼠标悬停的侧边栏项
     /// @State 是视图私有状态，悬停状态只在本视图内使用，不需要传递给父组件
     @State private var hoveredItem: SidebarItem?
@@ -80,6 +85,23 @@ struct SidebarView: View {
         // 配合 ContentView 中的 .navigationSplitViewColumnWidth(min: 180) 最小宽度约束，
         // 确保窗口状态恢复时侧边栏不会过窄导致 ToolbarItem 溢出隐藏
         .toolbar {
+            // 应用更新提醒按钮：有新版本时显示橙色向上箭头
+            // 点击后打开设置窗口（通过发送系统通知 showSettingsWindow）
+            // 只有 appUpdateInfo 不为 nil 时才显示，用户会注意到这个新出现的图标
+            ToolbarItem {
+                if skillManager.appUpdateInfo != nil {
+                    Button {
+                        // openSettings() 是 macOS 14+ SwiftUI 原生 API，
+                        // 等价于用户按 Cmd+,，会打开 Settings { } 场景定义的设置窗口
+                        openSettings()
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .foregroundStyle(.orange)
+                    }
+                    .help("Update available! Click to open settings.")
+                }
+            }
+
             // F10: 安装新 skill 的 "+" 按钮
             // ToolbarItem 不指定 placement 时默认放在 toolbar 尾部（trailing）
             ToolbarItem {
