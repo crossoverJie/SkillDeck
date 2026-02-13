@@ -74,3 +74,19 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 ## Testing
 
 Tests are in `Tests/SkillDeckTests/`. Three test files exist: `SkillMDParserTests`, `LockFileManagerTests`, `SymlinkManagerTests`. Tests use `@testable import SkillDeck` for internal access.
+
+## Release
+
+Use `scripts/release.sh` to publish a new version:
+
+```bash
+bash scripts/release.sh <version> --dry   # Dry run to verify checks
+bash scripts/release.sh <version>          # Create and push tag (confirm with y)
+```
+
+**Version bump rules:**
+
+- **"升级一个小版本" (patch release)**: bump patch +1 (e.g. v0.0.3 → v0.0.4 → v0.0.5)
+- **"发布一个大版本" (minor release)**: bump minor +1, reset patch to 0 (e.g. v0.1.0 → v0.2.0 → v0.3.0)
+
+Before releasing, run `git tag --sort=-creatordate | head -5` to find the latest tag and determine the next version number.
