@@ -18,8 +18,6 @@ let package = Package(
         // Apple 官方的 Markdown 解析库，用于渲染 SKILL.md 的正文部分
         .package(url: "https://github.com/apple/swift-markdown.git", from: "0.7.3"),
 
-        // Apple 官方的集合扩展库，提供 OrderedDictionary 等高级数据结构
-        .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.0"),
     ],
 
     targets: [
@@ -29,7 +27,6 @@ let package = Package(
             dependencies: [
                 "Yams",
                 .product(name: "Markdown", package: "swift-markdown"),
-                .product(name: "Collections", package: "swift-collections"),
             ],
             path: "Sources/SkillDeck",
             // resources 数组告诉 SPM 将指定文件打包到 Bundle.module 中

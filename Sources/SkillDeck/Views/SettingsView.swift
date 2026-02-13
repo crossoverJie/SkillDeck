@@ -58,9 +58,17 @@ struct AboutSettingsView: View {
             Text("Native macOS Agent Skills Manager")
                 .foregroundStyle(.secondary)
 
-            Text("v0.1.0")
+            // 从 Info.plist 读取版本号，.app bundle 运行时 Bundle.main 包含 Info.plist
+            // CFBundleShortVersionString 是用户可见的版本号（如 "1.0.0"）
+            // 如果是 swift run 直接运行（无 .app bundle），则回退到 "dev"
+            Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev")")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+
+            // Link 是 SwiftUI 内置的超链接组件，点击后会调用系统默认浏览器打开 URL
+            // 在 macOS 上渲染为蓝色可点击文字，类似 HTML 的 <a> 标签
+            Link("GitHub", destination: URL(string: "https://github.com/crossoverjie/SkillDeck")!)
+                .font(.caption)
         }
         .padding()
     }

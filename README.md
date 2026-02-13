@@ -11,6 +11,37 @@
 
 ---
 
+## Installation
+
+### Download (Recommended)
+
+Download the latest universal binary from [GitHub Releases](https://github.com/crossoverJie/SkillDeck/releases):
+
+1. Download `SkillDeck-vX.Y.Z-universal.zip`
+2. Unzip and move `SkillDeck.app` to `/Applications/`
+3. On first launch, macOS will block unsigned apps. To open:
+   ```bash
+   xattr -cr /Applications/SkillDeck.app
+   ```
+   Or: Right-click → Open → "Open" in the dialog
+
+### Homebrew
+
+```bash
+brew tap crossoverJie/skilldeck
+brew install --cask skilldeck
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/crossoverJie/SkillDeck.git
+cd SkillDeck
+swift run SkillDeck
+```
+
+---
+
 ## Features (v0.1 MVP)
 
 - [x] **F01 — Agent Detection**: Auto-detect installed agents (Claude Code, Codex, Gemini CLI, Copilot CLI) by checking config directories and CLI binaries
@@ -42,9 +73,9 @@
 - [ ] **F19 — Bulk Operations**: Multi-select delete, assign, and other batch actions
 - [ ] **F20 — Skill Export/Import**: Zip bundle export and import for skill sharing
 - [ ] **F21 — Settings Sync**: iCloud or git-based settings synchronization across machines
-- [ ] **App Icon**: Custom app icon design
+- [x] **App Icon**: Custom app icon design
 - [ ] **Notarized DMG**: Signed and notarized distribution package
-- [ ] **Homebrew Cask**: `brew install --cask skilldeck` distribution
+- [x] **Homebrew Cask**: `brew install --cask skilldeck` distribution
 - [ ] **Markdown Rendering**: Rich markdown rendering in detail view (currently shows source)
 - [ ] **Dark Mode Polish**: Fine-tuned dark mode color adjustments
 
