@@ -25,13 +25,12 @@
 <!-- Replace the placeholder images below with actual screenshots -->
 
 <p align="center">
-  <img src="docs/screenshots/dash.png" alt="Dashboard Overview" width="800" />
+  <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213123118.png" alt="Dashboard Overview" width="800" />
 </p>
 
 <p align="center">
   <img src="docs/screenshots/skill-detail.png" alt="Skill Detail" width="260" />
   <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213122805.png" alt="install" width="260" />
-  <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213123118.png" alt="update" width="260" />
 </p>
 
 ## Features
