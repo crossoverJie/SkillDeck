@@ -30,6 +30,23 @@ actor CommitHashCache {
         /// 存储手动关联的 skill → 仓库信息的映射
         /// optional 保证向后兼容：旧格式文件中没有此字段，解码时自动为 nil
         var linkedSkills: [String: LinkedSkillInfo]?
+        /// Stores user's scanned repo history
+        /// Optional for backward compatibility: old cache files won't have this field, decodes as nil
+        var repoHistory: [RepoHistoryEntry]?
+    }
+
+    /// History of scanned repos from the Install Sheet
+    ///
+    /// Records GitHub repos that the user has successfully scanned in the Install Sheet,
+    /// so they can quickly select a previously used repo next time without retyping the URL.
+    /// Codable protocol auto-generates JSON serialization/deserialization code
+    struct RepoHistoryEntry: Codable, Equatable {
+        /// Repo source identifier (e.g. "crossoverJie/skills")
+        var source: String
+        /// Full repo URL (e.g. "https://github.com/crossoverJie/skills.git")
+        var sourceUrl: String
+        /// Last scanned timestamp (ISO 8601 format)
+        var scannedAt: String
     }
 
     /// 手动关联 skill 到 GitHub 仓库的信息
@@ -72,6 +89,10 @@ actor CommitHashCache {
     /// 内存缓存：skill name → 手动关联的仓库信息
     /// 用于存储没有 lockEntry 的 skill 手动关联的 GitHub 仓库信息
     private var linkedSkillsCache: [String: LinkedSkillInfo] = [:]
+
+    /// In-memory cache: user's scanned repo history
+    /// Deduplicated by source, most recently scanned first, max 20 entries
+    private var repoHistoryCache: [RepoHistoryEntry] = []
 
     /// 是否已从磁盘加载过（避免重复读取）
     private var isLoaded = false
@@ -144,16 +165,55 @@ actor CommitHashCache {
         return linkedSkillsCache
     }
 
+    // MARK: - Repo History Methods
+
+    /// Add or update a repo scan history entry
+    ///
+    /// Deduplicates by source (e.g. "owner/repo"): if a matching entry exists,
+    /// updates its timestamp and moves it to the front. Keeps at most 20 entries (FIFO).
+    /// Only writes to memory; call save() to persist to disk.
+    ///
+    /// - Parameters:
+    ///   - source: Repo source identifier (e.g. "crossoverJie/skills")
+    ///   - sourceUrl: Full repo URL (e.g. "https://github.com/crossoverJie/skills.git")
+    func addRepoHistory(source: String, sourceUrl: String) {
+        ensureLoaded()
+
+        // Remove existing entry with the same source (case-insensitive, since GitHub URLs are case-insensitive)
+        // removeAll(where:) is like Java Stream's filter + collect — removes matching elements in place
+        // caseInsensitiveCompare returns .orderedSame when strings are equal ignoring case
+        repoHistoryCache.removeAll { $0.source.caseInsensitiveCompare(source) == .orderedSame }
+
+        // Insert at the front (most recently used first)
+        let now = ISO8601DateFormatter().string(from: Date())
+        let entry = RepoHistoryEntry(source: source, sourceUrl: sourceUrl, scannedAt: now)
+        repoHistoryCache.insert(entry, at: 0)
+
+        // Keep at most 20 entries (prefix takes first N elements, like Python's list[:20])
+        if repoHistoryCache.count > 20 {
+            repoHistoryCache = Array(repoHistoryCache.prefix(20))
+        }
+    }
+
+    /// Get all repo scan history entries
+    ///
+    /// Returns entries sorted by most recent scan time (newest first), max 20 entries
+    func getRepoHistory() -> [RepoHistoryEntry] {
+        ensureLoaded()
+        return repoHistoryCache
+    }
+
     /// 将内存缓存写入磁盘
     ///
     /// 使用原子写入（.atomic）确保文件不会因中途崩溃而损坏：
     /// 先写到临时文件，成功后再 rename 替换原文件。
     /// 类似 Go 中先写 .tmp 文件再 os.Rename 的模式。
     func save() throws {
-        // linkedSkillsCache 为空时存为 nil，JSON 中不输出该字段（保持简洁）
+        // Omit repoHistory from JSON when empty (same pattern as linkedSkillsCache)
         let cacheFile = CacheFile(
             skills: cache,
-            linkedSkills: linkedSkillsCache.isEmpty ? nil : linkedSkillsCache
+            linkedSkills: linkedSkillsCache.isEmpty ? nil : linkedSkillsCache,
+            repoHistory: repoHistoryCache.isEmpty ? nil : repoHistoryCache
         )
         let encoder = JSONEncoder()
         // prettyPrinted 让 JSON 格式化输出，方便人类阅读和调试
@@ -190,10 +250,13 @@ actor CommitHashCache {
             cache = cacheFile.skills
             // 加载关联信息（可能为 nil，旧格式文件中没有此字段）
             linkedSkillsCache = cacheFile.linkedSkills ?? [:]
+            // Load repo scan history (may be nil in old cache files without this field)
+            repoHistoryCache = cacheFile.repoHistory ?? []
         } catch {
             // 文件损坏或格式不兼容时，使用空缓存重新开始
             // 不抛错是因为缓存丢失不影响核心功能，只是需要重新 backfill
             cache = [:]
-            linkedSkillsCache = [:]        }
+            linkedSkillsCache = [:]
+            repoHistoryCache = []        }
     }
 }

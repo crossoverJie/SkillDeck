@@ -83,6 +83,10 @@ final class SkillInstallViewModel: Identifiable {
     /// 已成功安装的 skill 数量
     var installedCount = 0
 
+    /// Merged and deduplicated repo history (from lock file + scan history)
+    /// Loaded asynchronously via loadHistory() after ViewModel creation
+    var repoHistory: [(source: String, sourceUrl: String)] = []
+
     // MARK: - Dependencies
 
     /// SkillManager 引用，用于执行安装和检查已安装状态
@@ -105,6 +109,28 @@ final class SkillInstallViewModel: Identifiable {
     }
 
     // MARK: - Actions
+
+    /// Load repo history (merged from lock file + scan history)
+    ///
+    /// Called from the View's .task modifier (not in init, because init is synchronous
+    /// while getRepoHistory is async and requires await).
+    /// .task runs async code when the view first appears, similar to Android's onResume + coroutine
+    func loadHistory() async {
+        repoHistory = await skillManager.getRepoHistory()
+    }
+
+    /// Select a history entry: auto-fill URL input and trigger Scan
+    ///
+    /// Called when the user taps a row in the Install Sheet's history list.
+    /// Uses the source (owner/repo) format as input — fetchRepository() will normalize it internally.
+    ///
+    /// - Parameter source: Repo source identifier (e.g. "crossoverJie/skills")
+    /// - Parameter sourceUrl: Full repo URL (e.g. "https://github.com/crossoverJie/skills.git")
+    func selectHistoryRepo(source: String, sourceUrl: String) async {
+        // Use source format (owner/repo) as input; fetchRepository normalizes it internally
+        repoURLInput = source
+        await fetchRepository()
+    }
 
     /// Step 1：克隆仓库并扫描发现 skill
     ///
@@ -154,6 +180,9 @@ final class SkillInstallViewModel: Identifiable {
 
             // 默认选中所有未安装的 skill
             selectedSkillNames = Set(discovered.map(\.id).filter { !alreadyInstalledNames.contains($0) })
+
+            // Save scan history (so this repo appears in "Recent Repositories" next time)
+            await skillManager.saveRepoHistory(source: normalizedSource, sourceUrl: normalizedRepoURL)
 
             // 6. 转到选择阶段
             phase = .selectSkills

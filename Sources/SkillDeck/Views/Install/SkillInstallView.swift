@@ -107,9 +107,70 @@ struct SkillInstallView: View {
             }
             .padding(.horizontal, 40)
 
+            // History list: only shown when repoHistory is not empty
+            // Users can click a history item to auto-fill the URL and trigger Scan
+            if !viewModel.repoHistory.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recent Repositories")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 40)
+
+                    // ScrollView wraps the history list to prevent too many entries from stretching the view
+                    // .frame(maxHeight: 150) caps the height; content scrolls if it overflows
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            // ForEach requires Identifiable or an explicit id parameter
+                            // Here we use source as the unique identifier (already deduplicated)
+                            ForEach(viewModel.repoHistory, id: \.source) { entry in
+                                Button {
+                                    // Click a history item: auto-fill URL and trigger Scan
+                                    Task {
+                                        await viewModel.selectHistoryRepo(
+                                            source: entry.source,
+                                            sourceUrl: entry.sourceUrl
+                                        )
+                                    }
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        // Clock arrow icon representing "history"
+                                        Image(systemName: "clock.arrow.circlepath")
+                                            .foregroundStyle(.secondary)
+                                            .font(.caption)
+                                        Text(entry.source)
+                                            .font(.callout)
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                    }
+                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 12)
+                                    // contentShape expands the tappable area to the full row (by default only text is tappable)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+
+                                // Divider between rows (skip the last row)
+                                if entry.source != viewModel.repoHistory.last?.source {
+                                    Divider()
+                                        .padding(.leading, 32)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                    .frame(maxHeight: 150)
+                    .padding(.horizontal, 36)
+                }
+            }
+
             Spacer()
         }
         .padding()
+        // .task runs async code when the view first appears (like Android onResume + coroutine)
+        // Used here to load repo history
+        .task {
+            await viewModel.loadHistory()
+        }
     }
 
     /// 阶段：正在克隆和扫描

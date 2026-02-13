@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Code Style: Comments Required
 
-The author has extensive Java/Golang/Python experience but is new to Swift and macOS app development. All generated code must include detailed comments in Chinese explaining:
+The author has extensive Java/Golang/Python experience but is new to Swift and macOS app development. All generated code must include detailed comments in **English** explaining:
 - Swift-specific syntax and language features (e.g., `@Observable`, `actor`, `some View`, property wrappers)
 - SwiftUI concepts and view lifecycle (e.g., `.task`, `.environment()`, `NavigationSplitView`)
 - macOS/Apple platform APIs (e.g., `NSWorkspace`, `DispatchSource`, `FileManager`)
@@ -74,6 +74,10 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 ## Testing
 
 Tests are in `Tests/SkillDeckTests/`. Three test files exist: `SkillMDParserTests`, `LockFileManagerTests`, `SymlinkManagerTests`. Tests use `@testable import SkillDeck` for internal access.
+
+## Pull Requests
+
+When creating PRs with `gh pr create`, always use **English** for the title, body, and all content.
 
 ## Release
 

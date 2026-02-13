@@ -586,6 +586,58 @@ final class SkillManager {
         await commitHashCache.getHash(for: skillName)
     }
 
+    /// Get a merged, deduplicated repo history list (lock file installed sources + scan history)
+    ///
+    /// Data sources:
+    /// 1. `skills` array's `lockEntry.source`/`sourceUrl` (from lock file)
+    /// 2. `commitHashCache.getRepoHistory()` (user's scan history)
+    ///
+    /// Dedup strategy: by `source` field (case-insensitive), lock file entries take priority
+    /// since they have actual install records. Returns a tuple array for easy ViewModel consumption.
+    ///
+    /// - Returns: Deduplicated repo list, each with source (e.g. "owner/repo") and sourceUrl
+    func getRepoHistory() async -> [(source: String, sourceUrl: String)] {
+        // Use a Set to track seen sources (lowercased) for O(1) case-insensitive dedup.
+        // GitHub URLs are case-insensitive, so "Owner/Repo" and "owner/repo" are the same repo.
+        var seen = Set<String>()
+        var result: [(source: String, sourceUrl: String)] = []
+
+        // 1. Extract unique (source, sourceUrl) pairs from installed skills
+        // Lock file entries are added first since installed repos are more valuable
+        for skill in skills {
+            guard let entry = skill.lockEntry else { continue }
+            // Skip empty source (shouldn't happen in practice, but defensive programming)
+            guard !entry.source.isEmpty else { continue }
+            if seen.insert(entry.source.lowercased()).inserted {
+                // insert returns (inserted: Bool, memberAfterInsert), similar to Go's map ok pattern
+                result.append((source: entry.source, sourceUrl: entry.sourceUrl))
+            }
+        }
+
+        // 2. Supplement with scan history (repos not already covered by lock file)
+        let history = await commitHashCache.getRepoHistory()
+        for entry in history {
+            if seen.insert(entry.source.lowercased()).inserted {
+                result.append((source: entry.source, sourceUrl: entry.sourceUrl))
+            }
+        }
+
+        return result
+    }
+
+    /// Save a repo scan history entry to cache
+    ///
+    /// Called by SkillInstallViewModel after a successful scan,
+    /// so the repo appears in the "Recent Repositories" list next time the Install Sheet opens.
+    ///
+    /// - Parameters:
+    ///   - source: Repo source identifier (e.g. "crossoverJie/skills")
+    ///   - sourceUrl: Full repo URL (e.g. "https://github.com/crossoverJie/skills.git")
+    func saveRepoHistory(source: String, sourceUrl: String) async {
+        await commitHashCache.addRepoHistory(source: source, sourceUrl: sourceUrl)
+        try? await commitHashCache.save()
+    }
+
     /// 按 Agent 过滤 skill
     func skills(for agentType: AgentType) -> [Skill] {
         skills.filter { skill in
