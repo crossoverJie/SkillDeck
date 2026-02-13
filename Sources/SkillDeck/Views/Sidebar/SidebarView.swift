@@ -1,15 +1,15 @@
 import SwiftUI
 
-/// 侧边栏导航项枚举
+/// Sidebar navigation item enum
 enum SidebarItem: Hashable {
     case dashboard
     case agent(AgentType)
     case settings
 
-    /// 将侧边栏选项映射为 Agent 过滤器值
-    /// - .dashboard / .settings → nil（显示全部 skill）
-    /// - .agent(type) → type（仅显示该 Agent 的 skill）
-    /// 这个计算属性（computed property）类似 Java 的 getter，每次访问时执行 switch 计算
+    /// Maps sidebar options to Agent filter values
+    /// - .dashboard / .settings → nil (show all skills)
+    /// - .agent(type) → type (only show skills for this Agent)
+    /// This computed property is similar to Java's getter, executes switch calculation on each access
     var agentFilter: AgentType? {
         switch self {
         case .agent(let agentType):
@@ -20,36 +20,36 @@ enum SidebarItem: Hashable {
     }
 }
 
-/// SidebarView 是应用的侧边栏导航
+/// SidebarView is the app's sidebar navigation
 ///
-/// macOS 侧边栏的视觉规范（参考 Finder、Mail 等原生应用）：
-/// - 选中项：带圆角矩形的 accentColor 半透明背景
-/// - 悬停项：带极淡灰色背景，提示可点击
-/// - 普通项：透明背景
+/// macOS sidebar visual guidelines (referencing Finder, Mail and other native apps):
+/// - Selected: rounded rectangle with accentColor semi-transparent background
+/// - Hover: very light gray background, hinting it's clickable
+/// - Normal: transparent background
 ///
-/// @Binding 是双向绑定（类似 Vue 的 v-model），父组件和子组件共享同一个状态
+/// @Binding is two-way binding (similar to Vue's v-model), parent and child components share the same state
 struct SidebarView: View {
 
     @Binding var selection: SidebarItem?
     @Environment(SkillManager.self) private var skillManager
 
-    /// macOS 14+ 提供的 SwiftUI 原生打开设置窗口的 action
-    /// @Environment(\.openSettings) 从环境中获取系统提供的 OpenSettingsAction，
-    /// 调用 openSettings() 等价于用户按 Cmd+,（比 NSApp.sendAction 更可靠）
+    /// macOS 14+ provides native SwiftUI action to open settings window
+    /// @Environment(\.openSettings) gets the system-provided OpenSettingsAction from environment,
+    /// calling openSettings() is equivalent to user pressing Cmd+, (more reliable than NSApp.sendAction)
     @Environment(\.openSettings) private var openSettings
 
-    /// 当前鼠标悬停的侧边栏项
-    /// @State 是视图私有状态，悬停状态只在本视图内使用，不需要传递给父组件
+    /// Currently hovered sidebar item
+    /// @State is view-private state, hover state is only used within this view, no need to pass to parent component
     @State private var hoveredItem: SidebarItem?
 
-    /// F10: 安装弹窗的 ViewModel（仅在显示 sheet 时创建）
-    /// 使用 `.sheet(item:)` 绑定：非 nil 时显示 sheet，nil 时关闭
-    /// 这样只用一个 @State 变量同时控制 sheet 的展示和内容，避免双状态同步时序问题
+    /// F10: Install modal's ViewModel (created only when showing sheet)
+    /// Uses `.sheet(item:)` binding: shows sheet when non-nil, closes when nil
+    /// This way uses only one @State variable to control both sheet display and content, avoiding dual state synchronization timing issues
     @State private var installVM: SkillInstallViewModel?
 
     var body: some View {
         List(selection: $selection) {
-            // Section 创建分组（macOS 侧边栏中会显示为可折叠的分组）
+            // Section creates groups (shown as collapsible groups in macOS sidebar)
             Section("Overview") {
                 sidebarRow(item: .dashboard) {
                     Label("Dashboard", systemImage: "square.grid.2x2")
@@ -70,29 +70,29 @@ struct SidebarView: View {
                         }
                     }
                     .badge(skillManager.skills(for: agentType).count)
-                    // 使用 skillManager.skills(for:) 而非 agent?.skillCount，
-                    // 因为后者只统计 Agent 自身目录的 skill 数量（来自 AgentDetector），
-                    // 不包含继承安装（如 Copilot 从 Claude 目录继承的 skill）
-                    // opacity 控制透明度：未安装的 Agent 半透明显示
+                    // Use skillManager.skills(for:) instead of agent?.skillCount,
+                    // because the latter only counts skills in Agent's own directory (from AgentDetector),
+                    // not including inherited installations (like Copilot inheriting skills from Claude directory)
+                    // opacity controls transparency: uninstalled Agents are shown semi-transparent
                     .opacity(agent?.isInstalled == true ? 1.0 : 0.5)
                 }
             }
         }
-        // macOS 侧边栏标准样式
+        // macOS sidebar standard style
         .listStyle(.sidebar)
         .navigationTitle("SkillDeck")
-        // 侧边栏顶部 toolbar 操作按钮（原生 macOS 工具栏风格）
-        // 配合 ContentView 中的 .navigationSplitViewColumnWidth(min: 180) 最小宽度约束，
-        // 确保窗口状态恢复时侧边栏不会过窄导致 ToolbarItem 溢出隐藏
+        // Sidebar top toolbar action buttons (native macOS toolbar style)
+        // Works with .navigationSplitViewColumnWidth(min: 180) minimum width constraint in ContentView,
+        // ensures sidebar won't be too narrow when window state is restored, preventing ToolbarItem overflow/hiding
         .toolbar {
-            // 应用更新提醒按钮：有新版本时显示橙色向上箭头
-            // 点击后打开设置窗口（通过发送系统通知 showSettingsWindow）
-            // 只有 appUpdateInfo 不为 nil 时才显示，用户会注意到这个新出现的图标
+            // App update reminder button: shows orange upward arrow when new version is available
+            // Opens settings window when clicked (by sending system notification showSettingsWindow)
+            // Only shows when appUpdateInfo is not nil, users will notice this newly appearing icon
             ToolbarItem {
                 if skillManager.appUpdateInfo != nil {
                     Button {
-                        // openSettings() 是 macOS 14+ SwiftUI 原生 API，
-                        // 等价于用户按 Cmd+,，会打开 Settings { } 场景定义的设置窗口
+                        // openSettings() is macOS 14+ native SwiftUI API,
+                        // equivalent to user pressing Cmd+, opens settings window defined in Settings { } scene
                         openSettings()
                     } label: {
                         Image(systemName: "arrow.up.circle.fill")
@@ -102,8 +102,8 @@ struct SidebarView: View {
                 }
             }
 
-            // F10: 安装新 skill 的 "+" 按钮
-            // ToolbarItem 不指定 placement 时默认放在 toolbar 尾部（trailing）
+            // F10: "+" button for installing new skill
+            // ToolbarItem defaults to toolbar trailing when placement is not specified
             ToolbarItem {
                 Button {
                     installVM = SkillInstallViewModel(skillManager: skillManager)
@@ -113,28 +113,28 @@ struct SidebarView: View {
                 .help("Install skill from GitHub")
             }
 
-            // F12: 批量检查所有 skill 的更新
+            // F12: Batch check updates for all skills
             ToolbarItem {
                 Button {
                     Task { await skillManager.checkAllUpdates() }
                 } label: {
-                    // 检查中时显示旋转进度指示器（ProgressView）+ 进度计数（如 3/12），
-                    // 否则显示静态图标
+                    // When checking, shows spinning progress indicator (ProgressView) + progress count (e.g., 3/12),
+                    // otherwise shows static icon
                     if skillManager.isCheckingUpdates {
                         HStack(spacing: 4) {
                             ProgressView()
                                 .controlSize(.small)
-                            // 进度计数：统计已完成检查的 skill 数量 / 总待检查数量
-                            // .checking 状态的 skill 还在检查中，其余（.hasUpdate/.upToDate/.error）表示已完成
+                            // Progress count: counts number of skills that have completed checking / total pending check count
+                            // Skills in .checking state are still being checked, others (.hasUpdate/.upToDate/.error) indicate completed
                             let total = skillManager.skills.filter { $0.lockEntry != nil }.count
-                            // compactMap 类似 Java Stream 的 filter+map 组合：
-                            // 先从字典取值（可能为 nil），再过滤掉 .checking 状态
+                            // compactMap is similar to Java Stream's filter+map combination:
+                            // first get value from dictionary (may be nil), then filter out .checking state
                             let checked = skillManager.updateStatuses.values.filter {
                                 $0 != .checking && $0 != .notChecked
                             }.count
                             Text("\(checked)/\(total)")
                                 .font(.caption)
-                                .monospacedDigit()  // 等宽数字字体，避免数字变化时宽度跳动
+                                .monospacedDigit()  // Monospaced digit font, avoids width jumping when numbers change
                                 .foregroundStyle(.secondary)
                         }
                     } else {
@@ -145,7 +145,7 @@ struct SidebarView: View {
                 .disabled(skillManager.isCheckingUpdates)
             }
 
-            // 刷新按钮：重新扫描文件系统
+            // Refresh button: rescan file system
             ToolbarItem {
                 Button {
                     Task { await skillManager.refresh() }
@@ -155,70 +155,70 @@ struct SidebarView: View {
                 .help("Refresh skills")
             }
         }
-        // F10: 安装 sheet 弹窗
-        // .sheet(item:) 将 sheet 的展示和内容绑定到同一个 Optional 变量：
-        // - installVM 非 nil → 显示 sheet，闭包参数 vm 是解包后的值
-        // - installVM 为 nil → 关闭 sheet
-        // 这比 .sheet(isPresented:) + 额外 @State 更安全，避免双状态同步时序导致首次白窗口
-        // onDismiss 在 sheet 关闭时调用 cleanup 清理临时目录
+        // F10: Install sheet modal
+        // .sheet(item:) binds sheet display and content to the same Optional variable:
+        // - installVM non-nil → show sheet, closure parameter vm is the unwrapped value
+        // - installVM nil → close sheet
+        // This is safer than .sheet(isPresented:) + extra @State, avoids dual state sync timing causing blank window on first open
+        // onDismiss calls cleanup to clean temp directory when sheet closes
         .sheet(item: $installVM, onDismiss: {
             installVM?.cleanup()
             installVM = nil
         }) { vm in
             SkillInstallView(viewModel: vm)
-                // .environment() 将 SkillManager 注入 sheet 中的视图树
-                // sheet 创建新的视图层级，需要重新注入环境依赖
+                // .environment() injects SkillManager into sheet's view tree
+                // Sheet creates new view hierarchy, needs to re-inject environment dependencies
                 .environment(skillManager)
         }
     }
 
-    /// 构建侧边栏行视图，统一处理点击、选中高亮和悬停效果
+    /// Build sidebar row view,统一 handling click, selection highlight and hover effects
     ///
-    /// @ViewBuilder 允许闭包返回不同类型的 View（类似 Java 的泛型方法）
-    /// `some View` 是 Swift 的不透明返回类型（opaque return type），
-    /// 表示"返回某种 View，但调用者不需要知道具体类型"
+    /// @ViewBuilder allows closure to return different View types (similar to Java's generic methods)
+    /// `some View` is Swift's opaque return type,
+    /// means "returns some View, but caller doesn't need to know the specific type"
     @ViewBuilder
     private func sidebarRow<Label: View>(
         item: SidebarItem,
         @ViewBuilder label: () -> Label
     ) -> some View {
-        // Button 确保点击一定能更新 selection（部分 macOS 版本 List 原生选择不可靠）
+        // Button ensures clicking always updates selection (List native selection is unreliable in some macOS versions)
         Button { selection = item } label: { label() }
-            // .buttonStyle(.plain) 去掉按钮默认样式（边框、按压效果等）
+            // .buttonStyle(.plain) removes button default styles (border, press effect, etc.)
             .buttonStyle(.plain)
-            // .contentShape(Rectangle()) 将交互区域（点击+悬停）扩展到整个行矩形
-            // 默认情况下 Button 只在内容（文字/图标）区域响应事件，
-            // 行的空白区域不触发 .onHover，导致悬停效果只在文字上方才出现
-            // 类似 CSS 的 pointer-events: all + width: 100%
+            // .contentShape(Rectangle()) expands interaction area (click+hover) to entire row rectangle
+            // By default Button only responds to events in content (text/icon) area,
+            // row's blank area doesn't trigger .onHover, causing hover effect to only appear above text
+            // Similar to CSS pointer-events: all + width: 100%
             .contentShape(Rectangle())
             // .tag 关联选中值，让 List 知道这一行对应哪个 SidebarItem
             .tag(item)
-            // .onHover 监听鼠标进入/离开事件（macOS 特有，类似 CSS 的 :hover）
-            // 闭包参数 isHovering: Bool 表示鼠标是否在元素上方
+            // .onHover listens for mouse enter/leave events (macOS specific, similar to CSS :hover)
+            // Closure parameter isHovering: Bool indicates if mouse is over element
             .onHover { isHovering in
-                // 使用 withAnimation 添加过渡动画，.easeInOut 是缓入缓出曲线
-                // duration: 0.15 是 150 毫秒，足够快但不突兀
+                // Use withAnimation to add transition animation, .easeInOut is ease-in-out curve
+                // duration: 0.15 is 150 milliseconds, fast enough but not abrupt
                 withAnimation(.easeInOut(duration: 0.15)) {
                     hoveredItem = isHovering ? item : nil
                 }
             }
-            // .listRowBackground 自定义列表行的背景（覆盖 List 默认的选中/悬停样式）
-            // 这里用 RoundedRectangle 画圆角矩形，模拟 macOS 原生侧边栏的选中/悬停效果
+            // .listRowBackground customizes list row background (overrides List's default selection/hover styles)
+            // Here uses RoundedRectangle to draw rounded rectangle, simulating macOS native sidebar selection/hover effects
             .listRowBackground(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(rowBackground(for: item))
             )
     }
 
-    /// 根据选中/悬停状态返回行背景颜色
-    /// macOS 原生侧边栏的颜色规范：
-    /// - 选中：accentColor（系统强调色，默认蓝色）+ 低透明度
-    /// - 悬停：primary（自适应黑/白）+ 极低透明度
-    /// - 普通：完全透明
+    /// Returns row background color based on selection/hover state
+    /// macOS native sidebar color guidelines:
+    /// - Selected: accentColor (system accent color, default blue) + low opacity
+    /// - Hover: primary (adaptive black/white) + very low opacity
+    /// - Normal: fully transparent
     private func rowBackground(for item: SidebarItem) -> Color {
         if selection == item {
-            // 选中状态：如果是 Agent 项，使用该 Agent 的品牌色；Dashboard/Settings 保持系统 accentColor
-            // Swift 5.9 的 if/else 表达式语法：可以直接在 let 赋值中使用 if-else，类似三元运算符但支持 pattern matching
+            // Selected state: if Agent item, use that Agent's brand color; Dashboard/Settings keep system accentColor
+            // Swift 5.9 if/else expression syntax: can use if-else directly in let assignment, similar to ternary but supports pattern matching
             let baseColor: Color = if case .agent(let agentType) = item {
                 Constants.AgentColors.color(for: agentType)
             } else {
@@ -226,10 +226,10 @@ struct SidebarView: View {
             }
             return baseColor.opacity(0.15)
         } else if hoveredItem == item {
-            // 悬停状态：极淡的灰色背景，提示"这个可以点击"
+            // Hover state: very light gray background, hinting "this is clickable"
             return Color.primary.opacity(0.08)
         }
-        // 普通状态：透明
+        // Normal state: transparent
         return Color.clear
     }
 }

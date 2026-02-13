@@ -1,41 +1,41 @@
 import Foundation
 
-/// SkillScanner 负责扫描文件系统，发现所有已安装的 skill
+/// SkillScanner is responsible for scanning the file system to discover all installed skills
 ///
-/// 扫描策略：
-/// 1. 先扫描 ~/.agents/skills/（共享全局目录）
-/// 2. 再扫描各 Agent 的 skills 目录
-/// 3. 通过 symlink 解析去重：如果某个 Agent 目录下的 skill 是指向 ~/.agents/skills/ 的 symlink，
-///    则只保留一份，并记录到 installations 中
+/// Scanning strategy:
+/// 1. First scan ~/.agents/skills/ (shared global directory)
+/// 2. Then scan each Agent's skills directory
+/// 3. Deduplicate via symlink resolution: if a skill in an Agent directory is a symlink to ~/.agents/skills/,
+///    keep only one copy and record it in installations
 ///
-/// 这类似于 Go 中遍历目录树的 filepath.Walk
+/// This is similar to filepath.Walk in Go for traversing directory trees
 actor SkillScanner {
 
-    /// 共享全局 skills 目录
+    /// Shared global skills directory
     static let sharedSkillsURL: URL = {
         let path = NSString(string: "~/.agents/skills").expandingTildeInPath
         return URL(fileURLWithPath: path)
     }()
 
-    /// 扫描所有 skill，返回去重后的结果
-    /// - Returns: 所有发现的 skill 数组（已去重，每个 skill 名称只出现一次）
+    /// Scan all skills, returning deduplicated results
+    /// - Returns: Array of discovered skills (deduplicated, each skill name appears only once)
     func scanAll() async throws -> [Skill] {
-        // 用 skill id（目录名）作为去重 key，而不是 canonicalURL.path
-        // 原因：同一个 skill 可能被不同 Agent 的 symlink 指向不同的物理路径
-        // 例如 ~/.copilot/skills/agent-notifier -> /path/to/dev/agent-notifier
-        //      ~/.agents/skills/agent-notifier   （另一个物理路径）
-        // 虽然 canonicalURL 不同，但 skill id 相同，应视为同一个 skill
+        // Use skill id (directory name) as deduplication key, not canonicalURL.path
+        // Reason: the same skill might be pointed to by different Agent symlinks to different physical paths
+        // e.g. ~/.copilot/skills/agent-notifier -> /path/to/dev/agent-notifier
+        //      ~/.agents/skills/agent-notifier   (another physical path)
+        // Although canonicalURL is different, skill id is the same, should be treated as same skill
         var skillMap: [String: Skill] = [:]
 
-        // 1. 扫描共享全局目录
+        // 1. Scan shared global directory
         let globalSkills = scanDirectory(Self.sharedSkillsURL, scope: .sharedGlobal)
         for skill in globalSkills {
             skillMap[skill.id] = skill
         }
 
-        // 2. 扫描每个 Agent 的 skills 目录
+        // 2. Scan each Agent's skills directory
         for agentType in AgentType.allCases {
-            // Codex 使用共享目录，已经在步骤 1 扫描过了
+            // Codex uses shared directory, already scanned in step 1
             if agentType == .codex { continue }
 
             let agentSkills = scanDirectory(
@@ -45,32 +45,32 @@ actor SkillScanner {
 
             for skill in agentSkills {
                 if var existingSkill = skillMap[skill.id] {
-                    // 已存在同名 skill：合并 installations（说明同一个 skill 被多个 Agent 引用）
+                    // Same name skill exists: merge installations (indicates same skill referenced by multiple Agents)
                     let newInstallations = skill.installations.filter { newInst in
                         !existingSkill.installations.contains(where: { $0.id == newInst.id })
                     }
                     existingSkill.installations.append(contentsOf: newInstallations)
-                    // 如果之前是 agentLocal，现在发现被其他 Agent 引用，升级为 sharedGlobal
+                    // If previously agentLocal, now found referenced by other Agents, upgrade to sharedGlobal
                     if case .agentLocal = existingSkill.scope, existingSkill.installations.count > 1 {
                         existingSkill.scope = .sharedGlobal
                     }
                     skillMap[skill.id] = existingSkill
                 } else {
-                    // 新 skill：直接添加
+                    // New skill: add directly
                     skillMap[skill.id] = skill
                 }
             }
         }
 
-        // 按名称排序返回
+        // Return sorted by name
         return skillMap.values.sorted { $0.displayName.lowercased() < $1.displayName.lowercased() }
     }
 
-    /// 扫描单个目录下的所有 skill
+    /// Scan all skills in a single directory
     /// - Parameters:
-    ///   - directory: 要扫描的目录 URL
-    ///   - scope: 这个目录对应的 scope
-    /// - Returns: 发现的 skill 数组
+    ///   - directory: Directory URL to scan
+    ///   - scope: Corresponding scope for this directory
+    /// - Returns: Array of discovered skills
     private func scanDirectory(_ directory: URL, scope: SkillScope) -> [Skill] {
         let fm = FileManager.default
 
@@ -86,19 +86,19 @@ actor SkillScanner {
             return []
         }
 
-        // compactMap: 对每个元素执行变换，过滤掉 nil 结果（类似 Java Stream 的 map + filter）
+        // compactMap: transform each element, filtering out nil results (similar to Java Stream map + filter)
         return contents.compactMap { itemURL in
             parseSkillDirectory(itemURL, scope: scope)
         }
     }
 
-    /// 解析单个 skill 目录
-    /// - Returns: Skill 实例，如果目录不是有效的 skill 则返回 nil
+    /// Parse individual skill directory
+    /// - Returns: Skill instance, or nil if directory is not a valid skill
     private func parseSkillDirectory(_ url: URL, scope: SkillScope) -> Skill? {
         let fm = FileManager.default
         let skillName = url.lastPathComponent
 
-        // 解析 symlink，获取 canonical 路径
+        // Resolve symlink to get canonical path
         let canonicalURL: URL
         if SymlinkManager.isSymlink(at: url) {
             canonicalURL = SymlinkManager.resolveSymlink(at: url)
@@ -106,13 +106,13 @@ actor SkillScanner {
             canonicalURL = url
         }
 
-        // 检查是否包含 SKILL.md
+        // Check if SKILL.md exists
         let skillMDURL = canonicalURL.appendingPathComponent("SKILL.md")
         guard fm.fileExists(atPath: skillMDURL.path) else {
             return nil
         }
 
-        // 解析 SKILL.md
+        // Parse SKILL.md
         let metadata: SkillMetadata
         let markdownBody: String
         do {
@@ -120,12 +120,12 @@ actor SkillScanner {
             metadata = result.metadata
             markdownBody = result.markdownBody
         } catch {
-            // 解析失败时使用默认值，不阻断整个扫描
+            // Use default values on parse failure, do not block the entire scan
             metadata = SkillMetadata(name: skillName, description: "")
             markdownBody = ""
         }
 
-        // 查找该 skill 在所有 Agent 中的安装信息
+        // Find installation information for this skill across all Agents
         let installations = SymlinkManager.findInstallations(
             skillName: skillName,
             canonicalURL: canonicalURL
@@ -138,7 +138,7 @@ actor SkillScanner {
             markdownBody: markdownBody,
             scope: scope,
             installations: installations,
-            lockEntry: nil  // lock entry 稍后由 SkillManager 填充
+            lockEntry: nil  // lock entry populated later by SkillManager
         )
     }
 }

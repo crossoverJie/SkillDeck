@@ -1,25 +1,25 @@
 import SwiftUI
 
-/// ContentView 是应用的根视图
+/// ContentView is the root view of the application
 ///
-/// NavigationSplitView 是 macOS 的三栏导航布局（类似 Apple Mail）：
-/// - 左栏（sidebar）：导航菜单
-/// - 中栏（content）：列表
-/// - 右栏（detail）：详情
+/// NavigationSplitView is macOS's three-column navigation layout (similar to Apple Mail):
+/// - Left column (sidebar): navigation menu
+/// - Middle column (content): list
+/// - Right column (detail): details
 ///
-/// @Environment 从 View 树中获取注入的对象（类似 React 的 useContext）
-/// SkillManager 在 SkillDeckApp.swift 中通过 .environment() 注入
+/// @Environment retrieves injected objects from the View tree (similar to React's useContext)
+/// SkillManager is injected via .environment() in SkillDeckApp.swift
 struct ContentView: View {
 
     @Environment(SkillManager.self) private var skillManager
 
-    /// NavigationSplitView 的侧边栏可见性状态
+    /// Sidebar visibility state for NavigationSplitView
     @State private var columnVisibility = NavigationSplitViewVisibility.all
 
-    /// 侧边栏当前选中项
+    /// Currently selected sidebar item
     @State private var selectedSidebarItem: SidebarItem? = .dashboard
 
-    /// 当前选中的 skill ID（用于导航到详情页）
+    /// Currently selected skill ID (used for navigation to detail page)
     @State private var selectedSkillID: String?
 
     /// Dashboard ViewModel
@@ -30,21 +30,21 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            // 左栏：侧边栏导航
-            // navigationSplitViewColumnWidth 约束侧边栏宽度范围，
-            // 防止窗口恢复时侧边栏过窄导致内容被裁剪
+            // Left column: sidebar navigation
+            // navigationSplitViewColumnWidth constrains sidebar width range,
+            // preventing content from being clipped when sidebar is too narrow after window restoration
             SidebarView(selection: $selectedSidebarItem)
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
         } content: {
-            // 中栏：skill 列表
+            // Middle column: skill list
             if let vm = dashboardVM {
                 DashboardView(viewModel: vm, selectedSkillID: $selectedSkillID)
-                    // 约束中栏（skill 列表）的宽度范围，
-                    // 防止首次打开时中栏过窄导致内容挤在一起
+                    // Constrain middle column (skill list) width range,
+                    // preventing content from being squeezed when first opening
                     .navigationSplitViewColumnWidth(min: 250, ideal: 320, max: 450)
             }
         } detail: {
-            // 右栏：skill 详情
+            // Right column: skill details
             if let skillID = selectedSkillID, let vm = detailVM {
                 SkillDetailView(skillID: skillID, viewModel: vm)
             } else {
@@ -55,17 +55,17 @@ struct ContentView: View {
                 )
             }
         }
-        // .task 在 View 首次出现时执行异步任务（类似 React 的 useEffect([], ...)）
+        // .task executes async task when View first appears (similar to React's useEffect([], ...))
         .task {
             dashboardVM = DashboardViewModel(skillManager: skillManager)
             detailVM = SkillDetailViewModel(skillManager: skillManager)
             await skillManager.refresh()
-            // 应用启动时自动检查更新（受 4 小时间隔限制，不会每次都请求 GitHub API）
+            // Auto-check for updates on app launch (subject to 4-hour interval limit, not every launch requests GitHub API)
             await skillManager.checkForAppUpdate()
         }
-        // .onChange(of:) 在指定值变化时触发闭包（类似 React 的 useEffect 带依赖数组）
-        // 当用户点击侧边栏导航项时，将选中项映射为 Agent 过滤器并同步到 DashboardViewModel
-        // 实现侧边栏点击 → Dashboard 列表筛选的联动效果
+        // .onChange(of:) triggers closure when specified value changes (similar to React's useEffect with dependency array)
+        // When user clicks sidebar navigation item, maps selection to Agent filter and syncs to DashboardViewModel
+        // Implements sidebar click → Dashboard list filter linkage effect
         .onChange(of: selectedSidebarItem) { _, newValue in
             dashboardVM?.selectedAgentFilter = newValue?.agentFilter
         }

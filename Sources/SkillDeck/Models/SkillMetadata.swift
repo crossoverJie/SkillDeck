@@ -1,7 +1,7 @@
 import Foundation
 
-/// SkillMetadata 对应 SKILL.md 文件中 YAML frontmatter 的字段
-/// Codable 协议让这个 struct 可以自动序列化/反序列化（类似 Java 的 Jackson @JsonProperty）
+/// SkillMetadata corresponds to the fields in YAML frontmatter of SKILL.md
+/// Codable protocol allows this struct to be automatically serialized/deserialized (similar to Java's Jackson @JsonProperty)
 struct SkillMetadata: Codable, Equatable {
     var name: String
     var description: String
@@ -9,20 +9,20 @@ struct SkillMetadata: Codable, Equatable {
     var metadata: MetadataExtra?
     var allowedTools: String?
 
-    /// 嵌套的 metadata 字段（YAML 中 metadata.author, metadata.version）
+    /// Nested metadata fields (metadata.author, metadata.version in YAML)
     struct MetadataExtra: Codable, Equatable {
         var author: String?
         var version: String?
     }
 
-    // CodingKeys 用于自定义 JSON/YAML 字段名映射（类似 Go 的 json tag）
+    // CodingKeys for custom JSON/YAML field name mapping (similar to Go's json tag)
     enum CodingKeys: String, CodingKey {
         case name, description, license, metadata
         case allowedTools = "allowed-tools"
     }
 
-    /// 便捷访问 author
+    /// Convenience access to author
     var author: String? { metadata?.author }
-    /// 便捷访问 version
+    /// Convenience access to version
     var version: String? { metadata?.version }
 }

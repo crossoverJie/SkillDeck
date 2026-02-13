@@ -1,34 +1,34 @@
 import Foundation
 
-/// LockFileManager 负责读写 .skill-lock.json 文件（F07）
+/// LockFileManager is responsible for reading/writing .skill-lock.json file (F07)
 ///
-/// lock file 是 skills 生态的中央注册表，记录了所有通过包管理器安装的 skill。
-/// 文件位置：~/.agents/.skill-lock.json
+/// lock file is the central registry for the skills ecosystem, recording all skills installed via package managers.
+/// File location: ~/.agents/.skill-lock.json
 ///
-/// 使用 actor 保证线程安全，因为多个操作可能同时读写 lock file
+/// Uses actor to ensure thread safety as multiple operations might read/write lock file simultaneously
 actor LockFileManager {
 
-    /// lock file 的默认路径
+    /// Default path for lock file
     static let defaultPath: URL = {
         let home = NSString(string: "~/.agents/.skill-lock.json").expandingTildeInPath
         return URL(fileURLWithPath: home)
     }()
 
-    /// 当前使用的 lock file 路径（可在测试中覆盖）
+    /// Currently used lock file path (can be overridden in tests)
     let filePath: URL
 
-    /// 内存中缓存的 lock file 数据
+    /// In-memory cached lock file data
     private var cached: LockFile?
 
     init(filePath: URL = LockFileManager.defaultPath) {
         self.filePath = filePath
     }
 
-    /// 读取并解析 lock file
-    /// - Returns: LockFile 结构体
-    /// - Throws: 文件读取或 JSON 解析错误
+    /// Read and parse lock file
+    /// - Returns: LockFile struct
+    /// - Throws: File read or JSON parse error
     ///
-    /// JSONDecoder 是 Swift 内置的 JSON 反序列化器（类似 Go 的 json.Unmarshal）
+    /// JSONDecoder is Swift's built-in JSON deserializer (similar to Go's json.Unmarshal)
     func read() throws -> LockFile {
         if let cached {
             return cached
@@ -41,30 +41,30 @@ actor LockFileManager {
         return lockFile
     }
 
-    /// 获取指定 skill 的 lock entry
+    /// Get lock entry for specified skill
     func getEntry(skillName: String) throws -> LockEntry? {
         let lockFile = try read()
         return lockFile.skills[skillName]
     }
 
-    /// 更新指定 skill 的 lock entry
-    /// 使用原子写入确保文件不会因中途崩溃而损坏
+    /// Update lock entry for specified skill
+    /// Use atomic write to ensure file is not corrupted by mid-operation crashes
     func updateEntry(skillName: String, entry: LockEntry) throws {
         var lockFile = try read()
         lockFile.skills[skillName] = entry
         try write(lockFile)
     }
 
-    /// 删除指定 skill 的 lock entry
+    /// Remove lock entry for specified skill
     func removeEntry(skillName: String) throws {
         var lockFile = try read()
         lockFile.skills.removeValue(forKey: skillName)
         try write(lockFile)
     }
 
-    /// 将 LockFile 写回磁盘
-    /// 使用原子写入（.atomic 选项）：先写到临时文件，再 rename，保证不会写一半崩溃
-    /// 这是文件写入的最佳实践，类似 Go 中先写 .tmp 文件再 os.Rename
+    /// Write LockFile back to disk
+    /// Use atomic write (.atomic option): write to temp file first, then rename, ensuring no partial writes on crash
+    /// This is a best practice for file writing, similar to writing .tmp file then os.Rename in Go
     private func write(_ lockFile: LockFile) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -73,33 +73,33 @@ actor LockFileManager {
         cached = lockFile
     }
 
-    /// 清除内存缓存，强制下次从磁盘读取
+    /// Invalidate memory cache, forcing next read from disk
     func invalidateCache() {
         cached = nil
     }
 
-    /// 检查 lock file 是否存在
+    /// Check if lock file exists
     var exists: Bool {
         FileManager.default.fileExists(atPath: filePath.path)
     }
 
-    /// 如果 lock file 不存在则创建空文件（F10：首次通过 SkillDeck 安装时使用）
+    /// Create empty file if lock file does not exist (F10: used when installing via SkillDeck for the first time)
     ///
-    /// 创建一个符合 version 3 格式的空 lock file，
-    /// 后续的 updateEntry 可以直接在此基础上追加 skill 条目。
-    /// 如果文件已存在则不做任何操作（幂等操作）。
+    /// Create an empty lock file complying with version 3 format,
+    /// Subsequent updateEntry calls can append skill entries directly to it.
+    /// If file already exists, do nothing (idempotent operation).
     func createIfNotExists() throws {
         guard !exists else { return }
 
-        // 确保父目录 (~/.agents/) 存在
+        // Ensure parent directory (~/.agents/) exists
         let parentDir = filePath.deletingLastPathComponent()
         let fm = FileManager.default
         if !fm.fileExists(atPath: parentDir.path) {
-            // withIntermediateDirectories: true 类似 mkdir -p，递归创建目录
+            // withIntermediateDirectories: true is similar to mkdir -p, creating directories recursively
             try fm.createDirectory(at: parentDir, withIntermediateDirectories: true)
         }
 
-        // 创建空的 lock file（version 3 格式，与 npx skills 工具兼容）
+        // Create empty lock file (version 3 format, compatible with npx skills tool)
         let emptyLockFile = LockFile(
             version: 3,
             skills: [:],

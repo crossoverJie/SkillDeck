@@ -1,41 +1,41 @@
 #!/bin/bash
-# release.sh — 创建 git tag 并推送到 GitHub 触发 release 构建
+# release.sh — Create git tag and push to GitHub to trigger release build
 #
-# 功能：
-#   1. 检查工作目录是否干净（避免忘记提交代码）
-#   2. 检查当前分支是否已推送到远程
-#   3. 验证版本号格式（语义化版本 x.y.z）
-#   4. 检查 tag 是否已存在（防止重复发布）
-#   5. 创建带注释的 git tag 并推送到 GitHub
-#   6. 推送后会自动触发 .github/workflows/release.yml 工作流
+# Features:
+#   1. Check if working directory is clean (prevent forgetting to commit code)
+#   2. Check if current branch is pushed to remote
+#   3. Validate version format (semantic versioning x.y.z)
+#   4. Check if tag already exists (prevent duplicate releases)
+#   5. Create annotated git tag and push to GitHub
+#   6. Pushing will automatically trigger .github/workflows/release.yml workflow
 #
-# 用法：
-#   ./scripts/release.sh 1.0.0        # 创建 v1.0.0 tag 并推送
-#   ./scripts/release.sh 1.0.0 --dry  # 预演模式，只检查不执行
+# Usage:
+#   ./scripts/release.sh 1.0.0        # Create and push v1.0.0 tag
+#   ./scripts/release.sh 1.0.0 --dry  # Dry run, only check, no execution
 #
-# 依赖：
-#   - git（版本管理）
-#   - gh（GitHub CLI，用于显示 Actions 链接，可选）
+# Dependencies:
+#   - git (version control)
+#   - gh (GitHub CLI, for displaying Actions links, optional)
 
 set -euo pipefail
 
-# ── 颜色定义 ──────────────────────────────────────────────────
-# ANSI 转义码用于在终端输出带颜色的文字，提升可读性
+# ── Color Definitions ──────────────────────────────────────────────────
+# ANSI escape codes for colored terminal output to improve readability
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color（重置颜色）
+NC='\033[0m' # No Color (reset color)
 
-# ── 辅助函数 ──────────────────────────────────────────────────
-# 统一的日志输出格式
+# ── Helper Functions ──────────────────────────────────────────────────
+# Unified log output format
 info()  { echo -e "${CYAN}==> ${NC}$1"; }
 ok()    { echo -e "${GREEN}  ✓ ${NC}$1"; }
 warn()  { echo -e "${YELLOW}  ⚠ ${NC}$1"; }
 error() { echo -e "${RED}  ✗ ${NC}$1" >&2; }
 
-# ── 解析参数 ──────────────────────────────────────────────────
-# $# 是 bash 的特殊变量，表示传入的参数个数
+# ── Parse Arguments ──────────────────────────────────────────────────
+# $# is bash special variable, representing number of arguments passed
 if [[ $# -lt 1 ]]; then
     echo "Usage: $0 <version> [--dry]"
     echo ""
@@ -45,8 +45,8 @@ if [[ $# -lt 1 ]]; then
     echo "  $0 1.0.0 --dry  # Dry run, check only"
     echo ""
     echo "Recent tags:"
-    # git tag --sort=-creatordate：按创建时间倒序列出 tag
-    # head -5：只显示最近 5 个
+    # git tag --sort=-creatordate: List tags sorted by creation date descending
+    # head -5: Show only latest 5
     git tag --sort=-creatordate | head -5 || echo "  (no tags yet)"
     exit 1
 fi
@@ -54,20 +54,20 @@ fi
 INPUT="$1"
 DRY_RUN=false
 
-# 检查是否传入了 --dry 参数
+# Check if --dry argument is passed
 if [[ "${2:-}" == "--dry" ]]; then
     DRY_RUN=true
 fi
 
-# ── 验证版本号格式 ────────────────────────────────────────────
-# 语义化版本号（Semantic Versioning）格式：主版本.次版本.修订号
-# 支持两种输入格式：v1.0.0 或 1.0.0，统一处理
-# ${INPUT#v} 是 bash 参数展开语法，去掉前缀 "v"（如果有的话）
+# ── Validate Version Format ────────────────────────────────────────────
+# Semantic Versioning format: Major.Minor.Patch
+# Supports two input formats: v1.0.0 or 1.0.0, handled uniformly
+# ${INPUT#v} is bash parameter expansion syntax, removing prefix "v" (if present)
 VERSION="${INPUT#v}"
 TAG="v${VERSION}"
 
-# =~ 是 bash 的正则匹配运算符
-# ^[0-9]+\.[0-9]+\.[0-9]+$ 匹配 x.y.z 格式（纯数字）
+# =~ is bash regex match operator
+# ^[0-9]+\.[0-9]+\.[0-9]+$ matches x.y.z format (digits only)
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     error "Invalid version format: '${INPUT}'"
     echo "  Expected: x.y.z or vx.y.z (e.g. 1.0.0, v0.2.1)"
@@ -76,16 +76,16 @@ fi
 
 ok "Version format valid: ${TAG}"
 
-# ── 检查是否在 git 仓库中 ────────────────────────────────────
-# rev-parse --git-dir 检查当前目录是否在 git 仓库内
+# ── Check if inside git repository ────────────────────────────────────
+# rev-parse --git-dir checks if current directory is inside a git repo
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
     error "Not a git repository"
     exit 1
 fi
 
-# ── 检查工作目录是否干净 ──────────────────────────────────────
-# git status --porcelain 以机器可读格式输出状态
-# 如果输出不为空，说明有未提交的更改
+# ── Check if working directory is clean ──────────────────────────────────────
+# git status --porcelain outputs status in machine-readable format
+# If output is not empty, there are uncommitted changes
 if [[ -n "$(git status --porcelain)" ]]; then
     error "Working directory is not clean. Please commit or stash changes first."
     echo ""
@@ -95,15 +95,15 @@ fi
 
 ok "Working directory is clean"
 
-# ── 检查当前分支 ──────────────────────────────────────────────
-# git branch --show-current 显示当前分支名
+# ── Check current branch ──────────────────────────────────────────────
+# git branch --show-current shows current branch name
 BRANCH=$(git branch --show-current)
 info "Current branch: ${BRANCH}"
 
-# 通常建议从 main 分支发布，但不强制
+# Usually recommended to release from main branch, but not enforced
 if [[ "$BRANCH" != "main" && "$BRANCH" != "master" ]]; then
     warn "Not on main/master branch (current: ${BRANCH})"
-    # -r 让 read 支持反斜杠，-p 显示提示符
+    # -r allows read backslash, -p shows prompt
     read -r -p "  Continue anyway? [y/N] " confirm
     if [[ "$confirm" != [yY] ]]; then
         echo "Aborted."
@@ -111,11 +111,11 @@ if [[ "$BRANCH" != "main" && "$BRANCH" != "master" ]]; then
     fi
 fi
 
-# ── 检查本地是否领先远程 ──────────────────────────────────────
-# 确保所有代码都已推送到远程，避免 tag 指向远程没有的 commit
-# git rev-parse HEAD 获取本地最新 commit 的 hash
-# git rev-parse @{u} 获取上游（远程跟踪分支）的最新 commit hash
-# @{u} 是 git 的简写，等同于 origin/<branch>
+# ── Check if local is ahead of remote ──────────────────────────────────────
+# Ensure all code is pushed to remote, avoid tag pointing to commit not on remote
+# git rev-parse HEAD gets local latest commit hash
+# git rev-parse @{u} gets upstream (remote tracking branch) latest commit hash
+# @{u} is git shorthand, equivalent to origin/<branch>
 LOCAL_HEAD=$(git rev-parse HEAD)
 REMOTE_HEAD=$(git rev-parse "@{u}" 2>/dev/null || echo "")
 
@@ -134,8 +134,8 @@ fi
 
 ok "Branch is in sync with remote"
 
-# ── 检查 tag 是否已存在 ───────────────────────────────────────
-# git rev-parse 检查 tag 是否存在，输出丢弃到 /dev/null
+# ── Check if tag already exists ───────────────────────────────────────
+# git rev-parse checks if tag exists, output discarded to /dev/null
 if git rev-parse "$TAG" > /dev/null 2>&1; then
     error "Tag '${TAG}' already exists!"
     echo "  To delete and recreate:"
@@ -146,55 +146,55 @@ fi
 
 ok "Tag '${TAG}' is available"
 
-# ── 显示发布摘要 ──────────────────────────────────────────────
+# ── Show Release Summary ──────────────────────────────────────────────
 echo ""
 info "Release Summary"
 echo "  Tag:      ${TAG}"
 echo "  Branch:   ${BRANCH}"
-# git rev-parse --short HEAD 输出 7 位短 hash，更易读
+# git rev-parse --short HEAD outputs 7-char short hash, more readable
 echo "  Commit:   $(git rev-parse --short HEAD)"
-# git log -1 --format=%s 获取最新 commit 的标题（%s = subject）
+# git log -1 --format=%s gets latest commit subject (%s = subject)
 echo "  Message:  $(git log -1 --format=%s)"
 echo ""
 
-# ── 预演模式检查 ──────────────────────────────────────────────
+# ── Dry run check ──────────────────────────────────────────────
 if $DRY_RUN; then
     info "Dry run complete. No changes made."
     echo "  Remove --dry to create and push the tag."
     exit 0
 fi
 
-# ── 确认发布 ──────────────────────────────────────────────────
+# ── Confirm Release ──────────────────────────────────────────────────
 read -r -p "Create and push ${TAG}? [y/N] " confirm
 if [[ "$confirm" != [yY] ]]; then
     echo "Aborted."
     exit 0
 fi
 
-# ── 创建带注释的 tag ──────────────────────────────────────────
-# -a 创建带注释的 tag（annotated tag），会存储额外的元数据（作者、日期、消息）
-# 相比轻量级 tag（lightweight tag），annotated tag 更适合发布版本
-# -m 指定 tag 的注释消息
+# ── Create annotated tag ──────────────────────────────────────────
+# -a creates annotated tag, storing extra metadata (author, date, message)
+# Compared to lightweight tag, annotated tag is better for version release
+# -m specifies tag message
 info "Creating tag ${TAG} ..."
 git tag -a "$TAG" -m "Release ${TAG}"
 ok "Tag created"
 
-# ── 推送 tag 到远程 ───────────────────────────────────────────
-# 只推送特定 tag，不用 --tags（避免推送所有本地 tag）
+# ── Push tag to remote ───────────────────────────────────────────
+# Push only specific tag, not --tags (avoid pushing all local tags)
 info "Pushing ${TAG} to origin ..."
 git push origin "$TAG"
 ok "Tag pushed"
 
-# ── 显示结果 ──────────────────────────────────────────────────
+# ── Show Results ──────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}==> Release ${TAG} triggered! ${NC}"
 echo ""
 
-# 尝试用 gh CLI 显示 Actions 运行链接（gh 是 GitHub 官方的命令行工具）
-# command -v 检查命令是否存在（类似 which，但更可靠）
+# Try to use gh CLI to show Actions run link (gh is GitHub official CLI tool)
+# command -v checks if command exists (similar to which, but more reliable)
 if command -v gh > /dev/null 2>&1; then
-    # gh api 调用 GitHub REST API 获取仓库信息
-    # --jq 使用 jq 语法从 JSON 响应中提取字段
+    # gh api calls GitHub REST API to get repo info
+    # --jq uses jq syntax to extract fields from JSON response
     REPO_URL=$(gh api repos/:owner/:repo --jq '.html_url' 2>/dev/null || echo "")
     if [[ -n "$REPO_URL" ]]; then
         echo "  Actions:  ${REPO_URL}/actions"

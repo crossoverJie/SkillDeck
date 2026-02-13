@@ -1,17 +1,17 @@
 import Foundation
 
-/// SkillEditorViewModel 管理 SKILL.md 编辑器的状态（F05）
+/// SkillEditorViewModel manages the SKILL.md editor state (F05)
 ///
-/// 编辑器提供两种编辑模式：
-/// 1. 表单模式：编辑 YAML frontmatter 的各个字段
-/// 2. Markdown 模式：编辑正文内容，带实时预览
+/// The editor provides two editing modes:
+/// 1. Form mode: edit individual fields of YAML frontmatter
+/// 2. Markdown mode: edit body content with live preview
 @MainActor
 @Observable
 final class SkillEditorViewModel {
 
     let skillManager: SkillManager
 
-    // MARK: - 表单字段（对应 YAML frontmatter）
+    // MARK: - Form Fields (correspond to YAML frontmatter)
 
     var name: String = ""
     var description: String = ""
@@ -20,25 +20,25 @@ final class SkillEditorViewModel {
     var version: String = ""
     var allowedTools: String = ""
 
-    // MARK: - Markdown 正文
+    // MARK: - Markdown Body
 
     var markdownBody: String = ""
 
-    // MARK: - UI 状态
+    // MARK: - UI State
 
     var isSaving = false
     var saveError: String?
     var saveSuccess = false
 
-    /// 当前编辑的 skill ID
+    /// ID of the currently editing skill
     private var editingSkillID: String?
 
     init(skillManager: SkillManager) {
         self.skillManager = skillManager
     }
 
-    /// 加载 skill 数据到编辑器
-    /// 从 Skill 模型中提取各字段填充到编辑器表单
+    /// Load skill data into the editor
+    /// Extracts fields from Skill model and fills them into the editor form
     func load(skill: Skill) {
         editingSkillID = skill.id
         name = skill.metadata.name
@@ -52,7 +52,7 @@ final class SkillEditorViewModel {
         saveSuccess = false
     }
 
-    /// 保存编辑内容
+    /// Save edited content
     func save() async {
         guard let skillID = editingSkillID,
               let skill = skillManager.skills.first(where: { $0.id == skillID }) else {
@@ -63,7 +63,7 @@ final class SkillEditorViewModel {
         isSaving = true
         saveError = nil
 
-        // 构建更新后的 metadata
+        // Build updated metadata
         let metadataExtra: SkillMetadata.MetadataExtra?
         if !author.isEmpty || !version.isEmpty {
             metadataExtra = SkillMetadata.MetadataExtra(
@@ -85,8 +85,8 @@ final class SkillEditorViewModel {
         do {
             try await skillManager.saveSkill(skill, metadata: updatedMetadata, markdownBody: markdownBody)
             saveSuccess = true
-            // 2 秒后清除成功提示
-            // Task.sleep 类似 Go 的 time.Sleep，但不阻塞线程
+            // Clear success message after 2 seconds
+            // Task.sleep is similar to Go's time.Sleep but non-blocking
             try? await Task.sleep(for: .seconds(2))
             saveSuccess = false
         } catch {
@@ -96,7 +96,7 @@ final class SkillEditorViewModel {
         isSaving = false
     }
 
-    /// 检查是否有未保存的修改
+    /// Check if there are unsaved changes
     func hasChanges(from skill: Skill) -> Bool {
         name != skill.metadata.name ||
         description != skill.metadata.description ||

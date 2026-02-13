@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// SkillEditorView 是 SKILL.md 的编辑器（F05）
+/// SkillEditorView is the SKILL.md editor (F05)
 ///
-/// 分为左右两个面板：
-/// - 左侧：YAML frontmatter 表单 + Markdown 编辑器
-/// - 右侧：Markdown 实时预览
+/// Split into two panels:
+/// - Left: YAML frontmatter form + Markdown editor
+/// - Right: Live Markdown preview
 ///
-/// 使用 sheet 形式呈现（模态弹窗）
+/// Presented as a sheet (modal dialog)
 struct SkillEditorView: View {
 
     @Bindable var viewModel: SkillEditorViewModel
@@ -14,14 +14,14 @@ struct SkillEditorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 顶部工具栏
+            // Top toolbar
             editorToolbar
 
             Divider()
 
-            // 编辑区域（左右分栏）
+            // Editor area (split into two panels)
             HSplitView {
-                // 左侧：表单 + Markdown 编辑
+                // Left: form + Markdown editing
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         formSection
@@ -31,7 +31,7 @@ struct SkillEditorView: View {
                 }
                 .frame(minWidth: 350)
 
-                // 右侧：Markdown 预览
+                // Right: Markdown preview
                 ScrollView {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Preview")
@@ -60,7 +60,7 @@ struct SkillEditorView: View {
 
             Spacer()
 
-            // 保存状态指示
+            // Save status indicator
             if viewModel.saveSuccess {
                 Label("Saved", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
@@ -73,17 +73,17 @@ struct SkillEditorView: View {
                     .font(.caption)
             }
 
-            // 取消按钮
+            // Cancel button
             Button("Cancel") {
                 isPresented = false
             }
-            .keyboardShortcut(.cancelAction)  // Esc 键
+            .keyboardShortcut(.cancelAction)  // Esc key
 
-            // 保存按钮
+            // Save button
             Button("Save") {
                 Task { await viewModel.save() }
             }
-            .keyboardShortcut(.defaultAction)  // Enter 键
+            .keyboardShortcut(.defaultAction)  // Enter key
             .disabled(viewModel.isSaving)
         }
         .padding()
@@ -91,18 +91,18 @@ struct SkillEditorView: View {
 
     // MARK: - Form Section
 
-    /// YAML frontmatter 表单
+    /// YAML frontmatter form
     private var formSection: some View {
         GroupBox("Metadata") {
             VStack(spacing: 12) {
-                // LabeledContent + TextField 创建标准的表单行
+                // LabeledContent + TextField creates standard form row
                 LabeledContent("Name") {
                     TextField("Skill name", text: $viewModel.name)
                         .textFieldStyle(.roundedBorder)
                 }
 
                 LabeledContent("Description") {
-                    // TextEditor 是多行文本编辑器（类似 HTML 的 textarea）
+                    // TextEditor is a multi-line text editor (similar to HTML textarea)
                     TextEditor(text: $viewModel.description)
                         .font(.body)
                         .frame(height: 60)
@@ -137,7 +137,7 @@ struct SkillEditorView: View {
 
     // MARK: - Markdown Editor Section
 
-    /// Markdown 正文编辑器
+    /// Markdown body editor
     private var markdownEditorSection: some View {
         GroupBox("Markdown Content") {
             TextEditor(text: $viewModel.markdownBody)

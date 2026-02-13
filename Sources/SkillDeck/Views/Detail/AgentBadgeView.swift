@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// AgentBadgeView 显示一个 Agent 的小徽章（图标 + 名称）
+/// AgentBadgeView displays a small Agent badge (icon + name)
 ///
-/// 用于在 skill 详情页等地方展示 Agent 标识
+/// Used to show Agent identifier in skill detail page, etc.
 struct AgentBadgeView: View {
 
     let agentType: AgentType

@@ -1,69 +1,69 @@
 import Foundation
 
-/// Skill 是应用的核心数据模型，代表一个 AI Agent 技能
-/// 它聚合了来自文件系统、SKILL.md 和 lock file 的所有信息
+/// Skill is the core data model of the application, representing an AI Agent skill
+/// It aggregates information from the file system, SKILL.md, and lock file
 ///
-/// 使用 @Observable 需要 class 类型，但这里我们用 struct 保持不可变性，
-/// ViewModel 层会用 @Observable class 来管理状态
+/// Using @Observable requires class type, but here we use struct to maintain immutability,
+/// The ViewModel layer will use @Observable class to manage state
 struct Skill: Identifiable, Hashable {
-    /// 唯一标识符：skill 目录名（如 "agent-notifier"）
+    /// Unique identifier: skill directory name (e.g., "agent-notifier")
     let id: String
 
-    /// 规范路径（解析 symlink 后的真实路径）
-    /// 例如 ~/.agents/skills/agent-notifier/
+    /// Canonical path (real path after resolving symlink)
+    /// e.g., ~/.agents/skills/agent-notifier/
     let canonicalURL: URL
 
-    /// SKILL.md 中解析出的元数据
+    /// Metadata parsed from SKILL.md
     var metadata: SkillMetadata
 
-    /// SKILL.md 中 frontmatter 之后的 markdown 正文
+    /// Markdown body after frontmatter in SKILL.md
     var markdownBody: String
 
-    /// 作用域：全局共享 / Agent 本地 / 项目级
+    /// Scope: Global shared / Agent local / Project level
     var scope: SkillScope
 
-    /// 该 skill 安装到了哪些 Agent（可能通过 symlink）
+    /// Which Agents this skill is installed to (possibly via symlink)
     var installations: [SkillInstallation]
 
-    /// lock file 中的条目（可能为 nil，表示未通过包管理器安装）
+    /// Entry in lock file (can be nil, indicating not installed via package manager)
     var lockEntry: LockEntry?
 
-    /// F12: 是否有远程更新可用
-    /// 当 checkForUpdate 检测到远程 tree hash 与本地不同时设为 true
+    /// F12: Whether a remote update is available
+    /// Set to true when checkForUpdate detects remote tree hash differs from local
     var hasUpdate: Bool = false
 
-    /// F12: 远程最新 tree hash
-    /// 用于 updateSkill 时知道要更新到哪个版本
+    /// F12: Remote latest tree hash
+    /// Used to know which version to update to during updateSkill
     var remoteTreeHash: String?
 
-    /// F12: 远程最新 commit hash
-    /// 用于生成 GitHub compare URL 显示差异链接
-    /// 注意：tree hash 标识文件夹内容快照，commit hash 标识一次提交。
-    /// GitHub compare URL 需要 commit hash 才能正确跳转。
+    /// F12: Remote latest commit hash
+    /// Used to generate GitHub compare URL to show diff links
+    /// Note: tree hash identifies a folder content snapshot, commit hash identifies a commit.
+    /// GitHub compare URL requires commit hash to jump correctly.
     var remoteCommitHash: String?
 
-    /// F12: 本地 commit hash（从 CommitHashCache 读取）
-    /// 用于在 UI 中显示 `abc1234 → def5678` 的 hash 对比，
-    /// 以及生成 GitHub compare URL `compare/<local>...<remote>`
-    /// 老 skill（通过 npx skills 安装）在首次更新检查时通过 backfill 获取
+    /// F12: Local commit hash (read from CommitHashCache)
+    /// Used to show hash comparison like abc1234 → def5678 in UI,
+    /// And generate GitHub compare URL compare/<local>...<remote>
+    /// Old skills (installed via npx skills) get this via backfill on first update check
     var localCommitHash: String?
 
-    /// SKILL.md 文件的完整路径
+    /// Full path of the SKILL.md file
     var skillMDURL: URL {
         canonicalURL.appendingPathComponent("SKILL.md")
     }
 
-    /// 便捷属性：显示名称（优先用 metadata.name，否则用目录名）
+    /// Convenience property: display name (prefers metadata.name, otherwise uses directory name)
     var displayName: String {
         metadata.name.isEmpty ? id : metadata.name
     }
 
-    /// 便捷属性：该 skill 安装到了哪些 Agent
+    /// Convenience property: which Agents this skill is installed to
     var installedAgents: [AgentType] {
         installations.map(\.agentType)
     }
 
-    // Hashable 实现：只用 id 判断相等（类似 Java 的 equals/hashCode）
+    // Hashable implementation: equality check using id only (similar to Java's equals/hashCode)
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
@@ -73,22 +73,22 @@ struct Skill: Identifiable, Hashable {
     }
 }
 
-/// Skill 更新检查的状态枚举
+/// Skill update check status enum
 ///
-/// 用于在列表中显示每个 skill 的更新检查进度和结果。
-/// 遵循 Equatable 协议（Swift 的值相等判断，类似 Java 的 equals），
-/// 使 SwiftUI 能够对比状态变化来决定是否重新渲染视图。
+/// Used to show update check progress and result for each skill in the list.
+/// Conforms to Equatable protocol (Swift value equality check, similar to Java's equals),
+/// Allowing SwiftUI to compare state changes to decide whether to re-render the view.
 enum SkillUpdateStatus: Equatable {
-    /// 未检查（默认状态，不显示任何图标）
+    /// Not checked (default state, shows no icon)
     case notChecked
-    /// 正在检查中（显示旋转 spinner）
+    /// Checking (shows spinning spinner)
     case checking
-    /// 有可用更新（显示橙色上箭头图标）
+    /// Update available (shows orange up arrow icon)
     case hasUpdate
-    /// 已是最新版本（显示绿色勾选图标）
+    /// Up to date (shows green checkmark icon)
     case upToDate
-    /// 检查失败（显示黄色警告图标，hover 显示错误信息）
-    /// 关联值（associated value）类似 Rust 的 enum variant 携带数据，
-    /// Java 中需要用子类或额外字段实现类似功能
+    /// Check failed (shows yellow warning icon, hover shows error message)
+    /// Associated values carry data similar to Rust's enum variants,
+    /// Which requires subclasses or extra fields to implement in Java
     case error(String)
 }
