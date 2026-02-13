@@ -75,6 +75,10 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 
 Tests are in `Tests/SkillDeckTests/`. Three test files exist: `SkillMDParserTests`, `LockFileManagerTests`, `SymlinkManagerTests`. Tests use `@testable import SkillDeck` for internal access.
 
+## Pull Requests
+
+When creating PRs with `gh pr create`, always use **English** for the title, body, and all content.
+
 ## Release
 
 Use `scripts/release.sh` to publish a new version:
