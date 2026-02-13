@@ -299,7 +299,14 @@ struct SkillDetailView: View {
                 }
                 GridRow {
                     Text("Repository").foregroundStyle(.secondary)
-                    Text(lockEntry.sourceUrl).textSelection(.enabled)
+                    // 如果 sourceUrl 是有效的 URL，则显示为可点击链接，点击后用系统默认浏览器打开
+                    if let url = URL(string: lockEntry.sourceUrl),
+                       url.scheme != nil {
+                        Link(lockEntry.sourceUrl, destination: url)
+                            .textSelection(.enabled)
+                    } else {
+                        Text(lockEntry.sourceUrl).textSelection(.enabled)
+                    }
                 }
                 // 优先显示 commit hash（可直接在 GitHub 上查看），
                 // 若无（老 skill 未 backfill）则回退显示 tree hash
