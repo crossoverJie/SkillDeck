@@ -30,22 +30,22 @@ actor CommitHashCache {
         /// 存储手动关联的 skill → 仓库信息的映射
         /// optional 保证向后兼容：旧格式文件中没有此字段，解码时自动为 nil
         var linkedSkills: [String: LinkedSkillInfo]?
-        /// 存储用户 scan 过的仓库历史记录
-        /// optional 保证向后兼容：旧格式文件中没有此字段，解码时自动为 nil
+        /// Stores user's scanned repo history
+        /// Optional for backward compatibility: old cache files won't have this field, decodes as nil
         var repoHistory: [RepoHistoryEntry]?
     }
 
-    /// Scan 过的 repo 历史记录
+    /// History of scanned repos from the Install Sheet
     ///
-    /// 记录用户在 Install Sheet 中成功 scan 过的 GitHub 仓库，
-    /// 下次打开 Install Sheet 时可以快速选择历史仓库，无需重新输入 URL。
-    /// Codable 协议自动生成 JSON 序列化/反序列化代码
+    /// Records GitHub repos that the user has successfully scanned in the Install Sheet,
+    /// so they can quickly select a previously used repo next time without retyping the URL.
+    /// Codable protocol auto-generates JSON serialization/deserialization code
     struct RepoHistoryEntry: Codable, Equatable {
-        /// 仓库来源标识（如 "crossoverJie/skills"）
+        /// Repo source identifier (e.g. "crossoverJie/skills")
         var source: String
-        /// 完整仓库 URL（如 "https://github.com/crossoverJie/skills.git"）
+        /// Full repo URL (e.g. "https://github.com/crossoverJie/skills.git")
         var sourceUrl: String
-        /// 最近 scan 的时间（ISO 8601 格式）
+        /// Last scanned timestamp (ISO 8601 format)
         var scannedAt: String
     }
 
@@ -90,8 +90,8 @@ actor CommitHashCache {
     /// 用于存储没有 lockEntry 的 skill 手动关联的 GitHub 仓库信息
     private var linkedSkillsCache: [String: LinkedSkillInfo] = [:]
 
-    /// 内存缓存：用户 scan 过的仓库历史记录
-    /// 按 source 去重，最新 scan 的排在最前面，最多保留 20 条
+    /// In-memory cache: user's scanned repo history
+    /// Deduplicated by source, most recently scanned first, max 20 entries
     private var repoHistoryCache: [RepoHistoryEntry] = []
 
     /// 是否已从磁盘加载过（避免重复读取）
@@ -165,39 +165,39 @@ actor CommitHashCache {
         return linkedSkillsCache
     }
 
-    // MARK: - Repo History Methods（scan 历史记录）
+    // MARK: - Repo History Methods
 
-    /// 添加或更新一条 repo scan 历史记录
+    /// Add or update a repo scan history entry
     ///
-    /// 按 source（如 "owner/repo"）去重：如果已存在同名记录，更新时间戳并移到最前面。
-    /// 最多保留 20 条历史记录（FIFO，超出时丢弃最旧的）。
-    /// 仅写入内存，需调用 save() 持久化到磁盘。
+    /// Deduplicates by source (e.g. "owner/repo"): if a matching entry exists,
+    /// updates its timestamp and moves it to the front. Keeps at most 20 entries (FIFO).
+    /// Only writes to memory; call save() to persist to disk.
     ///
     /// - Parameters:
-    ///   - source: 仓库来源标识（如 "crossoverJie/skills"）
-    ///   - sourceUrl: 完整仓库 URL（如 "https://github.com/crossoverJie/skills.git"）
+    ///   - source: Repo source identifier (e.g. "crossoverJie/skills")
+    ///   - sourceUrl: Full repo URL (e.g. "https://github.com/crossoverJie/skills.git")
     func addRepoHistory(source: String, sourceUrl: String) {
         ensureLoaded()
 
-        // 移除同 source 的旧记录（忽略大小写去重，GitHub 地址不区分大小写）
-        // removeAll(where:) 类似 Java Stream 的 filter + collect，原地删除满足条件的元素
-        // caseInsensitiveCompare 返回 .orderedSame 表示忽略大小写相等
+        // Remove existing entry with the same source (case-insensitive, since GitHub URLs are case-insensitive)
+        // removeAll(where:) is like Java Stream's filter + collect — removes matching elements in place
+        // caseInsensitiveCompare returns .orderedSame when strings are equal ignoring case
         repoHistoryCache.removeAll { $0.source.caseInsensitiveCompare(source) == .orderedSame }
 
-        // 插入到最前面（最近使用的排最前）
+        // Insert at the front (most recently used first)
         let now = ISO8601DateFormatter().string(from: Date())
         let entry = RepoHistoryEntry(source: source, sourceUrl: sourceUrl, scannedAt: now)
         repoHistoryCache.insert(entry, at: 0)
 
-        // 最多保留 20 条（prefix 截取前 N 个元素，类似 Python 的 list[:20]）
+        // Keep at most 20 entries (prefix takes first N elements, like Python's list[:20])
         if repoHistoryCache.count > 20 {
             repoHistoryCache = Array(repoHistoryCache.prefix(20))
         }
     }
 
-    /// 获取所有 repo scan 历史记录
+    /// Get all repo scan history entries
     ///
-    /// 返回按最近 scan 时间排序的列表（最新的在前），最多 20 条
+    /// Returns entries sorted by most recent scan time (newest first), max 20 entries
     func getRepoHistory() -> [RepoHistoryEntry] {
         ensureLoaded()
         return repoHistoryCache
@@ -209,8 +209,7 @@ actor CommitHashCache {
     /// 先写到临时文件，成功后再 rename 替换原文件。
     /// 类似 Go 中先写 .tmp 文件再 os.Rename 的模式。
     func save() throws {
-        // linkedSkillsCache 为空时存为 nil，JSON 中不输出该字段（保持简洁）
-        // repoHistoryCache 为空时同理
+        // Omit repoHistory from JSON when empty (same pattern as linkedSkillsCache)
         let cacheFile = CacheFile(
             skills: cache,
             linkedSkills: linkedSkillsCache.isEmpty ? nil : linkedSkillsCache,
@@ -251,7 +250,7 @@ actor CommitHashCache {
             cache = cacheFile.skills
             // 加载关联信息（可能为 nil，旧格式文件中没有此字段）
             linkedSkillsCache = cacheFile.linkedSkills ?? [:]
-            // 加载 scan 历史记录（可能为 nil，旧格式文件中没有此字段）
+            // Load repo scan history (may be nil in old cache files without this field)
             repoHistoryCache = cacheFile.repoHistory ?? []
         } catch {
             // 文件损坏或格式不兼容时，使用空缓存重新开始

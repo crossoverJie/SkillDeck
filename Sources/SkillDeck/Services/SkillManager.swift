@@ -586,35 +586,35 @@ final class SkillManager {
         await commitHashCache.getHash(for: skillName)
     }
 
-    /// 获取合并去重的 repo 历史列表（lock file 已安装来源 + scan 历史）
+    /// Get a merged, deduplicated repo history list (lock file installed sources + scan history)
     ///
-    /// 数据来源：
-    /// 1. `skills` 数组中已安装 skill 的 `lockEntry.source`/`sourceUrl`（来自 lock file）
-    /// 2. `commitHashCache.getRepoHistory()`（用户 scan 过的历史记录）
+    /// Data sources:
+    /// 1. `skills` array's `lockEntry.source`/`sourceUrl` (from lock file)
+    /// 2. `commitHashCache.getRepoHistory()` (user's scan history)
     ///
-    /// 去重策略：按 `source` 字段去重，lock file 优先（因为有安装记录更可信）。
-    /// 返回格式为元组数组，方便 ViewModel 直接使用。
+    /// Dedup strategy: by `source` field (case-insensitive), lock file entries take priority
+    /// since they have actual install records. Returns a tuple array for easy ViewModel consumption.
     ///
-    /// - Returns: 去重后的 repo 列表，每项包含 source（如 "owner/repo"）和 sourceUrl
+    /// - Returns: Deduplicated repo list, each with source (e.g. "owner/repo") and sourceUrl
     func getRepoHistory() async -> [(source: String, sourceUrl: String)] {
-        // 用 Set 记录已见过的 source（小写形式），实现 O(1) 忽略大小写去重
-        // GitHub 地址不区分大小写，"Owner/Repo" 和 "owner/repo" 视为同一仓库
+        // Use a Set to track seen sources (lowercased) for O(1) case-insensitive dedup.
+        // GitHub URLs are case-insensitive, so "Owner/Repo" and "owner/repo" are the same repo.
         var seen = Set<String>()
         var result: [(source: String, sourceUrl: String)] = []
 
-        // 1. 从已安装的 skill 中提取唯一的 (source, sourceUrl)
-        // lock file 记录优先加入（安装过的仓库更有价值）
+        // 1. Extract unique (source, sourceUrl) pairs from installed skills
+        // Lock file entries are added first since installed repos are more valuable
         for skill in skills {
             guard let entry = skill.lockEntry else { continue }
-            // 跳过空 source（理论上不会出现，但防御性编程）
+            // Skip empty source (shouldn't happen in practice, but defensive programming)
             guard !entry.source.isEmpty else { continue }
             if seen.insert(entry.source.lowercased()).inserted {
-                // insert 返回 (inserted: Bool, memberAfterInsert)，类似 Go map 的 ok 模式
+                // insert returns (inserted: Bool, memberAfterInsert), similar to Go's map ok pattern
                 result.append((source: entry.source, sourceUrl: entry.sourceUrl))
             }
         }
 
-        // 2. 从 scan 历史中补充（lock file 没覆盖到的仓库）
+        // 2. Supplement with scan history (repos not already covered by lock file)
         let history = await commitHashCache.getRepoHistory()
         for entry in history {
             if seen.insert(entry.source.lowercased()).inserted {
@@ -625,15 +625,14 @@ final class SkillManager {
         return result
     }
 
-    /// 保存一条 repo scan 历史记录到缓存
+    /// Save a repo scan history entry to cache
     ///
-    /// SkillInstallViewModel 在成功 scan 后调用此方法，
-    /// 将仓库信息记录到 CommitHashCache 的 repoHistory 中。
-    /// 这样下次打开 Install Sheet 时可以快速选择历史仓库。
+    /// Called by SkillInstallViewModel after a successful scan,
+    /// so the repo appears in the "Recent Repositories" list next time the Install Sheet opens.
     ///
     /// - Parameters:
-    ///   - source: 仓库来源标识（如 "crossoverJie/skills"）
-    ///   - sourceUrl: 完整仓库 URL（如 "https://github.com/crossoverJie/skills.git"）
+    ///   - source: Repo source identifier (e.g. "crossoverJie/skills")
+    ///   - sourceUrl: Full repo URL (e.g. "https://github.com/crossoverJie/skills.git")
     func saveRepoHistory(source: String, sourceUrl: String) async {
         await commitHashCache.addRepoHistory(source: source, sourceUrl: sourceUrl)
         try? await commitHashCache.save()

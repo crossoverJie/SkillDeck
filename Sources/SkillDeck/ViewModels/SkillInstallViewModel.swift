@@ -83,8 +83,8 @@ final class SkillInstallViewModel: Identifiable {
     /// 已成功安装的 skill 数量
     var installedCount = 0
 
-    /// 合并去重后的 repo 历史记录（来自 lock file + scan 历史）
-    /// 在 ViewModel 创建后通过 loadHistory() 异步加载
+    /// Merged and deduplicated repo history (from lock file + scan history)
+    /// Loaded asynchronously via loadHistory() after ViewModel creation
     var repoHistory: [(source: String, sourceUrl: String)] = []
 
     // MARK: - Dependencies
@@ -110,24 +110,24 @@ final class SkillInstallViewModel: Identifiable {
 
     // MARK: - Actions
 
-    /// 加载 repo 历史记录（合并 lock file + scan 历史）
+    /// Load repo history (merged from lock file + scan history)
     ///
-    /// 在 View 的 .task 修饰符中调用（不在 init 中调用，因为 init 是同步的，
-    /// 而 getRepoHistory 是 async 方法需要 await）。
-    /// .task 在视图首次出现时自动执行异步代码，类似 Android 的 onResume + coroutine
+    /// Called from the View's .task modifier (not in init, because init is synchronous
+    /// while getRepoHistory is async and requires await).
+    /// .task runs async code when the view first appears, similar to Android's onResume + coroutine
     func loadHistory() async {
         repoHistory = await skillManager.getRepoHistory()
     }
 
-    /// 选择一条历史记录：自动填入 URL 并触发 Scan
+    /// Select a history entry: auto-fill URL input and trigger Scan
     ///
-    /// 用户在 Install Sheet 的历史列表中点击某条记录时调用。
-    /// 直接使用 sourceUrl（完整 URL）作为输入，然后自动执行 fetchRepository()。
+    /// Called when the user taps a row in the Install Sheet's history list.
+    /// Uses the source (owner/repo) format as input — fetchRepository() will normalize it internally.
     ///
-    /// - Parameter source: 仓库来源标识（如 "crossoverJie/skills"）
-    /// - Parameter sourceUrl: 完整仓库 URL（如 "https://github.com/crossoverJie/skills.git"）
+    /// - Parameter source: Repo source identifier (e.g. "crossoverJie/skills")
+    /// - Parameter sourceUrl: Full repo URL (e.g. "https://github.com/crossoverJie/skills.git")
     func selectHistoryRepo(source: String, sourceUrl: String) async {
-        // 使用 source 格式（owner/repo）作为输入，fetchRepository 内部会 normalize
+        // Use source format (owner/repo) as input; fetchRepository normalizes it internally
         repoURLInput = source
         await fetchRepository()
     }
@@ -181,7 +181,7 @@ final class SkillInstallViewModel: Identifiable {
             // 默认选中所有未安装的 skill
             selectedSkillNames = Set(discovered.map(\.id).filter { !alreadyInstalledNames.contains($0) })
 
-            // 保存 scan 历史记录（下次打开 Install Sheet 时可以快速选择）
+            // Save scan history (so this repo appears in "Recent Repositories" next time)
             await skillManager.saveRepoHistory(source: normalizedSource, sourceUrl: normalizedRepoURL)
 
             // 6. 转到选择阶段

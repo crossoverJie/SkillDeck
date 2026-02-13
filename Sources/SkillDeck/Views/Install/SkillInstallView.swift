@@ -107,8 +107,8 @@ struct SkillInstallView: View {
             }
             .padding(.horizontal, 40)
 
-            // 历史记录列表：仅当 repoHistory 非空时显示
-            // 用户可以点击历史项快速填入 URL 并自动 Scan
+            // History list: only shown when repoHistory is not empty
+            // Users can click a history item to auto-fill the URL and trigger Scan
             if !viewModel.repoHistory.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Recent Repositories")
@@ -116,15 +116,15 @@ struct SkillInstallView: View {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 40)
 
-                    // ScrollView 包裹历史列表，防止条目过多时撑开整个视图
-                    // .frame(maxHeight: 150) 限制最大高度，超出时可滚动
+                    // ScrollView wraps the history list to prevent too many entries from stretching the view
+                    // .frame(maxHeight: 150) caps the height; content scrolls if it overflows
                     ScrollView {
                         VStack(spacing: 0) {
-                            // ForEach 需要 Identifiable 或提供 id 参数
-                            // 这里用 source 字段作为唯一标识（已去重）
+                            // ForEach requires Identifiable or an explicit id parameter
+                            // Here we use source as the unique identifier (already deduplicated)
                             ForEach(viewModel.repoHistory, id: \.source) { entry in
                                 Button {
-                                    // 点击历史项：自动填入 URL 并触发 Scan
+                                    // Click a history item: auto-fill URL and trigger Scan
                                     Task {
                                         await viewModel.selectHistoryRepo(
                                             source: entry.source,
@@ -133,7 +133,7 @@ struct SkillInstallView: View {
                                     }
                                 } label: {
                                     HStack(spacing: 8) {
-                                        // 时钟箭头图标，表示"历史记录"
+                                        // Clock arrow icon representing "history"
                                         Image(systemName: "clock.arrow.circlepath")
                                             .foregroundStyle(.secondary)
                                             .font(.caption)
@@ -144,12 +144,12 @@ struct SkillInstallView: View {
                                     }
                                     .padding(.vertical, 6)
                                     .padding(.horizontal, 12)
-                                    // contentShape 扩大可点击区域到整行（默认只有文字可点击）
+                                    // contentShape expands the tappable area to the full row (by default only text is tappable)
                                     .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
 
-                                // 行与行之间的分隔线（最后一行不显示）
+                                // Divider between rows (skip the last row)
                                 if entry.source != viewModel.repoHistory.last?.source {
                                     Divider()
                                         .padding(.leading, 32)
@@ -166,8 +166,8 @@ struct SkillInstallView: View {
             Spacer()
         }
         .padding()
-        // .task 在视图首次出现时执行异步代码（类似 Android onResume + coroutine）
-        // 用于加载 repo 历史记录
+        // .task runs async code when the view first appears (like Android onResume + coroutine)
+        // Used here to load repo history
         .task {
             await viewModel.loadHistory()
         }

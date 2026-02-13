@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Code Style: Comments Required
 
-The author has extensive Java/Golang/Python experience but is new to Swift and macOS app development. All generated code must include detailed comments in Chinese explaining:
+The author has extensive Java/Golang/Python experience but is new to Swift and macOS app development. All generated code must include detailed comments in **English** explaining:
 - Swift-specific syntax and language features (e.g., `@Observable`, `actor`, `some View`, property wrappers)
 - SwiftUI concepts and view lifecycle (e.g., `.task`, `.environment()`, `NavigationSplitView`)
 - macOS/Apple platform APIs (e.g., `NSWorkspace`, `DispatchSource`, `FileManager`)
