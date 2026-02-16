@@ -83,6 +83,7 @@ SkillDeck/
 │       │   ├── Agent.swift
 │       │   ├── AgentType.swift
 │       │   ├── LockEntry.swift
+│       │   ├── RegistrySkill.swift
 │       │   ├── Skill.swift
 │       │   ├── SkillInstallation.swift
 │       │   ├── SkillMetadata.swift
@@ -93,10 +94,12 @@ SkillDeck/
 │       │   ├── LockFileManager.swift
 │       │   ├── SkillManager.swift
 │       │   ├── SkillMDParser.swift
+│       │   ├── SkillRegistryService.swift
 │       │   ├── SkillScanner.swift
 │       │   └── SymlinkManager.swift
 │       ├── ViewModels/               # 视图模型（MVVM 中间层）
 │       │   ├── DashboardViewModel.swift
+│       │   ├── RegistryBrowserViewModel.swift
 │       │   ├── SkillDetailViewModel.swift
 │       │   └── SkillEditorViewModel.swift
 │       ├── Views/                    # UI 视图层
@@ -106,6 +109,7 @@ SkillDeck/
 │       │   ├── Dashboard/            # Dashboard 页面
 │       │   ├── Detail/               # 详情页面
 │       │   ├── Editor/               # 编辑器页面
+│       │   ├── Registry/             # Registry Browser 页面
 │       │   └── Sidebar/              # 侧边栏
 │       └── Utilities/                # 工具和扩展
 │           ├── Constants.swift

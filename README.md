@@ -36,6 +36,7 @@
 ## Features
 
 - **Multi-Agent Support** — Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode
+- **Registry Browser** — Browse [skills.sh](https://skills.sh) leaderboard (All Time, Trending, Hot) and search the catalog
 - **Unified Dashboard** — All skills in one three-pane macOS-native view
 - **One-Click Install** — Clone from GitHub, auto-create symlinks and update lock file
 - **Update Checker** — Detect remote changes and pull updates with one click

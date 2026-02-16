@@ -60,11 +60,23 @@ struct SidebarView: View {
                     Label("Dashboard", systemImage: "square.grid.2x2")
                 }
                 .badge(skillManager.skills.count)
+                // .listRowBackground must be the LAST modifier on the row.
+                // If placed inside sidebarRow() before .badge()/.opacity(), those outer
+                // modifiers wrap the view and prevent the background preference from
+                // propagating to the List — causing no visible selection highlight.
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(rowBackground(for: .dashboard))
+                )
 
                 // F09: Registry browser — browse and search skills.sh catalog
                 sidebarRow(item: .registry) {
                     Label("Registry", systemImage: "globe")
                 }
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(rowBackground(for: .registry))
+                )
             }
 
             Section("Agents") {
@@ -85,6 +97,13 @@ struct SidebarView: View {
                     // not including inherited installations (like Copilot inheriting skills from Claude directory)
                     // opacity controls transparency: uninstalled Agents are shown semi-transparent
                     .opacity(agent?.isInstalled == true ? 1.0 : 0.5)
+                    // .listRowBackground must be the LAST modifier — after .badge() and .opacity().
+                    // Those outer modifiers wrap the view and block background preference propagation
+                    // if .listRowBackground is applied before them (e.g. inside sidebarRow()).
+                    .listRowBackground(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(rowBackground(for: .agent(agentType)))
+                    )
                 }
             }
         }
@@ -212,29 +231,28 @@ struct SidebarView: View {
                     hoveredItem = isHovering ? item : nil
                 }
             }
-            // .listRowBackground customizes list row background (overrides List's default selection/hover styles)
-            // Here uses RoundedRectangle to draw rounded rectangle, simulating macOS native sidebar selection/hover effects
-            .listRowBackground(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(rowBackground(for: item))
-            )
     }
 
     /// Returns row background color based on selection/hover state
     /// macOS native sidebar color guidelines:
-    /// - Selected: accentColor (system accent color, default blue) + low opacity
+    /// - Selected: accentColor (system accent color, default blue) + moderate opacity for clear visibility
     /// - Hover: primary (adaptive black/white) + very low opacity
     /// - Normal: fully transparent
+    ///
+    /// Note: `.listStyle(.sidebar)` provides its own native selection indicator,
+    /// but `.listRowBackground()` replaces it entirely. We must ensure our custom
+    /// background is visible enough — opacity(0.2) provides a clear highlight
+    /// while still looking subtle and native.
     private func rowBackground(for item: SidebarItem) -> Color {
         if selection == item {
-            // Selected state: if Agent item, use that Agent's brand color; Dashboard/Settings keep system accentColor
+            // Selected state: if Agent item, use that Agent's brand color; Dashboard/Registry/Settings keep system accentColor
             // Swift 5.9 if/else expression syntax: can use if-else directly in let assignment, similar to ternary but supports pattern matching
             let baseColor: Color = if case .agent(let agentType) = item {
                 Constants.AgentColors.color(for: agentType)
             } else {
                 Color.accentColor
             }
-            return baseColor.opacity(0.15)
+            return baseColor.opacity(0.2)
         } else if hoveredItem == item {
             // Hover state: very light gray background, hinting "this is clickable"
             return Color.primary.opacity(0.08)
