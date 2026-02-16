@@ -12,6 +12,7 @@
 | Filter by Agent | Click a specific agent in the sidebar to view its installed skills |
 | Sorting | Sort by name, scope, or agent count with ascending/descending toggle |
 | Symlink Deduplication | Automatically resolves symlinks so each canonical skill appears only once |
+| Registry Browser | Browse the [skills.sh](https://skills.sh) leaderboard (All Time, Trending, Hot) and search the catalog with debounced search-as-you-type; one-click install from registry |
 
 ### Agent Detection & Management
 
@@ -96,7 +97,7 @@
 
 ### P1 — v1.0
 
-- [ ] **F09 — Registry Browser**: Browse [skills.sh](https://skills.sh) catalog (all-time, trending, hot) with search
+- [x] **F09 — Registry Browser**: Browse [skills.sh](https://skills.sh) catalog (all-time, trending, hot) with search
 - [x] **F10 — One-Click Install**: Clone from GitHub, place in `~/.agents/skills/`, create symlinks, update lock file
 - [ ] **F11 — Project Skills**: Open a project directory, manage its `.agents/skills/`
 - [x] **F12 — Update Checker**: Compare local `skillFolderHash` against remote repo HEAD

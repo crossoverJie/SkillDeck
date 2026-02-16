@@ -167,9 +167,16 @@ struct SkillInstallView: View {
         }
         .padding()
         // .task runs async code when the view first appears (like Android onResume + coroutine)
-        // Used here to load repo history
+        // Used here to load repo history and handle F09 auto-fetch
         .task {
             await viewModel.loadHistory()
+            // F09: Auto-fetch if URL was pre-filled from Registry Browser
+            // When user clicks "Install" on a registry skill, the URL is already set
+            // and autoFetch is true, so we skip the manual "Scan" step
+            if viewModel.autoFetch && !viewModel.repoURLInput.isEmpty {
+                viewModel.autoFetch = false  // One-shot flag: don't re-fetch on view re-render
+                await viewModel.fetchRepository()
+            }
         }
     }
 

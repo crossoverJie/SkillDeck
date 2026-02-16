@@ -61,6 +61,22 @@ final class SkillInstallViewModel: Identifiable {
     /// User input repository address (supports "owner/repo" or full URL)
     var repoURLInput = ""
 
+    /// F09: Whether to auto-trigger fetch when the install sheet appears
+    ///
+    /// When opened from Registry Browser with a pre-filled repo URL, this flag
+    /// tells the view to automatically start cloning and scanning on appear,
+    /// so the user doesn't need to manually click "Scan".
+    /// Reset to false after the auto-fetch triggers (one-shot flag).
+    var autoFetch = false
+
+    /// F09: Target skill ID to pre-select after scanning
+    ///
+    /// When installing from Registry Browser, this is set to the specific skill's skillId
+    /// (e.g., "vercel-react-best-practices"). After scanning the repo, only this skill
+    /// will be pre-selected instead of all skills.
+    /// When nil (manual install flow), all uninstalled skills are selected by default.
+    var targetSkillId: String?
+
     /// Current installation flow phase
     var phase: Phase = .inputURL
 
@@ -178,8 +194,19 @@ final class SkillInstallViewModel: Identifiable {
             // 5. Mark already installed skills
             alreadyInstalledNames = Set(skillManager.skills.map(\.id))
 
-            // Select all uninstalled skills by default
-            selectedSkillNames = Set(discovered.map(\.id).filter { !alreadyInstalledNames.contains($0) })
+            // Pre-select skills based on context:
+            // - F09 Registry install (targetSkillId is set): only select the specific target skill
+            // - Manual install (targetSkillId is nil): select all uninstalled skills
+            if let targetId = targetSkillId {
+                // From Registry Browser: only select the specific skill the user clicked
+                // Filter to ensure the target skill exists in the repo and isn't already installed
+                selectedSkillNames = Set(
+                    discovered.map(\.id).filter { $0 == targetId && !alreadyInstalledNames.contains($0) }
+                )
+            } else {
+                // Manual install: select all uninstalled skills by default
+                selectedSkillNames = Set(discovered.map(\.id).filter { !alreadyInstalledNames.contains($0) })
+            }
 
             // Save scan history (so this repo appears in "Recent Repositories" next time)
             await skillManager.saveRepoHistory(source: normalizedSource, sourceUrl: normalizedRepoURL)

@@ -28,6 +28,10 @@ struct ContentView: View {
     /// Detail ViewModel
     @State private var detailVM: SkillDetailViewModel?
 
+    /// F09: Registry browser ViewModel
+    /// Created alongside other VMs in .task; manages leaderboard browsing and search
+    @State private var registryVM: RegistryBrowserViewModel?
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             // Left column: sidebar navigation
@@ -36,16 +40,42 @@ struct ContentView: View {
             SidebarView(selection: $selectedSidebarItem)
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
         } content: {
-            // Middle column: skill list
-            if let vm = dashboardVM {
-                DashboardView(viewModel: vm, selectedSkillID: $selectedSkillID)
-                    // Constrain middle column (skill list) width range,
-                    // preventing content from being squeezed when first opening
-                    .navigationSplitViewColumnWidth(min: 250, ideal: 320, max: 450)
+            // Middle column: content varies based on sidebar selection
+            // F09: When "Registry" is selected, show RegistryBrowserView instead of DashboardView
+            if selectedSidebarItem == .registry {
+                // F09: Registry browser — browse and search skills.sh catalog
+                if let vm = registryVM {
+                    RegistryBrowserView(viewModel: vm)
+                        // Registry needs wider column for skill info + install buttons
+                        .navigationSplitViewColumnWidth(min: 300, ideal: 400, max: 600)
+                }
+            } else {
+                // Default: show skill dashboard list
+                if let vm = dashboardVM {
+                    DashboardView(viewModel: vm, selectedSkillID: $selectedSkillID)
+                        // Constrain middle column (skill list) width range,
+                        // preventing content from being squeezed when first opening
+                        .navigationSplitViewColumnWidth(min: 250, ideal: 320, max: 450)
+                }
             }
         } detail: {
-            // Right column: skill details
-            if let skillID = selectedSkillID, let vm = detailVM {
+            // Right column: detail view varies based on sidebar selection
+            if selectedSidebarItem == .registry {
+                // F09: Show registry skill detail when a registry skill is selected
+                if let vm = registryVM, let skill = vm.selectedSkill {
+                    RegistrySkillDetailView(
+                        skill: skill,
+                        isInstalled: vm.isInstalled(skill),
+                        onInstall: { vm.installSkill(skill) }
+                    )
+                } else {
+                    EmptyStateView(
+                        icon: "globe",
+                        title: "Select a Skill",
+                        subtitle: "Choose a skill from the registry to view its details"
+                    )
+                }
+            } else if let skillID = selectedSkillID, let vm = detailVM {
                 SkillDetailView(skillID: skillID, viewModel: vm)
             } else {
                 EmptyStateView(
@@ -59,6 +89,8 @@ struct ContentView: View {
         .task {
             dashboardVM = DashboardViewModel(skillManager: skillManager)
             detailVM = SkillDetailViewModel(skillManager: skillManager)
+            // F09: Initialize registry browser ViewModel
+            registryVM = RegistryBrowserViewModel(skillManager: skillManager)
             await skillManager.refresh()
             // Auto-check for updates on app launch (subject to 4-hour interval limit, not every launch requests GitHub API)
             await skillManager.checkForAppUpdate()
