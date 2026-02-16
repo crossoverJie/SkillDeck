@@ -129,6 +129,10 @@ final class SkillManager {
             var allSkills = try await scannedSkills
 
             // Populate lock file information
+            // Invalidate cache first to ensure we read the latest data from disk.
+            // External tools (e.g., npx skills) may have modified the lock file since our last read,
+            // without invalidating, read() returns stale cached data missing newly installed skills.
+            await lockFileManager.invalidateCache()
             if await lockFileManager.exists {
                 if let lockFile = try? await lockFileManager.read() {
                     for i in allSkills.indices {
