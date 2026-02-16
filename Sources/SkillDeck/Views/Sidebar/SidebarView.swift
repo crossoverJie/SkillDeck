@@ -1,20 +1,25 @@
 import SwiftUI
 
 /// Sidebar navigation item enum
+///
+/// Each case represents a clickable item in the sidebar.
+/// F09 adds `.registry` for browsing the skills.sh catalog.
 enum SidebarItem: Hashable {
     case dashboard
+    /// F09: Browse skills.sh catalog (leaderboard + search)
+    case registry
     case agent(AgentType)
     case settings
 
     /// Maps sidebar options to Agent filter values
-    /// - .dashboard / .settings → nil (show all skills)
+    /// - .dashboard / .settings / .registry → nil (show all skills or different content)
     /// - .agent(type) → type (only show skills for this Agent)
     /// This computed property is similar to Java's getter, executes switch calculation on each access
     var agentFilter: AgentType? {
         switch self {
         case .agent(let agentType):
             return agentType
-        case .dashboard, .settings:
+        case .dashboard, .settings, .registry:
             return nil
         }
     }
@@ -55,6 +60,11 @@ struct SidebarView: View {
                     Label("Dashboard", systemImage: "square.grid.2x2")
                 }
                 .badge(skillManager.skills.count)
+
+                // F09: Registry browser — browse and search skills.sh catalog
+                sidebarRow(item: .registry) {
+                    Label("Registry", systemImage: "globe")
+                }
             }
 
             Section("Agents") {
