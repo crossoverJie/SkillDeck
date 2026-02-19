@@ -16,6 +16,10 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
 </p>
 
+<p align="center">
+  English | <a href="README_CN.md">中文</a>
+</p>
+
 ---
 
 **SkillDeck** is the first desktop GUI for managing skills across multiple AI code agents — [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), and [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line). No more manual file editing, symlink juggling, or YAML parsing by hand.
