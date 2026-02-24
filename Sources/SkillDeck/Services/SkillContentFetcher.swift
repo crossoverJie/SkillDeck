@@ -10,7 +10,14 @@ import Foundation
 /// - **Monorepo layout**: `skills/{skillId}/SKILL.md` under a `skills/` subdirectory
 ///   (e.g., `inference-sh/skills` stores skills at `skills/remotion-render/SKILL.md`)
 ///
-/// The fetcher tries both layouts on both `main` and `master` branches (4 attempts total).
+/// Additionally, the directory name on GitHub may differ from the `skillId` returned by
+/// the registry API. For example, `remotion-dev/skills` has a skill with
+/// `skillId = "remotion-best-practices"` but the directory is just `remotion/`.
+/// When direct URL lookup fails, the fetcher falls back to the GitHub Contents API
+/// to discover the actual directory containing the SKILL.md.
+///
+/// The fetcher tries both layouts on both `main` and `master` branches (4 attempts total),
+/// then falls back to API-based discovery if all direct attempts return 404.
 ///
 /// Uses `actor` for thread-safe cache access, consistent with other service actors
 /// in the project (SkillRegistryService, LockFileManager, AgentDetector).
@@ -70,17 +77,13 @@ actor SkillContentFetcher {
 
     /// Fetch the raw SKILL.md content for a registry skill from GitHub
     ///
-    /// Fetch strategy (tries up to 4 URLs, stops on first success):
+    /// Fetch strategy:
     /// 1. Check in-memory cache (10-minute TTL)
-    /// 2. Try `main` branch, flat layout: `{skillId}/SKILL.md`
-    /// 3. Try `main` branch, monorepo layout: `skills/{skillId}/SKILL.md`
-    /// 4. Try `master` branch, flat layout: `{skillId}/SKILL.md`
-    /// 5. Try `master` branch, monorepo layout: `skills/{skillId}/SKILL.md`
-    /// 6. Throw `.notFound` if all attempts return 404
-    ///
-    /// Many skill repositories use a `skills/` subdirectory (monorepo layout) rather than
-    /// placing skill folders at the repo root. For example, `inference-sh/skills` stores
-    /// skills at `skills/remotion-render/SKILL.md`, not `remotion-render/SKILL.md`.
+    /// 2. Try direct URLs (4 candidates: 2 branches × 2 layouts) using skillId as directory name
+    /// 3. If all 404, fall back to GitHub Contents API to discover the actual directory
+    ///    (handles cases where skillId differs from directory name, e.g., "remotion-best-practices"
+    ///    is in directory "remotion")
+    /// 4. Throw `.notFound` if all attempts fail
     ///
     /// - Parameters:
     ///   - source: Repository in "owner/repo" format (e.g., "vercel-labs/agent-skills")
@@ -97,9 +100,8 @@ actor SkillContentFetcher {
             return cached.content
         }
 
-        // 2. Try all candidate URLs: both branch names × both directory layouts.
-        // `candidateURLs` returns URLs ordered by likelihood:
-        // main/flat → main/skills/ → master/flat → master/skills/
+        // 2. Try direct candidate URLs: both branch names × both directory layouts.
+        // This is the fast path — works when skillId matches the directory name exactly.
         let urls = candidateURLs(source: source, skillId: skillId)
         for url in urls {
             if let content = try await fetchFromURL(url) {
@@ -108,7 +110,16 @@ actor SkillContentFetcher {
             }
         }
 
-        // 3. All candidate URLs returned 404 — SKILL.md not found
+        // 3. Fallback: use GitHub Contents API to discover the actual directory.
+        // This handles repos where the directory name differs from the skillId.
+        // For example, `remotion-dev/skills` has skillId "remotion-best-practices"
+        // but the directory is just "remotion/".
+        if let content = try await discoverViaContentsAPI(source: source, skillId: skillId) {
+            cache[cacheKey] = (content: content, fetchedAt: Date())
+            return content
+        }
+
+        // 4. All attempts failed — SKILL.md not found
         throw FetchError.notFound
     }
 
@@ -181,6 +192,152 @@ actor SkillContentFetcher {
     }
 
     // MARK: - Private Networking
+
+    /// Fallback discovery: use GitHub Contents API to find the actual SKILL.md path
+    ///
+    /// When the `skillId` doesn't match the directory name on GitHub (e.g., skillId is
+    /// "remotion-best-practices" but the directory is "remotion"), direct URL lookup fails.
+    /// This method lists directories in the repository via the GitHub Contents API and tries
+    /// each one until it finds a SKILL.md whose `name:` field matches the skillId.
+    ///
+    /// GitHub Contents API: `GET https://api.github.com/repos/{owner}/{repo}/contents/{path}`
+    /// Returns a JSON array of file/directory entries with `name`, `type`, and `path` fields.
+    /// Rate limit: 60 requests/hour for unauthenticated requests — sufficient for a desktop app.
+    ///
+    /// Strategy:
+    /// 1. List the `skills/` subdirectory (most monorepos use this convention)
+    /// 2. List the repo root (for flat-layout repos)
+    /// 3. For each discovered subdirectory, fetch its SKILL.md
+    /// 4. Verify the `name:` field in YAML frontmatter matches our skillId
+    ///
+    /// - Parameters:
+    ///   - source: Repository in "owner/repo" format
+    ///   - skillId: The skill identifier to match against the YAML `name:` field
+    /// - Returns: Raw SKILL.md content if found, nil otherwise
+    private func discoverViaContentsAPI(source: String, skillId: String) async throws -> String? {
+        // Try both "main" and "master" branches
+        for branch in ["main", "master"] {
+            // Try listing directories at two levels: "skills/" first (monorepo), then root (flat)
+            let directoryPaths = ["skills", ""]
+            for dirPath in directoryPaths {
+                // Build GitHub Contents API URL.
+                // Format: `https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}`
+                // The `ref` query parameter selects the branch.
+                let apiPath = dirPath.isEmpty ? "" : "/\(dirPath)"
+                guard let apiURL = URL(string: "https://api.github.com/repos/\(source)/contents\(apiPath)?ref=\(branch)") else {
+                    continue
+                }
+
+                // Fetch directory listing from GitHub API
+                guard let entries = await fetchContentsAPIListing(apiURL) else {
+                    continue
+                }
+
+                // Try each subdirectory to find the SKILL.md matching our skillId.
+                // We only check directories (type == "dir"), skip files.
+                for entry in entries {
+                    guard let entryType = entry["type"] as? String,
+                          entryType == "dir",
+                          let dirName = entry["name"] as? String else {
+                        continue
+                    }
+
+                    // Build the raw URL for this directory's SKILL.md
+                    let path = dirPath.isEmpty ? dirName : "\(dirPath)/\(dirName)"
+                    let rawURL = buildRawURL(source: source, path: path, branch: branch)
+
+                    // Fetch the SKILL.md content
+                    guard let content = try await fetchFromURL(rawURL) else {
+                        continue
+                    }
+
+                    // Verify this SKILL.md belongs to our skill by checking the `name:` field
+                    // in the YAML frontmatter. This avoids returning the wrong skill's content
+                    // in repos with multiple skills.
+                    if contentMatchesSkillId(content, skillId: skillId) {
+                        return content
+                    }
+                }
+            }
+        }
+
+        return nil
+    }
+
+    /// Fetch a directory listing from the GitHub Contents API
+    ///
+    /// Sends a GET request to the API URL and parses the JSON response as an array
+    /// of directory entry dictionaries. Returns nil on any failure (network error,
+    /// non-200 status, invalid JSON) — the caller treats this as "directory not found".
+    ///
+    /// - Parameter url: The GitHub Contents API URL to fetch
+    /// - Returns: Array of entry dictionaries, or nil on failure
+    private func fetchContentsAPIListing(_ url: URL) async -> [[String: Any]]? {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        // GitHub API requires a specific Accept header for JSON responses
+        // v3+json is the stable REST API version
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        // User-Agent is required by GitHub API — requests without it may be rejected
+        request.setValue("SkillDeck", forHTTPHeaderField: "User-Agent")
+
+        // Execute request — use `try?` to silently handle network errors
+        // (we don't want a network error here to propagate as a FetchError)
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            return nil
+        }
+
+        // Parse JSON array of directory entries
+        // `JSONSerialization` is Foundation's JSON parser (similar to Java's org.json or Go's encoding/json)
+        // Each entry has: {"name": "dirname", "type": "dir", "path": "skills/dirname", ...}
+        return try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+    }
+
+    /// Check if a SKILL.md content's `name:` field matches the expected skillId
+    ///
+    /// Searches the YAML frontmatter (between `---` delimiters) for a line matching
+    /// `name: {skillId}` or `name: "{skillId}"`. This is a lightweight text check —
+    /// we don't need to fully parse the YAML just to verify the name matches.
+    ///
+    /// - Parameters:
+    ///   - content: Raw SKILL.md file content
+    ///   - skillId: Expected skill name to match against
+    /// - Returns: true if the content's name field matches the skillId
+    private func contentMatchesSkillId(_ content: String, skillId: String) -> Bool {
+        // Extract the YAML frontmatter section (between first and second "---")
+        // to avoid false matches in the markdown body
+        let lines = content.components(separatedBy: "\n")
+
+        var inFrontmatter = false
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed == "---" {
+                if !inFrontmatter {
+                    inFrontmatter = true
+                    continue
+                } else {
+                    // End of frontmatter — stop searching
+                    break
+                }
+            }
+
+            if inFrontmatter {
+                // Match "name: skillId" or "name: "skillId"" (with optional quotes)
+                // `hasPrefix` is a simple string check — no regex needed for this pattern
+                if trimmed.hasPrefix("name:") {
+                    let nameValue = trimmed
+                        .dropFirst("name:".count)
+                        .trimmingCharacters(in: .whitespaces)
+                        .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                    return nameValue == skillId
+                }
+            }
+        }
+
+        return false
+    }
 
     /// Fetch content from a specific URL, returning nil for 404 responses
     ///
