@@ -71,13 +71,30 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 | Gemini CLI | `~/.gemini/skills/` | `gemini` binary |
 | Copilot CLI | `~/.copilot/skills/` | `gh` binary |
 
+## Branching & Code Change Policy
+
+- **Documentation-only changes** (README, CLAUDE.md, docs/, comments) may be committed directly to `main`.
+- **All other code changes** (source files, tests, configs, scripts) **must** be made on a feature/bugfix branch and merged via Pull Request. Never commit code changes directly to `main`.
+- Branch naming convention: `feature/<short-description>`, `bugfix/<short-description>`, or `refactor/<short-description>`.
+
 ## Testing
 
 Tests are in `Tests/SkillDeckTests/`. Three test files exist: `SkillMDParserTests`, `LockFileManagerTests`, `SymlinkManagerTests`. Tests use `@testable import SkillDeck` for internal access.
 
+**Testing requirements for code changes:**
+
+- All code modifications should include unit tests to cover the new or changed logic. Add tests to existing test files or create new test files as appropriate.
+- Run `swift test` before submitting a PR to ensure all existing tests still pass — no regressions allowed.
+- If a change is difficult to unit test (e.g., pure UI layout), explain why in the PR description.
+
 ## Pull Requests
 
 When creating PRs with `gh pr create`, always use **English** for the title, body, and all content.
+
+**Every PR must include the following sections in the body:**
+
+- **Manual Verification Required**: List the specific logic or behaviors that cannot be fully covered by automated tests and need the reviewer to manually verify (e.g., UI rendering, drag-and-drop interactions, system permission prompts).
+- **Regression Checklist**: Based on the files and modules changed, list the existing features that should be regression-tested to confirm they still work correctly. Be specific — reference concrete user-facing functionality (e.g., "Skill creation flow", "Symlink sync to ~/.claude/skills/", "Lock file read/write").
 
 ## Release
 
