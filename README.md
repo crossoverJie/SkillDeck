@@ -30,7 +30,7 @@
 
 <p align="center">
   <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213123118.png" alt="Dashboard Overview" width="800" />
-  <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260216200457.png" alt="Dashboard Overview" width="800" />
+  <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260224114425.png" alt="Dashboard Overview" width="800" />
 </p>
 
 <p align="center">
