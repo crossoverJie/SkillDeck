@@ -66,7 +66,8 @@ struct ContentView: View {
                     RegistrySkillDetailView(
                         skill: skill,
                         isInstalled: vm.isInstalled(skill),
-                        onInstall: { vm.installSkill(skill) }
+                        onInstall: { vm.installSkill(skill) },
+                        viewModel: vm
                     )
                 } else {
                     EmptyStateView(

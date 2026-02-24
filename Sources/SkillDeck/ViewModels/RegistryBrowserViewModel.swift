@@ -50,6 +50,26 @@ final class RegistryBrowserViewModel {
     /// This avoids the dual state synchronization timing issues of `.sheet(isPresented:)`
     var installVM: SkillInstallViewModel?
 
+    // MARK: - Skill Content State
+
+    /// Parsed SKILL.md content for the currently selected registry skill
+    ///
+    /// Non-nil when content has been successfully fetched and parsed.
+    /// Contains both metadata (author, version, license) and the markdown body.
+    /// Reset to nil when a different skill is selected (before new content loads).
+    var fetchedContent: SkillMDParser.ParseResult?
+
+    /// Whether SKILL.md content is currently being fetched for the selected skill
+    ///
+    /// Drives a ProgressView spinner in the detail view while content loads asynchronously.
+    var isLoadingContent = false
+
+    /// Error message when SKILL.md content fetch fails (nil means no error)
+    ///
+    /// Shown in the detail view with a fallback "View on skills.sh" link.
+    /// Common causes: SKILL.md not found in repo, network timeout, non-UTF-8 encoding.
+    var contentError: String?
+
     /// Currently selected registry skill ID (drives the detail pane display)
     ///
     /// When user clicks a skill in the list, this is set to that skill's id,
@@ -77,6 +97,12 @@ final class RegistryBrowserViewModel {
 
     /// Registry service for API calls and HTML scraping
     private let registryService = SkillRegistryService()
+
+    /// Content fetcher for downloading SKILL.md from GitHub raw URLs
+    ///
+    /// Uses the actor pattern for thread-safe caching, consistent with registryService.
+    /// Fetches from `raw.githubusercontent.com` with main→master branch fallback.
+    private let contentFetcher = SkillContentFetcher()
 
     /// SkillManager reference for checking installed skills and triggering installs
     private let skillManager: SkillManager
@@ -265,5 +291,72 @@ final class RegistryBrowserViewModel {
     /// Returns true if found — the UI will show an "Installed" badge and disable the install button.
     func isInstalled(_ registrySkill: RegistrySkill) -> Bool {
         installedSkillIDs.contains(registrySkill.skillId)
+    }
+
+    // MARK: - Skill Content Loading
+
+    /// Load the full SKILL.md content for a registry skill from GitHub
+    ///
+    /// Called from the detail view's `.task(id:)` modifier — auto-cancels when the user
+    /// selects a different skill. This prevents stale content from appearing.
+    ///
+    /// Flow:
+    /// 1. Reset state (clear previous content/error, show loading spinner)
+    /// 2. Fetch raw SKILL.md from GitHub via `SkillContentFetcher`
+    /// 3. Parse with `SkillMDParser.parse(content:)` to extract metadata + markdown body
+    /// 4. Guard against stale updates: only apply if the selected skill hasn't changed
+    ///
+    /// **Fallback for SKILL.md without frontmatter**: If the content doesn't have YAML frontmatter
+    /// (no `---` delimiters), we treat the entire content as the markdown body with empty metadata.
+    ///
+    /// - Parameter skill: The registry skill whose SKILL.md to fetch
+    func loadSkillContent(for skill: RegistrySkill) async {
+        // Reset state for new content load
+        fetchedContent = nil
+        contentError = nil
+        isLoadingContent = true
+
+        // Capture the skill ID to guard against stale updates.
+        // If the user clicks a different skill while this fetch is in-flight,
+        // `selectedSkillID` will change. We check it after the await to discard stale results.
+        let targetSkillID = skill.id
+
+        do {
+            // Fetch raw SKILL.md content from GitHub
+            // SkillContentFetcher tries main branch first, then master, with 10-min cache
+            let rawContent = try await contentFetcher.fetchContent(
+                source: skill.source,
+                skillId: skill.skillId
+            )
+
+            // Guard: discard result if user selected a different skill while we were fetching.
+            // This is the Swift async equivalent of checking "is this still the current request?"
+            // similar to checking a request ID in React's useEffect cleanup.
+            guard selectedSkillID == targetSkillID else { return }
+
+            // Parse the SKILL.md content into metadata + markdown body
+            do {
+                let result = try SkillMDParser.parse(content: rawContent)
+                fetchedContent = result
+            } catch {
+                // Fallback: if parsing fails (e.g., no YAML frontmatter),
+                // treat the entire content as the markdown body.
+                // Create a minimal metadata with the skill name from the registry.
+                let fallbackMetadata = SkillMetadata(
+                    name: skill.name,
+                    description: ""
+                )
+                fetchedContent = SkillMDParser.ParseResult(
+                    metadata: fallbackMetadata,
+                    markdownBody: rawContent.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+            }
+        } catch {
+            // Guard: discard error if user selected a different skill
+            guard selectedSkillID == targetSkillID else { return }
+            contentError = error.localizedDescription
+        }
+
+        isLoadingContent = false
     }
 }
