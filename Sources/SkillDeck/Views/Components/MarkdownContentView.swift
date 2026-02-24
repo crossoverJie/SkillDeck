@@ -84,6 +84,7 @@ struct MarkdownNodeView: View {
 /// - CodeBlock → monospaced text with background, optional language label
 /// - BlockQuote → accent-colored bar with secondary text
 /// - UnorderedList / OrderedList → bullet/number markers with indentation
+/// - Table → native Grid with header row styling and column alignment
 /// - ThematicBreak (---) → Divider
 ///
 /// Supported inline elements (within paragraphs):
@@ -249,6 +250,41 @@ struct SwiftUIMarkdownVisitor: MarkupVisitor {
             SwiftUI.Text(html.rawHTML.trimmingCharacters(in: .whitespacesAndNewlines))
                 .font(.body)
                 .foregroundStyle(.secondary)
+        )
+    }
+
+    /// Render a Table as a native SwiftUI Grid with styled header row
+    ///
+    /// Markdown tables have this AST structure:
+    /// ```
+    /// Table
+    ///   ├── Table.Head (single header row)
+    ///   │     └── Table.Cell × N (header cells)
+    ///   └── Table.Body
+    ///         └── Table.Row × M (body rows)
+    ///               └── Table.Cell × N (body cells)
+    /// ```
+    ///
+    /// We use `MarkdownTableView` (a separate View struct) to render the table,
+    /// because SwiftUI's `Grid` requires `@ViewBuilder` closures which can't capture
+    /// `mutating self` from the visitor.
+    ///
+    /// Column alignment from the markdown source (`:---`, `:---:`, `---:`) is passed through
+    /// to align text within each cell. The header row gets bold text and a colored background.
+    mutating func visitTable(_ table: Markdown.Table) -> AnyView {
+        // Extract column alignments from the Table AST node.
+        // `table.columnAlignments` is `[Table.ColumnAlignment?]` — nil means default (leading).
+        // We convert to SwiftUI `HorizontalAlignment` for use in Grid cells.
+        let alignments = table.columnAlignments.map { alignment -> HorizontalAlignment in
+            switch alignment {
+            case .center: .center
+            case .right: .trailing
+            case .left, .none: .leading
+            }
+        }
+
+        return AnyView(
+            MarkdownTableView(table: table, columnAlignments: alignments)
         )
     }
 
@@ -430,6 +466,182 @@ struct MarkdownListItemView: View {
                     MarkdownNodeView(node: child)
                 }
             }
+        }
+    }
+}
+
+// MARK: - Table View
+
+/// MarkdownTableView renders a Markdown table as a native SwiftUI Grid
+///
+/// Extracted as a standalone view struct (like `MarkdownListItemView`) because the visitor's
+/// `mutating` methods can't be captured in SwiftUI's `@ViewBuilder` closures.
+///
+/// Layout approach:
+/// - Uses SwiftUI `Grid` (macOS 14+) which aligns columns automatically — similar to HTML `<table>`
+/// - Header row: bold text with a tinted background and bottom separator
+/// - Body rows: alternating background for readability (even rows get a subtle tint)
+/// - Column alignment: respects markdown alignment syntax (`:---` left, `:---:` center, `---:` right)
+/// - Cells can contain inline formatting (bold, code, links) rendered via inline text builder
+///
+/// The table is wrapped in a horizontal ScrollView so wide tables don't force the layout to overflow.
+struct MarkdownTableView: View {
+    /// The Table AST node from swift-markdown
+    let table: Markdown.Table
+    /// Converted column alignments (from `Table.ColumnAlignment?` to `HorizontalAlignment`)
+    let columnAlignments: [HorizontalAlignment]
+
+    var body: some View {
+        // ScrollView(.horizontal) allows wide tables to scroll horizontally
+        // instead of compressing columns or breaking the layout.
+        ScrollView(.horizontal, showsIndicators: true) {
+            Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+                // Render header row
+                renderHeaderRow(table.head)
+
+                // Thin separator line between header and body
+                // `Divider()` inside a Grid spans the full width
+                Divider()
+
+                // Render body rows
+                let bodyRows = Array(table.body.rows)
+                ForEach(Array(bodyRows.enumerated()), id: \.offset) { index, row in
+                    renderBodyRow(row, rowIndex: index)
+                }
+            }
+            .font(.subheadline)
+        }
+        // Add a subtle border around the entire table
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5)
+        )
+        .cornerRadius(6)
+    }
+
+    /// Render the table header row with bold text and tinted background
+    ///
+    /// `Table.Head` conforms to `TableCellContainer` — its children are `Table.Cell` nodes.
+    /// We iterate through cells and apply column alignment from `columnAlignments`.
+    private func renderHeaderRow(_ head: Markdown.Table.Head) -> some View {
+        GridRow {
+            ForEach(Array(head.children.enumerated()), id: \.offset) { colIndex, child in
+                if let cell = child as? Markdown.Table.Cell {
+                    cellText(cell)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, alignment: alignment(for: colIndex))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                }
+            }
+        }
+        // Header background: subtle tint for visual distinction from body rows
+        // `Color(nsColor: .controlBackgroundColor)` adapts to dark/light mode
+        .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    /// Render a table body row with alternating background
+    ///
+    /// `Table.Row`'s children are `Table.Cell` nodes, same as the header.
+    /// Even-indexed rows get a subtle background tint for zebra-stripe readability.
+    ///
+    /// - Parameters:
+    ///   - row: The Table.Row AST node
+    ///   - rowIndex: Zero-based row index (used for alternating background)
+    private func renderBodyRow(_ row: Markdown.Table.Row, rowIndex: Int) -> some View {
+        GridRow {
+            ForEach(Array(row.children.enumerated()), id: \.offset) { colIndex, child in
+                if let cell = child as? Markdown.Table.Cell {
+                    cellText(cell)
+                        .frame(maxWidth: .infinity, alignment: alignment(for: colIndex))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                }
+            }
+        }
+        // Zebra-stripe: even rows get a subtle background for visual separation.
+        // Odd rows are transparent (default background).
+        .background(rowIndex % 2 == 0 ? Color(nsColor: .textBackgroundColor).opacity(0.3) : Color.clear)
+    }
+
+    /// Build inline-formatted SwiftUI.Text for a table cell
+    ///
+    /// Table cells can contain inline markup (bold, code, links, etc.).
+    /// We concatenate all inline children into a single styled `Text`,
+    /// using the same inline rendering logic as paragraphs.
+    ///
+    /// - Parameter cell: The Table.Cell AST node
+    /// - Returns: A concatenated SwiftUI.Text with inline formatting
+    private func cellText(_ cell: Markdown.Table.Cell) -> SwiftUI.Text {
+        cell.children.reduce(SwiftUI.Text("")) { accumulated, child in
+            accumulated + renderCellInlineNode(child)
+        }
+    }
+
+    /// Get the alignment for a column index
+    ///
+    /// Falls back to `.leading` if the column index is out of bounds
+    /// (e.g., if some rows have more cells than the alignment array).
+    private func alignment(for columnIndex: Int) -> Alignment {
+        guard columnIndex < columnAlignments.count else { return .leading }
+        return Alignment(horizontal: columnAlignments[columnIndex], vertical: .center)
+    }
+
+    /// Render a single inline node within a table cell as styled SwiftUI.Text
+    ///
+    /// This mirrors `SwiftUIMarkdownVisitor.renderInlineNode` but adapted for use
+    /// in a non-mutating View context. Table cells support the same inline formatting
+    /// as paragraphs: bold, italic, inline code, links, strikethrough.
+    private func renderCellInlineNode(_ node: any Markup) -> SwiftUI.Text {
+        switch node {
+        case let text as Markdown.Text:
+            return SwiftUI.Text(text.string)
+
+        case let strong as Strong:
+            let inner = strong.children.reduce(SwiftUI.Text("")) { acc, child in
+                acc + renderCellInlineNode(child)
+            }
+            return inner.bold()
+
+        case let emphasis as Emphasis:
+            let inner = emphasis.children.reduce(SwiftUI.Text("")) { acc, child in
+                acc + renderCellInlineNode(child)
+            }
+            return inner.italic()
+
+        case let code as InlineCode:
+            return SwiftUI.Text(code.code)
+                .font(.system(.body, design: .monospaced))
+                .foregroundColor(.orange)
+
+        case let link as Markdown.Link:
+            let linkText = link.children.reduce("") { acc, child in
+                if let text = child as? Markdown.Text {
+                    return acc + text.string
+                }
+                return acc + child.format()
+            }
+            if let destination = link.destination,
+               let url = URL(string: destination),
+               let attributed = try? AttributedString(markdown: "[\(linkText)](\(url.absoluteString))") {
+                return SwiftUI.Text(attributed)
+            }
+            return SwiftUI.Text(linkText).foregroundColor(.accentColor)
+
+        case let strikethrough as Strikethrough:
+            let inner = strikethrough.children.reduce(SwiftUI.Text("")) { acc, child in
+                acc + renderCellInlineNode(child)
+            }
+            return inner.strikethrough()
+
+        case is SoftBreak:
+            return SwiftUI.Text(" ")
+
+        case is LineBreak:
+            return SwiftUI.Text("\n")
+
+        default:
+            return SwiftUI.Text(node.format())
         }
     }
 }

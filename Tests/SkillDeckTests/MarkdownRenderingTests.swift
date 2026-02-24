@@ -187,6 +187,64 @@ final class MarkdownRenderingTests: XCTestCase {
         XCTAssertTrue(hasLink, "Expected a Link node in the paragraph")
     }
 
+    // MARK: - Table Tests
+
+    /// Test that a markdown table is parsed into a Table AST node
+    func testParseTable() {
+        let markdown = """
+        | Name | Type | Description |
+        | --- | --- | --- |
+        | width | number | Video width |
+        | height | number | Video height |
+        """
+        let doc = Document(parsing: markdown)
+        let children = Array(doc.children)
+
+        XCTAssertEqual(children.count, 1)
+        let table = children[0] as? Markdown.Table
+        XCTAssertNotNil(table, "Expected a Table node")
+        // Table should have 2 body rows
+        // `Array(table.body.rows)` converts the lazy sequence to an array for counting
+        XCTAssertEqual(table.map { Array($0.body.rows).count }, 2)
+    }
+
+    /// Test that the visitor handles a table without crashing and produces a view
+    func testVisitorTable() {
+        let markdown = """
+        | Parameter | Type | Required | Default | Description |
+        | --- | --- | --- | --- | --- |
+        | code | string | Yes | - | React/Remotion code |
+        | width | number | No | 1920 | Video width |
+        | height | number | No | 1080 | Video height |
+        """
+        let doc = Document(parsing: markdown)
+        var visitor = SwiftUIMarkdownVisitor()
+
+        for child in doc.children {
+            let result = visitor.visit(child)
+            XCTAssertNotNil(result)
+        }
+    }
+
+    /// Test that a table with column alignment is parsed correctly
+    func testParseTableWithAlignment() {
+        let markdown = """
+        | Left | Center | Right |
+        | :--- | :---: | ---: |
+        | a | b | c |
+        """
+        let doc = Document(parsing: markdown)
+        let table = doc.children.first(where: { $0 is Markdown.Table }) as? Markdown.Table
+        XCTAssertNotNil(table)
+
+        // Verify column alignments are parsed
+        let alignments = table?.columnAlignments
+        XCTAssertEqual(alignments?.count, 3)
+        XCTAssertEqual(alignments?[0], .left)
+        XCTAssertEqual(alignments?[1], .center)
+        XCTAssertEqual(alignments?[2], .right)
+    }
+
     // MARK: - Visitor No-Crash Tests
 
     /// Test that the visitor handles empty markdown without crashing
