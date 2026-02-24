@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkillDeck - AI Code Agent Skills Manager</title>
+    <meta name="description" content="The desktop GUI for managing AI code agent skills on macOS.">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #fff1f2;
+            --bg-dark: #1a1a2e;
+            --text: #1a1a2e;
+            --text-light: #f8f8f8;
+            --accent: #ff6b6b;
+            --accent-dark: #c92a2a;
+            --secondary: #845ef7;
+            --tertiary: #20c997;
+            --card-bg: #ffffff;
+            --border: #1a1a2e;
+            --shadow: 4px 4px 0px #1a1a2e;
+            --shadow-hover: 6px 6px 0px #1a1a2e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Space Mono', monospace;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: var(--card-bg);
+            border-bottom: 3px solid var(--border);
+            padding: 16px 0;
+        }
+
+        .header-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--accent);
+            border: 3px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow);
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        nav a {
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        nav a:hover {
+            color: var(--accent);
+        }
+
+        .nav-cta {
+            background: var(--secondary);
+            color: white !important;
+            padding: 12px 24px;
+            border: 3px solid var(--border);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            transition: all 0.2s !important;
+        }
+
+        .nav-cta:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 120px 0 80px;
+            background: 
+                linear-gradient(135deg, var(--accent) 0%, var(--tertiary) 50%, var(--secondary) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: 
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 20px,
+                    rgba(255,255,255,0.1) 20px,
+                    rgba(255,255,255,0.1) 40px
+                );
+        }
+
+        .hero-content {
+            max-width: 700px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            font-weight: 700;
+            line-height: 1.05;
+            margin-bottom: 24px;
+            background: var(--card-bg);
+            padding: 20px 30px;
+            border: 3px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 8px 8px 0px var(--border);
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            background: var(--card-bg);
+            padding: 20px 26px;
+            border: 3px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 32px;
+            box-shadow: 6px 6px 0px var(--border);
+        }
+
+        .hero-cta {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 36px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 3px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .btn-secondary {
+            background: var(--card-bg);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        /* Stats */
+        .stats {
+            padding: 80px 0;
+            background: var(--card-bg);
+            border-bottom: 3px solid var(--border);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+        }
+
+        .stat-card {
+            padding: 32px;
+            border: 3px solid var(--border);
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translate(-4px, -4px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .stat-card:nth-child(1) .stat-number { color: var(--accent); }
+        .stat-card:nth-child(2) .stat-number { color: var(--secondary); }
+        .stat-card:nth-child(3) .stat-number { color: var(--tertiary); }
+
+        /* Screenshots */
+        .screenshots {
+            padding: 80px 0;
+            background: var(--card-bg);
+            border-bottom: 3px solid var(--border);
+        }
+
+        .screenshot-main {
+            width: 100%;
+            border-radius: 16px;
+            border: 3px solid var(--border);
+            box-shadow: 8px 8px 0px var(--border);
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+
+        .screenshot-main img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .screenshot-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        .screenshot-card {
+            border-radius: 14px;
+            border: 3px solid var(--border);
+            box-shadow: 6px 6px 0px var(--border);
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .screenshot-card:hover {
+            transform: translate(-4px, -4px);
+            box-shadow: 8px 8px 0px var(--border);
+        }
+
+        .screenshot-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Features */
+        .features {
+            padding: 100px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .section-header h2 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            background: var(--secondary);
+            color: white;
+            display: inline-block;
+            padding: 16px 40px;
+            border: 3px solid var(--border);
+            border-radius: 10px;
+            box-shadow: 6px 6px 0px var(--border);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .feature-card {
+            padding: 32px;
+            border: 3px solid var(--border);
+            border-radius: 16px;
+            background: var(--card-bg);
+            box-shadow: var(--shadow);
+            transition: all 0.2s;
+        }
+
+        .feature-card:hover {
+            transform: translate(-4px, -4px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .feature-card:nth-child(2) { background: #fff9db; }
+        .feature-card:nth-child(3) { background: #e7f5ff; }
+        .feature-card:nth-child(4) { background: #fff5f5; }
+        .feature-card:nth-child(5) { background: #f3d9fa; }
+        .feature-card:nth-child(6) { background: #e7f5ff; }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: var(--accent);
+            border: 3px solid var(--border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .feature-icon svg {
+            width: 32px;
+            height: 32px;
+            color: white;
+        }
+
+        .feature-card h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            font-size: 0.95rem;
+            opacity: 0.85;
+        }
+
+        /* Agents */
+        .agents {
+            padding: 100px 0;
+            background: var(--bg-dark);
+            color: var(--text-light);
+        }
+
+        .section-header-light h2 {
+            background: var(--tertiary) !important;
+            color: var(--text) !important;
+        }
+
+        .agents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-top: 50px;
+        }
+
+        .agent-card {
+            padding: 28px;
+            border: 3px solid var(--text-light);
+            border-radius: 14px;
+            background: transparent;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .agent-card:hover {
+            background: var(--text-light);
+            color: var(--text);
+            transform: translate(-4px, -4px);
+        }
+
+        .agent-emoji {
+            font-size: 3.5rem;
+            display: block;
+            margin-bottom: 14px;
+        }
+
+        .agent-card h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        /* CTA */
+        .cta {
+            padding: 100px 0;
+            text-align: center;
+        }
+
+        .cta-content {
+            background: var(--accent);
+            padding: 60px 40px;
+            border: 3px solid var(--border);
+            border-radius: 20px;
+            box-shadow: 8px 8px 0px var(--border);
+        }
+
+        .cta h2 {
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: transparent !important;
+            color: white !important;
+            padding: 0;
+            box-shadow: none !important;
+            border: none !important;
+        }
+
+        .cta p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+            margin-bottom: 32px;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0;
+        }
+
+        /* Footer */
+        footer {
+            padding: 40px 0;
+            background: var(--card-bg);
+            border-top: 3px solid var(--border);
+        }
+
+        .footer-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .footer-links a {
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--accent);
+        }
+
+        @media (max-width: 768px) {
+            nav { display: none; }
+            
+            .hero h1 {
+                padding: 16px 20px;
+                font-size: 2rem;
+            }
+            
+            .hero p {
+                padding: 16px 20px;
+            }
+            
+            .hero-cta {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .footer-inner {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container header-inner">
+            <a href="#" class="logo">
+                <div class="logo-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                </div>
+                SkillDeck
+            </a>
+            <nav>
+                <a href="#features">Features</a>
+                <a href="#agents">Agents</a>
+                <a href="https://github.com/crossoverJie/SkillDeck" target="_blank">GitHub</a>
+                <a href="https://github.com/crossoverJie/SkillDeck/releases" class="nav-cta">Download</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <h1>MANAGE AI AGENT SKILLS LIKE A BOSS</h1>
+                    <p>The first desktop GUI for managing skills across Claude Code, Codex, Gemini CLI, and Copilot CLI. No more manual file editing or symlink juggling.</p>
+                    <div class="hero-cta">
+                        <a href="https://github.com/crossoverJie/SkillDeck/releases" class="btn btn-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Download for macOS
+                        </a>
+                        <a href="#features" class="btn btn-secondary">See Features</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="stats">
+            <div class="container">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-number">5</span>
+                        <span class="stat-label">Supported Agents</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number">1</span>
+                        <span class="stat-label">Click Install</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number">∞</span>
+                        <span class="stat-label">Skills Management</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="screenshots">
+            <div class="container">
+                <div class="screenshot-main">
+                    <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213123118.png" alt="SkillDeck Dashboard" />
+                </div>
+                <div class="screenshot-main">
+                    <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260224114425.png" alt="Registry Browser" />
+                </div>
+                <div class="screenshot-grid">
+                    <div class="screenshot-card">
+                        <img src="screenshots/skill-detail.png" alt="Skill Detail" />
+                    </div>
+                    <div class="screenshot-card">
+                        <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213122805.png" alt="Skill Install" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="features" id="features">
+            <div class="container">
+                <div class="section-header">
+                    <h2>FEATURES</h2>
+                </div>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                            </svg>
+                        </div>
+                        <h3>Multi-Agent Support</h3>
+                        <p>Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode — all in one place.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background: var(--secondary);">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <h3>Registry Browser</h3>
+                        <p>Browse skills.sh leaderboard. Filter by All Time, Trending, or Hot.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background: var(--tertiary);">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <h3>One-Click Install</h3>
+                        <p>Clone from GitHub, auto-create symlinks, update lock file.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background: #fab005;">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </div>
+                        <h3>Update Checker</h3>
+                        <p>Detect remote changes and pull updates with one click.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background: #be4bdb;">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </div>
+                        <h3>SKILL.md Editor</h3>
+                        <p>Split-pane form + markdown with live preview.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background: #228be6;">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" />
+                            </svg>
+                        </div>
+                        <h3>Auto-Refresh</h3>
+                        <p>File system monitoring picks up CLI changes instantly.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="agents" id="agents">
+            <div class="container">
+                <div class="section-header section-header-light">
+                    <h2>SUPPORTED AGENTS</h2>
+                </div>
+                <div class="agents-grid">
+                    <div class="agent-card">
+                        <span class="agent-emoji">🤖</span>
+                        <h3>Claude Code</h3>
+                    </div>
+                    <div class="agent-card">
+                        <span class="agent-emoji">📝</span>
+                        <h3>Codex</h3>
+                    </div>
+                    <div class="agent-card">
+                        <span class="agent-emoji">✨</span>
+                        <h3>Gemini CLI</h3>
+                    </div>
+                    <div class="agent-card">
+                        <span class="agent-emoji">🦑</span>
+                        <h3>Copilot CLI</h3>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="cta">
+            <div class="container">
+                <div class="cta-content">
+                    <h2>READY TO UPGRADE?</h2>
+                    <p>Download SkillDeck now and manage all your AI agent skills from one interface.</p>
+                    <a href="https://github.com/crossoverJie/SkillDeck/releases" class="btn btn-secondary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download Latest
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                </div>
+                SkillDeck
+            </div>
+            <div class="footer-links">
+                <a href="#features">Features</a>
+                <a href="#agents">Agents</a>
+                <a href="https://github.com/crossoverJie/SkillDeck">GitHub</a>
+                <a href="https://github.com/crossoverJie/SkillDeck/releases">Releases</a>
+            </div>
+            <div class="footer-copy">
+                © 2025 SkillDeck · MIT License
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
