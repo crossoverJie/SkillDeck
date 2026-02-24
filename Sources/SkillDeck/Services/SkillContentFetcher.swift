@@ -4,7 +4,13 @@ import Foundation
 ///
 /// Since skills.sh has no JSON API for individual skill content, we fetch SKILL.md
 /// directly from GitHub's raw content CDN (`raw.githubusercontent.com`).
-/// The URL pattern is: `https://raw.githubusercontent.com/{source}/main/{skillId}/SKILL.md`
+///
+/// Repositories use different directory layouts for skills:
+/// - **Flat layout**: `{skillId}/SKILL.md` at repo root (e.g., `vercel-labs/agent-skills`)
+/// - **Monorepo layout**: `skills/{skillId}/SKILL.md` under a `skills/` subdirectory
+///   (e.g., `inference-sh/skills` stores skills at `skills/remotion-render/SKILL.md`)
+///
+/// The fetcher tries both layouts on both `main` and `master` branches (4 attempts total).
 ///
 /// Uses `actor` for thread-safe cache access, consistent with other service actors
 /// in the project (SkillRegistryService, LockFileManager, AgentDetector).
@@ -64,11 +70,17 @@ actor SkillContentFetcher {
 
     /// Fetch the raw SKILL.md content for a registry skill from GitHub
     ///
-    /// Fetch strategy:
+    /// Fetch strategy (tries up to 4 URLs, stops on first success):
     /// 1. Check in-memory cache (10-minute TTL)
-    /// 2. Try fetching from `main` branch first
-    /// 3. If 404, fallback to `master` branch
-    /// 4. Throw `.notFound` if both branches return 404
+    /// 2. Try `main` branch, flat layout: `{skillId}/SKILL.md`
+    /// 3. Try `main` branch, monorepo layout: `skills/{skillId}/SKILL.md`
+    /// 4. Try `master` branch, flat layout: `{skillId}/SKILL.md`
+    /// 5. Try `master` branch, monorepo layout: `skills/{skillId}/SKILL.md`
+    /// 6. Throw `.notFound` if all attempts return 404
+    ///
+    /// Many skill repositories use a `skills/` subdirectory (monorepo layout) rather than
+    /// placing skill folders at the repo root. For example, `inference-sh/skills` stores
+    /// skills at `skills/remotion-render/SKILL.md`, not `remotion-render/SKILL.md`.
     ///
     /// - Parameters:
     ///   - source: Repository in "owner/repo" format (e.g., "vercel-labs/agent-skills")
@@ -85,21 +97,18 @@ actor SkillContentFetcher {
             return cached.content
         }
 
-        // 2. Try fetching from `main` branch first (most repos use main as default)
-        let mainURL = buildRawURL(source: source, skillId: skillId, branch: "main")
-        if let content = try await fetchFromURL(mainURL) {
-            cache[cacheKey] = (content: content, fetchedAt: Date())
-            return content
+        // 2. Try all candidate URLs: both branch names × both directory layouts.
+        // `candidateURLs` returns URLs ordered by likelihood:
+        // main/flat → main/skills/ → master/flat → master/skills/
+        let urls = candidateURLs(source: source, skillId: skillId)
+        for url in urls {
+            if let content = try await fetchFromURL(url) {
+                cache[cacheKey] = (content: content, fetchedAt: Date())
+                return content
+            }
         }
 
-        // 3. Fallback to `master` branch (older repos may still use master)
-        let masterURL = buildRawURL(source: source, skillId: skillId, branch: "master")
-        if let content = try await fetchFromURL(masterURL) {
-            cache[cacheKey] = (content: content, fetchedAt: Date())
-            return content
-        }
-
-        // 4. Both branches returned 404 — SKILL.md not found
+        // 3. All candidate URLs returned 404 — SKILL.md not found
         throw FetchError.notFound
     }
 
@@ -113,21 +122,55 @@ actor SkillContentFetcher {
     /// Build the raw GitHub content URL for a SKILL.md file
     ///
     /// GitHub serves raw file content at `raw.githubusercontent.com` without HTML wrapping.
-    /// URL pattern: `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{skillId}/SKILL.md`
+    /// URL pattern: `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}/SKILL.md`
     ///
     /// This is an `internal` (default access) method so tests can verify URL construction
     /// without making actual network requests.
     ///
     /// - Parameters:
     ///   - source: Repository in "owner/repo" format
-    ///   - skillId: Skill directory name within the repository
+    ///   - path: Relative path to the skill directory (e.g., "my-skill" or "skills/my-skill")
     ///   - branch: Git branch name ("main" or "master")
     /// - Returns: Fully constructed URL for the raw SKILL.md file
-    func buildRawURL(source: String, skillId: String, branch: String) -> URL {
+    func buildRawURL(source: String, path: String, branch: String) -> URL {
         // Force-unwrap is safe here because the URL components are controlled by us.
         // `raw.githubusercontent.com` is GitHub's CDN for serving raw file content —
         // it returns plain text without any HTML wrapping or GitHub UI.
-        URL(string: "https://raw.githubusercontent.com/\(source)/\(branch)/\(skillId)/SKILL.md")!
+        URL(string: "https://raw.githubusercontent.com/\(source)/\(branch)/\(path)/SKILL.md")!
+    }
+
+    /// Generate all candidate URLs to try when fetching a skill's SKILL.md
+    ///
+    /// Returns URLs ordered by likelihood of success:
+    /// 1. `main` branch, flat layout: `{skillId}/SKILL.md` (repo root)
+    /// 2. `main` branch, monorepo layout: `skills/{skillId}/SKILL.md` (skills/ subdirectory)
+    /// 3. `master` branch, flat layout (older repos)
+    /// 4. `master` branch, monorepo layout (older repos)
+    ///
+    /// Many large skill repositories (e.g., `inference-sh/skills`) use a `skills/` subdirectory
+    /// to organize skills within a monorepo. Other repos (e.g., `vercel-labs/agent-skills`)
+    /// place skill folders directly at the repository root.
+    ///
+    /// - Parameters:
+    ///   - source: Repository in "owner/repo" format
+    ///   - skillId: Skill identifier (directory name)
+    /// - Returns: Array of candidate URLs to try in order
+    func candidateURLs(source: String, skillId: String) -> [URL] {
+        // Two possible directory layouts within the repo
+        let paths = [
+            skillId,              // Flat layout: {skillId}/SKILL.md at repo root
+            "skills/\(skillId)",  // Monorepo layout: skills/{skillId}/SKILL.md
+        ]
+        // Two possible branch names
+        let branches = ["main", "master"]
+
+        // Generate all combinations: branch × path
+        // `flatMap` + `map` produces the cartesian product (similar to a nested for-loop)
+        return branches.flatMap { branch in
+            paths.map { path in
+                buildRawURL(source: source, path: path, branch: branch)
+            }
+        }
     }
 
     /// Compute the cache key for a source/skillId pair
