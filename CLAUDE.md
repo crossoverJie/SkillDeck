@@ -70,6 +70,7 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 | Codex | `~/.agents/skills/` | `codex` binary |
 | Gemini CLI | `~/.gemini/skills/` | `gemini` binary |
 | Copilot CLI | `~/.copilot/skills/` | `gh` binary |
+| Antigravity | `~/.gemini/antigravity/skills/` | `antigravity` binary |
 
 ## Testing
 

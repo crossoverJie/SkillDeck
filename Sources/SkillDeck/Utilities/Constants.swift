@@ -15,6 +15,7 @@ enum Constants {
             case .geminiCLI:  Color(red: 0.26, green: 0.52, blue: 0.96)   // Blue
             case .copilotCLI: Color(red: 0.58, green: 0.34, blue: 0.92)   // Purple
             case .openCode:   Color(red: 0.0, green: 0.71, blue: 0.67)    // Teal #00B5AB
+            case .antigravity: Color(red: 0.36, green: 0.42, blue: 0.75)  // Indigo #5C6BC0
             }
         }
     }

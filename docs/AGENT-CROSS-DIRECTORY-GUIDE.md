@@ -28,6 +28,7 @@
 Claude Code  → ~/.claude/skills/
 Copilot CLI  → ~/.copilot/skills/
 Gemini CLI   → ~/.gemini/skills/
+Antigravity  → ~/.gemini/antigravity/skills/
 ```
 
 但某些 Agent 会额外读取其他 Agent 的目录。例如 Copilot CLI 同时读取 `~/.copilot/skills/` 和 `~/.claude/skills/`。
