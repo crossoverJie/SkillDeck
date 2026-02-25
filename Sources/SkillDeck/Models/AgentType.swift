@@ -9,6 +9,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     case copilotCLI = "copilot-cli"
     case openCode = "opencode"       // OpenCode: Open source AI programming CLI tool
     case antigravity = "antigravity"   // Antigravity: Google's AI coding agent (https://antigravity.google)
+    case cursor = "cursor"               // Cursor: AI-powered code editor (https://cursor.com)
 
     // Identifiable protocol requirement (similar to Java's Comparable), needed for SwiftUI list rendering
     var id: String { rawValue }
@@ -21,6 +22,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .copilotCLI: "Copilot CLI"
         case .openCode: "OpenCode"
         case .antigravity: "Antigravity"
+        case .cursor: "Cursor"
         }
     }
 
@@ -34,6 +36,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .copilotCLI: "purple"
         case .openCode: "teal"
         case .antigravity: "indigo"
+        case .cursor: "cyan"
         }
     }
 
@@ -47,6 +50,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .copilotCLI: "airplane"
         case .openCode: "chevron.left.forwardslash.chevron.right"  // </> Code symbol, fitting OpenCode's programming theme
         case .antigravity: "arrow.up.circle"  // Upward motion symbolizing anti-gravity
+        case .cursor: "cursorarrow.rays"        // Cursor arrow icon matching the Cursor IDE brand
         }
     }
 
@@ -60,6 +64,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .copilotCLI: "~/.copilot/skills"
         case .openCode: "~/.config/opencode/skills"  // OpenCode uses XDG-style configuration path
         case .antigravity: "~/.gemini/antigravity/skills"  // Antigravity stores skills under Gemini's config directory
+        case .cursor: "~/.cursor/skills"                    // Cursor IDE skills directory
         }
     }
 
@@ -78,6 +83,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .copilotCLI: "~/.copilot"
         case .openCode: "~/.config/opencode"
         case .antigravity: "~/.gemini/antigravity"
+        case .cursor: "~/.cursor"
         }
     }
 
@@ -90,6 +96,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .copilotCLI: "gh"
         case .openCode: "opencode"
         case .antigravity: "antigravity"
+        case .cursor: "cursor"
         }
     }
 
@@ -116,6 +123,9 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
                 (AgentType.claudeCode.skillsDirectoryURL, .claudeCode),
                 (AgentType.codex.skillsDirectoryURL, .codex)
             ]
+        case .cursor:
+            // Cursor can also read Claude Code's skills directory
+            return [(AgentType.claudeCode.skillsDirectoryURL, .claudeCode)]
         default:
             return []
         }

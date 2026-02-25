@@ -28,12 +28,33 @@ final class AgentTypeTests: XCTestCase {
         XCTAssertTrue(agent.additionalReadableSkillsDirectories.isEmpty)
     }
 
+    // MARK: - Cursor Agent Properties
+
+    /// Verify all computed properties of the Cursor agent type
+    func testCursorProperties() {
+        let agent = AgentType.cursor
+
+        // rawValue is used as the Codable key in lock file JSON
+        XCTAssertEqual(agent.rawValue, "cursor")
+        XCTAssertEqual(agent.displayName, "Cursor")
+        XCTAssertEqual(agent.detectCommand, "cursor")
+        XCTAssertEqual(agent.skillsDirectoryPath, "~/.cursor/skills")
+        XCTAssertEqual(agent.configDirectoryPath, "~/.cursor")
+        XCTAssertEqual(agent.iconName, "cursorarrow.rays")
+        XCTAssertEqual(agent.brandColor, "cyan")
+
+        // Cursor reads Claude Code's skills directory as an additional source
+        let additionalDirs = agent.additionalReadableSkillsDirectories
+        XCTAssertEqual(additionalDirs.count, 1)
+        XCTAssertEqual(additionalDirs[0].sourceAgent, .claudeCode)
+    }
+
     // MARK: - CaseIterable Count
 
     /// Verify the total number of supported agents
     /// This test catches accidental removal of agent cases
     func testAllCasesCount() {
-        // 6 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity
-        XCTAssertEqual(AgentType.allCases.count, 6)
+        // 7 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor
+        XCTAssertEqual(AgentType.allCases.count, 7)
     }
 }
