@@ -16,6 +16,7 @@ enum Constants {
             case .copilotCLI: Color(red: 0.58, green: 0.34, blue: 0.92)   // Purple
             case .openCode:   Color(red: 0.0, green: 0.71, blue: 0.67)    // Teal #00B5AB
             case .antigravity: Color(red: 0.36, green: 0.42, blue: 0.75)  // Indigo #5C6BC0
+            case .cursor:      Color(red: 0.06, green: 0.73, blue: 0.89)  // Cyan #10BAE3
             }
         }
     }

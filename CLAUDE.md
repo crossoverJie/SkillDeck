@@ -71,6 +71,7 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 | Gemini CLI | `~/.gemini/skills/` | `gemini` binary |
 | Copilot CLI | `~/.copilot/skills/` | `gh` binary |
 | Antigravity | `~/.gemini/antigravity/skills/` | `antigravity` binary |
+| Cursor | `~/.cursor/skills/` | `cursor` binary |
 
 ## Testing
 
