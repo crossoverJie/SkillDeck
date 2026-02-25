@@ -22,7 +22,7 @@
 
 ---
 
-**SkillDeck** is the first desktop GUI for managing skills across multiple AI code agents — [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), and [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line). No more manual file editing, symlink juggling, or YAML parsing by hand.
+**SkillDeck** is the first desktop GUI for managing skills across multiple AI code agents — [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line), and [Antigravity](https://antigravity.google). No more manual file editing, symlink juggling, or YAML parsing by hand.
 
 ## Screenshots
 
@@ -40,7 +40,7 @@
 
 ## Features
 
-- **Multi-Agent Support** — Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode
+- **Multi-Agent Support** — Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity
 - **Registry Browser** — Browse [skills.sh](https://skills.sh) leaderboard (All Time, Trending, Hot) and search the catalog
 - **Unified Dashboard** — All skills in one three-pane macOS-native view
 - **One-Click Install** — Clone from GitHub, auto-create symlinks and update lock file
@@ -98,6 +98,7 @@ swift test
 | [Codex](https://github.com/openai/codex) | `~/.agents/skills/` (shared) | `codex` binary |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/skills/` | `gemini` binary + `~/.gemini/` dir |
 | [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line) | `~/.copilot/skills/` | `gh` binary |
+| [Antigravity](https://antigravity.google) | `~/.gemini/antigravity/skills/` | `antigravity` binary |
 
 ## Architecture
 

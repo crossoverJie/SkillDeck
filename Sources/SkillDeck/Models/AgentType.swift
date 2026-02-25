@@ -8,6 +8,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     case geminiCLI = "gemini-cli"
     case copilotCLI = "copilot-cli"
     case openCode = "opencode"       // OpenCode: Open source AI programming CLI tool
+    case antigravity = "antigravity"   // Antigravity: Google's AI coding agent (https://antigravity.google)
 
     // Identifiable protocol requirement (similar to Java's Comparable), needed for SwiftUI list rendering
     var id: String { rawValue }
@@ -19,6 +20,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .geminiCLI: "Gemini CLI"
         case .copilotCLI: "Copilot CLI"
         case .openCode: "OpenCode"
+        case .antigravity: "Antigravity"
         }
     }
 
@@ -31,6 +33,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .geminiCLI: "blue"
         case .copilotCLI: "purple"
         case .openCode: "teal"
+        case .antigravity: "indigo"
         }
     }
 
@@ -43,6 +46,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .geminiCLI: "sparkles"
         case .copilotCLI: "airplane"
         case .openCode: "chevron.left.forwardslash.chevron.right"  // </> Code symbol, fitting OpenCode's programming theme
+        case .antigravity: "arrow.up.circle"  // Upward motion symbolizing anti-gravity
         }
     }
 
@@ -55,6 +59,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .geminiCLI: "~/.gemini/skills"
         case .copilotCLI: "~/.copilot/skills"
         case .openCode: "~/.config/opencode/skills"  // OpenCode uses XDG-style configuration path
+        case .antigravity: "~/.gemini/antigravity/skills"  // Antigravity stores skills under Gemini's config directory
         }
     }
 
@@ -72,6 +77,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .geminiCLI: "~/.gemini"
         case .copilotCLI: "~/.copilot"
         case .openCode: "~/.config/opencode"
+        case .antigravity: "~/.gemini/antigravity"
         }
     }
 
@@ -83,6 +89,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .geminiCLI: "gemini"
         case .copilotCLI: "gh"
         case .openCode: "opencode"
+        case .antigravity: "antigravity"
         }
     }
 
