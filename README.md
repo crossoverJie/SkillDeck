@@ -30,12 +30,12 @@
 
 <p align="center">
   <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213123118.png" alt="Dashboard Overview" width="800" />
-  <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260224114425.png" alt="Dashboard Overview" width="800" />
+  <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260224114425.png" alt="Dashboard Registry" width="800" />
 </p>
 
 <p align="center">
   <img src="docs/screenshots/skill-detail.png" alt="Skill Detail" width="300" height="240"/>
-  <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213122805.png" alt="install" width="300" height="240"/>
+  <img src="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/images20260213122805.png" alt="skill install" width="300" height="240"/>
 </p>
 
 ## Features
