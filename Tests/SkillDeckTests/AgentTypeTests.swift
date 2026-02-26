@@ -89,12 +89,31 @@ final class AgentTypeTests: XCTestCase {
         XCTAssertTrue(agent.additionalReadableSkillsDirectories.isEmpty)
     }
 
+    // MARK: - CodeBuddy Agent Properties
+
+    /// Verify all computed properties of the CodeBuddy agent type
+    func testCodeBuddyProperties() {
+        let agent = AgentType.codeBuddy
+
+        // rawValue is used as the Codable key in lock file JSON
+        XCTAssertEqual(agent.rawValue, "codebuddy")
+        XCTAssertEqual(agent.displayName, "CodeBuddy")
+        XCTAssertEqual(agent.detectCommand, "codebuddy")
+        XCTAssertEqual(agent.skillsDirectoryPath, "~/.codebuddy/skills")
+        XCTAssertEqual(agent.configDirectoryPath, "~/.codebuddy")
+        XCTAssertEqual(agent.iconName, "c.circle")
+        XCTAssertEqual(agent.brandColor, "pink")
+
+        // CodeBuddy does not read other agents' directories
+        XCTAssertTrue(agent.additionalReadableSkillsDirectories.isEmpty)
+    }
+
     // MARK: - CaseIterable Count
 
     /// Verify the total number of supported agents
     /// This test catches accidental removal of agent cases
     func testAllCasesCount() {
-        // 8 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor, kiro
-        XCTAssertEqual(AgentType.allCases.count, 8)
+        // 9 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor, kiro, codeBuddy
+        XCTAssertEqual(AgentType.allCases.count, 9)
     }
 }

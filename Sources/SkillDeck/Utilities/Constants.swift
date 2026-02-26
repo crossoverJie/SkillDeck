@@ -18,6 +18,7 @@ enum Constants {
             case .antigravity: Color(red: 0.36, green: 0.42, blue: 0.75)  // Indigo #5C6BC0
             case .cursor:      Color(red: 0.06, green: 0.73, blue: 0.89)  // Cyan #10BAE3
             case .kiro:        Color(red: 0.55, green: 0.24, blue: 0.85)  // Violet
+            case .codeBuddy:   Color(red: 0.91, green: 0.30, blue: 0.60)  // Pink #E84D99
             }
         }
     }

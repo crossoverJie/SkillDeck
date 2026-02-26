@@ -19,7 +19,7 @@
 | Feature | Description |
 |---------|-------------|
 | Auto-Detect Agents | Detects installed agents via CLI binaries and config directories |
-| Multi-Agent Support | Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor, Kiro |
+| Multi-Agent Support | Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor, Kiro, CodeBuddy |
 | Agent Status Indicators | Sidebar shows skill count per agent; uninstalled agents shown dimmed |
 | Agent Assignment | Toggle switches to install/uninstall a skill to specific agents (auto-manages symlinks) |
 | Inherited Installation Protection | Inherited cross-agent installations are labeled with their source and toggle-disabled |
@@ -86,7 +86,7 @@
 
 ### v0.1 MVP (Done)
 
-- [x] **F01 — Agent Detection**: Auto-detect installed agents (Claude Code, Codex, Gemini CLI, Copilot CLI, Antigravity, Cursor, Kiro) by checking config directories and CLI binaries
+- [x] **F01 — Agent Detection**: Auto-detect installed agents (Claude Code, Codex, Gemini CLI, Copilot CLI, Antigravity, Cursor, Kiro, CodeBuddy) by checking config directories and CLI binaries
 - [x] **F02 — Unified Dashboard**: Single view of all skills across agents and scopes, with symlink deduplication
 - [x] **F03 — Skill Detail View**: Parse and render SKILL.md (YAML frontmatter + markdown body)
 - [x] **F04 — Skill Deletion**: Delete skill directory + remove symlinks + update `.skill-lock.json`

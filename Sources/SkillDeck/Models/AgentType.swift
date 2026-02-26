@@ -11,6 +11,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     case antigravity = "antigravity"   // Antigravity: Google's AI coding agent (https://antigravity.google)
     case cursor = "cursor"               // Cursor: AI-powered code editor (https://cursor.com)
     case kiro = "kiro"                     // Kiro: AWS AI IDE built on Code OSS (https://kiro.dev)
+    case codeBuddy = "codebuddy"           // CodeBuddy: Tencent Cloud AI coding assistant (https://www.codebuddy.ai)
 
     // Identifiable protocol requirement (similar to Java's Comparable), needed for SwiftUI list rendering
     var id: String { rawValue }
@@ -25,6 +26,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .antigravity: "Antigravity"
         case .cursor: "Cursor"
         case .kiro: "Kiro"
+        case .codeBuddy: "CodeBuddy"
         }
     }
 
@@ -40,6 +42,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .antigravity: "indigo"
         case .cursor: "cyan"
         case .kiro: "violet"
+        case .codeBuddy: "pink"
         }
     }
 
@@ -55,6 +58,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .antigravity: "arrow.up.circle"  // Upward motion symbolizing anti-gravity
         case .cursor: "cursorarrow.rays"        // Cursor arrow icon matching the Cursor IDE brand
         case .kiro: "k.circle"                   // Letter K icon for Kiro
+        case .codeBuddy: "c.circle"               // Letter C icon for CodeBuddy
         }
     }
 
@@ -70,6 +74,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .antigravity: "~/.gemini/antigravity/skills"  // Antigravity stores skills under Gemini's config directory
         case .cursor: "~/.cursor/skills"                    // Cursor IDE skills directory
         case .kiro: "~/.kiro/skills"                       // Kiro IDE skills directory
+        case .codeBuddy: "~/.codebuddy/skills"             // CodeBuddy AI assistant skills directory
         }
     }
 
@@ -90,6 +95,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .antigravity: "~/.gemini/antigravity"
         case .cursor: "~/.cursor"
         case .kiro: "~/.kiro"
+        case .codeBuddy: "~/.codebuddy"
         }
     }
 
@@ -104,6 +110,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .antigravity: "antigravity"
         case .cursor: "cursor"
         case .kiro: "kiro"
+        case .codeBuddy: "codebuddy"
         }
     }
 

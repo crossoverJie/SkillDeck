@@ -22,7 +22,7 @@
 
 ---
 
-**SkillDeck** 是首个用于管理多个 AI 代码代理技能的桌面 GUI 工具，支持 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)、[Codex](https://github.com/openai/codex)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line)、[Antigravity](https://antigravity.google)、[Cursor](https://cursor.com) 和 [Kiro](https://kiro.dev)。告别手动编辑文件、管理符号链接和手工解析 YAML。
+**SkillDeck** 是首个用于管理多个 AI 代码代理技能的桌面 GUI 工具，支持 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)、[Codex](https://github.com/openai/codex)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line)、[Antigravity](https://antigravity.google)、[Cursor](https://cursor.com)、[Kiro](https://kiro.dev) 和 [CodeBuddy](https://www.codebuddy.ai)。告别手动编辑文件、管理符号链接和手工解析 YAML。
 
 ## 截图
 
@@ -38,7 +38,7 @@
 
 ## 功能特性
 
-- **多代理支持** — Claude Code、Codex、Gemini CLI、Copilot CLI、OpenCode、Antigravity、Cursor、Kiro
+- **多代理支持** — Claude Code、Codex、Gemini CLI、Copilot CLI、OpenCode、Antigravity、Cursor、Kiro、CodeBuddy
 - **技能市场浏览** — 浏览 [skills.sh](https://skills.sh) 排行榜（全部时间、趋势、热门）并搜索技能目录
 - **统一仪表盘** — 所有技能集中在一个 macOS 原生三栏视图中
 - **一键安装** — 从 GitHub 克隆，自动创建符号链接并更新锁文件
@@ -100,6 +100,7 @@ swift test
 | [Antigravity](https://antigravity.google) | `~/.gemini/antigravity/skills/` | `antigravity` 二进制文件 | 仅自身目录 |
 | [Cursor](https://cursor.com) | `~/.cursor/skills/` | `cursor` 二进制文件 | 自身 → `~/.claude/skills/` |
 | [Kiro](https://kiro.dev) | `~/.kiro/skills/` | `kiro` 二进制文件 | 仅自身目录 |
+| [CodeBuddy](https://www.codebuddy.ai) | `~/.codebuddy/skills/` | `codebuddy` 二进制文件 | 仅自身目录 |
 
 ## 架构
 
