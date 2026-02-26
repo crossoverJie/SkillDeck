@@ -10,6 +10,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     case openCode = "opencode"       // OpenCode: Open source AI programming CLI tool
     case antigravity = "antigravity"   // Antigravity: Google's AI coding agent (https://antigravity.google)
     case cursor = "cursor"               // Cursor: AI-powered code editor (https://cursor.com)
+    case kiro = "kiro"                     // Kiro: AWS AI IDE built on Code OSS (https://kiro.dev)
 
     // Identifiable protocol requirement (similar to Java's Comparable), needed for SwiftUI list rendering
     var id: String { rawValue }
@@ -23,6 +24,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .openCode: "OpenCode"
         case .antigravity: "Antigravity"
         case .cursor: "Cursor"
+        case .kiro: "Kiro"
         }
     }
 
@@ -37,6 +39,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .openCode: "teal"
         case .antigravity: "indigo"
         case .cursor: "cyan"
+        case .kiro: "violet"
         }
     }
 
@@ -51,6 +54,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .openCode: "chevron.left.forwardslash.chevron.right"  // </> Code symbol, fitting OpenCode's programming theme
         case .antigravity: "arrow.up.circle"  // Upward motion symbolizing anti-gravity
         case .cursor: "cursorarrow.rays"        // Cursor arrow icon matching the Cursor IDE brand
+        case .kiro: "k.circle"                   // Letter K icon for Kiro
         }
     }
 
@@ -65,6 +69,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .openCode: "~/.config/opencode/skills"  // OpenCode uses XDG-style configuration path
         case .antigravity: "~/.gemini/antigravity/skills"  // Antigravity stores skills under Gemini's config directory
         case .cursor: "~/.cursor/skills"                    // Cursor IDE skills directory
+        case .kiro: "~/.kiro/skills"                       // Kiro IDE skills directory
         }
     }
 
@@ -84,6 +89,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .openCode: "~/.config/opencode"
         case .antigravity: "~/.gemini/antigravity"
         case .cursor: "~/.cursor"
+        case .kiro: "~/.kiro"
         }
     }
 
@@ -97,6 +103,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .openCode: "opencode"
         case .antigravity: "antigravity"
         case .cursor: "cursor"
+        case .kiro: "kiro"
         }
     }
 

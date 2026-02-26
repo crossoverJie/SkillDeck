@@ -22,7 +22,7 @@
 
 ---
 
-**SkillDeck** is the first desktop GUI for managing skills across multiple AI code agents — [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line), [Antigravity](https://antigravity.google), and [Cursor](https://cursor.com). No more manual file editing, symlink juggling, or YAML parsing by hand.
+**SkillDeck** is the first desktop GUI for managing skills across multiple AI code agents — [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line), [Antigravity](https://antigravity.google), [Cursor](https://cursor.com), and [Kiro](https://kiro.dev). No more manual file editing, symlink juggling, or YAML parsing by hand.
 
 ## Screenshots
 
@@ -40,7 +40,7 @@
 
 ## Features
 
-- **Multi-Agent Support** — Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor
+- **Multi-Agent Support** — Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor, Kiro
 - **Registry Browser** — Browse [skills.sh](https://skills.sh) leaderboard (All Time, Trending, Hot) and search the catalog
 - **Unified Dashboard** — All skills in one three-pane macOS-native view
 - **One-Click Install** — Clone from GitHub, auto-create symlinks and update lock file
@@ -101,6 +101,7 @@ swift test
 | [OpenCode](https://opencode.ai) | `~/.config/opencode/skills/` | `opencode` binary | Own → `~/.claude/skills/` → `~/.agents/skills/` |
 | [Antigravity](https://antigravity.google) | `~/.gemini/antigravity/skills/` | `antigravity` binary | Own directory only |
 | [Cursor](https://cursor.com) | `~/.cursor/skills/` | `cursor` binary | Own → `~/.claude/skills/` |
+| [Kiro](https://kiro.dev) | `~/.kiro/skills/` | `kiro` binary | Own directory only |
 
 ## Architecture
 

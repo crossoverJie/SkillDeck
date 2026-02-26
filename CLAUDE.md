@@ -73,6 +73,7 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 | OpenCode | `~/.config/opencode/skills/` | `opencode` binary | Own → `~/.claude/skills/` → `~/.agents/skills/` |
 | Antigravity | `~/.gemini/antigravity/skills/` | `antigravity` binary | Own directory only |
 | Cursor | `~/.cursor/skills/` | `cursor` binary | Own → `~/.claude/skills/` |
+| Kiro | `~/.kiro/skills/` | `kiro` binary | Own directory only |
 
 ## Testing
 

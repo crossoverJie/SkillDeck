@@ -70,12 +70,31 @@ final class AgentTypeTests: XCTestCase {
         XCTAssertEqual(additionalDirs[0].sourceAgent, .codex)
     }
 
+    // MARK: - Kiro Agent Properties
+
+    /// Verify all computed properties of the Kiro agent type
+    func testKiroProperties() {
+        let agent = AgentType.kiro
+
+        // rawValue is used as the Codable key in lock file JSON
+        XCTAssertEqual(agent.rawValue, "kiro")
+        XCTAssertEqual(agent.displayName, "Kiro")
+        XCTAssertEqual(agent.detectCommand, "kiro")
+        XCTAssertEqual(agent.skillsDirectoryPath, "~/.kiro/skills")
+        XCTAssertEqual(agent.configDirectoryPath, "~/.kiro")
+        XCTAssertEqual(agent.iconName, "k.circle")
+        XCTAssertEqual(agent.brandColor, "violet")
+
+        // Kiro does not read other agents' directories
+        XCTAssertTrue(agent.additionalReadableSkillsDirectories.isEmpty)
+    }
+
     // MARK: - CaseIterable Count
 
     /// Verify the total number of supported agents
     /// This test catches accidental removal of agent cases
     func testAllCasesCount() {
-        // 7 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor
-        XCTAssertEqual(AgentType.allCases.count, 7)
+        // 8 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor, kiro
+        XCTAssertEqual(AgentType.allCases.count, 8)
     }
 }
