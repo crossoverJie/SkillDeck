@@ -92,14 +92,15 @@ swift test
 
 ## Supported Agents
 
-| Agent | Skills Directory | Detection |
-|-------|-----------------|-----------|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `~/.claude/skills/` | `claude` binary + `~/.claude/` dir |
-| [Codex](https://github.com/openai/codex) | `~/.agents/skills/` (shared) | `codex` binary |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/skills/` | `gemini` binary + `~/.gemini/` dir |
-| [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line) | `~/.copilot/skills/` | `gh` binary |
-| [Antigravity](https://antigravity.google) | `~/.gemini/antigravity/skills/` | `antigravity` binary |
-| [Cursor](https://cursor.com) | `~/.cursor/skills/` | `cursor` binary |
+| Agent | Skills Directory | Detection | Skills Reading Priority |
+|-------|-----------------|-----------|------------------------|
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `~/.claude/skills/` | `claude` binary + `~/.claude/` dir | Own directory only |
+| [Codex](https://github.com/openai/codex) | `~/.codex/skills/` | `codex` binary | Own → `~/.agents/skills/` (shared global) |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/skills/` | `gemini` binary + `~/.gemini/` dir | Own directory only |
+| [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line) | `~/.copilot/skills/` | `gh` binary | Own → `~/.claude/skills/` |
+| [OpenCode](https://opencode.ai) | `~/.config/opencode/skills/` | `opencode` binary | Own → `~/.claude/skills/` → `~/.agents/skills/` |
+| [Antigravity](https://antigravity.google) | `~/.gemini/antigravity/skills/` | `antigravity` binary | Own directory only |
+| [Cursor](https://cursor.com) | `~/.cursor/skills/` | `cursor` binary | Own → `~/.claude/skills/` |
 
 ## Architecture
 

@@ -64,14 +64,15 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 
 ## Supported Agents
 
-| Agent | Skills Directory | CLI Detection |
-|-------|-----------------|---------------|
-| Claude Code | `~/.claude/skills/` | `claude` binary |
-| Codex | `~/.codex/skills/` | `codex` binary |
-| Gemini CLI | `~/.gemini/skills/` | `gemini` binary |
-| Copilot CLI | `~/.copilot/skills/` | `gh` binary |
-| Antigravity | `~/.gemini/antigravity/skills/` | `antigravity` binary |
-| Cursor | `~/.cursor/skills/` | `cursor` binary |
+| Agent | Skills Directory | CLI Detection | Skills Reading Priority |
+|-------|-----------------|---------------|------------------------|
+| Claude Code | `~/.claude/skills/` | `claude` binary | Own directory only |
+| Codex | `~/.codex/skills/` | `codex` binary | Own → `~/.agents/skills/` (shared global) |
+| Gemini CLI | `~/.gemini/skills/` | `gemini` binary | Own directory only |
+| Copilot CLI | `~/.copilot/skills/` | `gh` binary | Own → `~/.claude/skills/` |
+| OpenCode | `~/.config/opencode/skills/` | `opencode` binary | Own → `~/.claude/skills/` → `~/.agents/skills/` |
+| Antigravity | `~/.gemini/antigravity/skills/` | `antigravity` binary | Own directory only |
+| Cursor | `~/.cursor/skills/` | `cursor` binary | Own → `~/.claude/skills/` |
 
 ## Testing
 

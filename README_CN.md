@@ -90,14 +90,15 @@ swift test
 
 ## 支持的代理
 
-| 代理 | 技能目录 | 检测方式 |
-|------|---------|---------|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `~/.claude/skills/` | `claude` 二进制文件 + `~/.claude/` 目录 |
-| [Codex](https://github.com/openai/codex) | `~/.agents/skills/`（共享） | `codex` 二进制文件 |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/skills/` | `gemini` 二进制文件 + `~/.gemini/` 目录 |
-| [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line) | `~/.copilot/skills/` | `gh` 二进制文件 |
-| [Antigravity](https://antigravity.google) | `~/.gemini/antigravity/skills/` | `antigravity` 二进制文件 |
-| [Cursor](https://cursor.com) | `~/.cursor/skills/` | `cursor` 二进制文件 |
+| 代理 | 技能目录 | 检测方式 | 技能读取优先级 |
+|------|---------|---------|---------------|
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `~/.claude/skills/` | `claude` 二进制文件 + `~/.claude/` 目录 | 仅自身目录 |
+| [Codex](https://github.com/openai/codex) | `~/.codex/skills/` | `codex` 二进制文件 | 自身 → `~/.agents/skills/`（共享全局） |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/skills/` | `gemini` 二进制文件 + `~/.gemini/` 目录 | 仅自身目录 |
+| [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line) | `~/.copilot/skills/` | `gh` 二进制文件 | 自身 → `~/.claude/skills/` |
+| [OpenCode](https://opencode.ai) | `~/.config/opencode/skills/` | `opencode` 二进制文件 | 自身 → `~/.claude/skills/` → `~/.agents/skills/` |
+| [Antigravity](https://antigravity.google) | `~/.gemini/antigravity/skills/` | `antigravity` 二进制文件 | 仅自身目录 |
+| [Cursor](https://cursor.com) | `~/.cursor/skills/` | `cursor` 二进制文件 | 自身 → `~/.claude/skills/` |
 
 ## 架构
 
