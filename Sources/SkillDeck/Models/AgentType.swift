@@ -59,7 +59,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     var skillsDirectoryPath: String {
         switch self {
         case .claudeCode: "~/.claude/skills"
-        case .codex: "~/.agents/skills"     // Codex directly uses the shared directory
+        case .codex: "~/.codex/skills"        // Codex-specific skills directory (also reads ~/.agents/skills/)
         case .geminiCLI: "~/.gemini/skills"
         case .copilotCLI: "~/.copilot/skills"
         case .openCode: "~/.config/opencode/skills"  // OpenCode uses XDG-style configuration path
@@ -78,7 +78,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     var configDirectoryPath: String? {
         switch self {
         case .claudeCode: "~/.claude"
-        case .codex: nil                    // Codex does not have an independent configuration directory
+        case .codex: "~/.codex"                // Codex configuration directory
         case .geminiCLI: "~/.gemini"
         case .copilotCLI: "~/.copilot"
         case .openCode: "~/.config/opencode"
@@ -100,6 +100,14 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    /// Shared canonical skills directory URL (~/.agents/skills/)
+    /// Used by SkillScanner and agents that read from the shared directory (e.g., OpenCode).
+    /// Defined here as a single source of truth to avoid duplicating the path string.
+    static let sharedSkillsDirectoryURL: URL = {
+        let path = NSString(string: "~/.agents/skills").expandingTildeInPath
+        return URL(fileURLWithPath: path)
+    }()
+
     /// Skills directories of other Agents that this Agent can read in addition to its own skills directory
     ///
     /// This is the "Single Source of Truth" for cross-directory reading rules:
@@ -113,15 +121,20 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     /// Similar to Java's Pair<URL, AgentType>, Swift uses named tuples for better clarity
     var additionalReadableSkillsDirectories: [(url: URL, sourceAgent: AgentType)] {
         switch self {
+        case .codex:
+            // Codex also reads the shared canonical directory ~/.agents/skills/
+            // See: https://developers.openai.com/codex/skills/#where-to-save-skills
+            // $HOME/.agents/skills is the user-level skills directory for Codex
+            return [(Self.sharedSkillsDirectoryURL, .codex)]
         case .copilotCLI:
             // Copilot CLI can also read Claude Code's skills directory
             return [(AgentType.claudeCode.skillsDirectoryURL, .claudeCode)]
         case .openCode:
-            // OpenCode can also read Claude Code's and Codex's skills directories
+            // OpenCode can also read Claude Code's and the shared canonical skills directories
             // See: https://opencode.ai/docs/skills/#place-files
             return [
                 (AgentType.claudeCode.skillsDirectoryURL, .claudeCode),
-                (AgentType.codex.skillsDirectoryURL, .codex)
+                (Self.sharedSkillsDirectoryURL, .codex)
             ]
         case .cursor:
             // Cursor can also read Claude Code's skills directory

@@ -36,8 +36,8 @@ struct SkillRowView: View {
                             // Reduce opacity for inherited installation icons to visually distinguish from direct installations
                             .opacity(installation.isInherited ? 0.4 : 1.0)
                             // Hover tooltip: inherited installation shows "Copilot CLI (via ~/.claude/skills)"
-                            .help(installation.isInherited && installation.inheritedFrom != nil
-                                ? "\(installation.agentType.displayName) (via \(installation.inheritedFrom!.skillsDirectoryPath))"
+                            .help(installation.isInherited
+                                ? "\(installation.agentType.displayName) (via \(installation.parentDirectoryDisplayPath))"
                                 : installation.agentType.displayName)
                     }
                 }

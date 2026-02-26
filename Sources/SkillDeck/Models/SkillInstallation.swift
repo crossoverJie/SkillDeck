@@ -20,6 +20,15 @@ struct SkillInstallation: Identifiable, Hashable {
 
     var id: String { "\(agentType.rawValue)-\(path.path)" }
 
+    /// Display-friendly path of the parent directory where this installation resides.
+    /// Derives from the actual `path` property (e.g., ~/.agents/skills/foo → "~/.agents/skills"),
+    /// ensuring correct display regardless of agent type changes.
+    /// NSString.abbreviatingWithTildeInPath replaces the home directory prefix with ~
+    var parentDirectoryDisplayPath: String {
+        let parent = path.deletingLastPathComponent().path
+        return NSString(string: parent).abbreviatingWithTildeInPath
+    }
+
     /// Convenience initializer: create direct installation (non-inherited), keeping backward compatibility
     /// Swift structs generate memberwise init by default (similar to Kotlin data class),
     /// But adding custom init keeps the default one (because it's defined outside extension)

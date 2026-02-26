@@ -18,10 +18,6 @@ struct AgentToggleView: View {
                 let isInstalled = installation != nil
                 /// Check if this is an inherited installation (from another Agent's directory)
                 let isInherited = installation?.isInherited ?? false
-                /// Check if this is a Codex canonical installation
-                /// Codex's skillsDirectoryURL shares the same directory as canonical,
-                /// so its installation record is isSymlink: false original file, should not be toggled
-                let isCodexCanonical = agentType == .codex && isInstalled && !(installation?.isSymlink ?? true)
                 let agent = skillManager.agents.first { $0.type == agentType }
                 let isAgentAvailable = agent?.isInstalled == true || agent?.configDirectoryExists == true
 
@@ -35,18 +31,9 @@ struct AgentToggleView: View {
                     Spacer()
 
                     // Inherited installation hint text: shows source path like "via ~/.claude/skills"
-                    // Consistent with Codex canonical's "via ~/.agents/skills" style
-                    if isInherited, let sourceAgent = installation?.inheritedFrom {
-                        Text("via \(sourceAgent.skillsDirectoryPath)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    // Codex canonical installation hint text:
-                    // Consistent with inherited installation's "via ~/.claude/skills" style, indicating source directory
-                    // Codex reads directly from ~/.agents/skills/, all canonical skills are naturally available
-                    if isCodexCanonical {
-                        Text("via ~/.agents/skills")
+                    // Uses parentDirectoryDisplayPath derived from the actual installation path
+                    if isInherited, let installation {
+                        Text("via \(installation.parentDirectoryDisplayPath)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -71,9 +58,8 @@ struct AgentToggleView: View {
                     .labelsHidden()
                     // disabled conditions:
                     // - Inherited installation cannot be operated (need to modify at source Agent)
-                    // - Codex canonical installation cannot be operated (delete should use deleteSkill)
                     // - Agent not installed and this skill not installed
-                    .disabled(isInherited || isCodexCanonical || (!isAgentAvailable && !isInstalled))
+                    .disabled(isInherited || (!isAgentAvailable && !isInstalled))
                 }
                 .padding(.vertical, 2)
             }
