@@ -132,10 +132,6 @@ enum SymlinkManager {
 
         // ========== First pass: Direct installation scan ==========
         for agentType in AgentType.allCases {
-            // Codex's skillsDirectoryURL is ~/.agents/skills/ (canonical shared directory),
-            // not an independent Agent skills directory. All canonical skills are stored there,
-            // should not be considered "installed to Codex". Consistent with SkillScanner.scanAll() handling.
-            if agentType == .codex { continue }
 
             let skillURL = agentType.skillsDirectoryURL.appendingPathComponent(skillName)
 
@@ -173,8 +169,6 @@ enum SymlinkManager {
         // ========== Second pass: Inherited installation scan ==========
         // For Agents without direct installation, check other Agent directories it can additionally read
         for agentType in AgentType.allCases {
-            // Codex skipped, reason same as first pass (canonical shared directory != Codex independent installation)
-            if agentType == .codex { continue }
             // If already has direct installation, skip (direct installation has higher priority)
             guard !agentsWithDirectInstallation.contains(agentType) else { continue }
 
@@ -206,25 +200,6 @@ enum SymlinkManager {
                     // Stop on first match (avoid duplicate inherited installations for same Agent)
                     break
                 }
-            }
-        }
-
-        // ========== Third pass: Codex special handling ==========
-        // Codex reads user-level skills directly from ~/.agents/skills/,
-        // its skillsDirectoryURL is same as canonical shared directory.
-        // Therefore all canonical skills are naturally available to Codex,
-        // here create an isSymlink: false installation record for Codex,
-        // so that sidebar badge, dashboard filtering etc. UI can correctly display Codex status.
-        let codexSkillURL = AgentType.codex.skillsDirectoryURL.appendingPathComponent(skillName)
-        if FileManager.default.fileExists(atPath: codexSkillURL.path) {
-            let resolved = resolveSymlink(at: codexSkillURL)
-            // Verify path indeed points to same canonical skill (prevent accidental same name but different path cases)
-            if resolved.standardized.path == canonicalURL.standardized.path {
-                installations.append(SkillInstallation(
-                    agentType: .codex,
-                    path: codexSkillURL,
-                    isSymlink: false  // canonical original file, not a symlink
-                ))
             }
         }
 

@@ -11,11 +11,8 @@ import Foundation
 /// This is similar to filepath.Walk in Go for traversing directory trees
 actor SkillScanner {
 
-    /// Shared global skills directory
-    static let sharedSkillsURL: URL = {
-        let path = NSString(string: "~/.agents/skills").expandingTildeInPath
-        return URL(fileURLWithPath: path)
-    }()
+    /// Shared global skills directory (delegates to AgentType.sharedSkillsDirectoryURL for single source of truth)
+    static let sharedSkillsURL: URL = AgentType.sharedSkillsDirectoryURL
 
     /// Scan all skills, returning deduplicated results
     /// - Returns: Array of discovered skills (deduplicated, each skill name appears only once)
@@ -35,8 +32,6 @@ actor SkillScanner {
 
         // 2. Scan each Agent's skills directory
         for agentType in AgentType.allCases {
-            // Codex uses shared directory, already scanned in step 1
-            if agentType == .codex { continue }
 
             let agentSkills = scanDirectory(
                 agentType.skillsDirectoryURL,

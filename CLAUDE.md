@@ -67,7 +67,7 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 | Agent | Skills Directory | CLI Detection |
 |-------|-----------------|---------------|
 | Claude Code | `~/.claude/skills/` | `claude` binary |
-| Codex | `~/.agents/skills/` | `codex` binary |
+| Codex | `~/.codex/skills/` | `codex` binary |
 | Gemini CLI | `~/.gemini/skills/` | `gemini` binary |
 | Copilot CLI | `~/.copilot/skills/` | `gh` binary |
 | Antigravity | `~/.gemini/antigravity/skills/` | `antigravity` binary |

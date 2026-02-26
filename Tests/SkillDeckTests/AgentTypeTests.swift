@@ -49,6 +49,27 @@ final class AgentTypeTests: XCTestCase {
         XCTAssertEqual(additionalDirs[0].sourceAgent, .claudeCode)
     }
 
+    // MARK: - Codex Agent Properties
+
+    /// Verify all computed properties of the Codex agent type
+    /// Codex now has its own skills directory (~/.codex/skills/) instead of sharing ~/.agents/skills/
+    func testCodexProperties() {
+        let agent = AgentType.codex
+
+        XCTAssertEqual(agent.rawValue, "codex")
+        XCTAssertEqual(agent.displayName, "Codex")
+        XCTAssertEqual(agent.detectCommand, "codex")
+        XCTAssertEqual(agent.skillsDirectoryPath, "~/.codex/skills")
+        XCTAssertEqual(agent.configDirectoryPath, "~/.codex")
+        XCTAssertEqual(agent.iconName, "terminal")
+        XCTAssertEqual(agent.brandColor, "green")
+
+        // Codex also reads the shared canonical directory ~/.agents/skills/
+        let additionalDirs = agent.additionalReadableSkillsDirectories
+        XCTAssertEqual(additionalDirs.count, 1)
+        XCTAssertEqual(additionalDirs[0].sourceAgent, .codex)
+    }
+
     // MARK: - CaseIterable Count
 
     /// Verify the total number of supported agents

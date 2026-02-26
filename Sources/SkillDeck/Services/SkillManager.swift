@@ -186,7 +186,7 @@ final class SkillManager {
     /// Start watching file system, monitor all relevant directories
     private func startWatching() {
         var paths: [URL] = [SkillScanner.sharedSkillsURL]
-        for agent in AgentType.allCases where agent != .codex {
+        for agent in AgentType.allCases {
             paths.append(agent.skillsDirectoryURL)
         }
         watcher.startWatching(paths: paths)
@@ -265,14 +265,6 @@ final class SkillManager {
             return
         }
 
-        // Protection: Codex canonical installation cannot be toggled
-        // Codex's skills directory is the same as the canonical shared directory (~/.agents/skills/),
-        // its installation record has isSymlink = false, indicating it's the original file not a symlink.
-        // Deleting canonical files should use deleteSkill, not through toggle operation
-        if agent == .codex, let installation, !installation.isSymlink {
-            return
-        }
-
         let isInstalled = installation != nil
         if isInstalled {
             try await unassignSkill(skill, from: agent)
@@ -336,8 +328,6 @@ final class SkillManager {
 
         // 3. Create symlinks for selected Agents
         for agent in targetAgents {
-            // Codex directly uses ~/.agents/skills/ directory, no symlink needed
-            if agent == .codex { continue }
             // Use try? to ignore existing symlink errors (idempotent operation)
             try? SymlinkManager.createSymlink(from: canonicalDir, to: agent)
         }
