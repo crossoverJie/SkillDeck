@@ -74,6 +74,7 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 | Antigravity | `~/.gemini/antigravity/skills/` | `antigravity` binary | Own directory only |
 | Cursor | `~/.cursor/skills/` | `cursor` binary | Own → `~/.claude/skills/` |
 | Kiro | `~/.kiro/skills/` | `kiro` binary | Own directory only |
+| OpenClaw | `~/.openclaw/skills/` | `openclaw` binary | Own directory only |
 
 ## Testing
 

@@ -89,12 +89,31 @@ final class AgentTypeTests: XCTestCase {
         XCTAssertTrue(agent.additionalReadableSkillsDirectories.isEmpty)
     }
 
+    // MARK: - OpenClaw Agent Properties
+
+    /// Verify all computed properties of the OpenClaw agent type
+    func testOpenClawProperties() {
+        let agent = AgentType.openClaw
+
+        // rawValue is used as the Codable key in lock file JSON
+        XCTAssertEqual(agent.rawValue, "openclaw")
+        XCTAssertEqual(agent.displayName, "OpenClaw")
+        XCTAssertEqual(agent.detectCommand, "openclaw")
+        XCTAssertEqual(agent.skillsDirectoryPath, "~/.openclaw/skills")
+        XCTAssertEqual(agent.configDirectoryPath, "~/.openclaw")
+        XCTAssertEqual(agent.iconName, "o.circle")
+        XCTAssertEqual(agent.brandColor, "red")
+
+        // OpenClaw does not read other agents' directories
+        XCTAssertTrue(agent.additionalReadableSkillsDirectories.isEmpty)
+    }
+
     // MARK: - CaseIterable Count
 
     /// Verify the total number of supported agents
     /// This test catches accidental removal of agent cases
     func testAllCasesCount() {
-        // 8 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor, kiro
-        XCTAssertEqual(AgentType.allCases.count, 8)
+        // 9 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor, kiro, openClaw
+        XCTAssertEqual(AgentType.allCases.count, 9)
     }
 }
