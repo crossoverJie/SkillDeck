@@ -31,6 +31,8 @@ Gemini CLI   → ~/.gemini/skills/
 Antigravity  → ~/.gemini/antigravity/skills/
 Cursor       → ~/.cursor/skills/
 Kiro         → ~/.kiro/skills/
+CodeBuddy    → ~/.codebuddy/skills/
+OpenClaw     → ~/.openclaw/skills/
 ```
 
 但某些 Agent 会额外读取其他 Agent 的目录。例如 Copilot CLI 同时读取 `~/.copilot/skills/` 和 `~/.claude/skills/`，Cursor 同时读取 `~/.cursor/skills/` 和 `~/.claude/skills/`。
