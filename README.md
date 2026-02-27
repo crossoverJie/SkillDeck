@@ -22,7 +22,7 @@
 
 ---
 
-**SkillDeck** is the first desktop GUI for managing skills across multiple AI code agents — [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line), [Antigravity](https://antigravity.google), [Cursor](https://cursor.com), [Kiro](https://kiro.dev), and [CodeBuddy](https://www.codebuddy.ai). No more manual file editing, symlink juggling, or YAML parsing by hand.
+**SkillDeck** is the first desktop GUI for managing skills across multiple AI code agents — [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line), [Antigravity](https://antigravity.google), [Cursor](https://cursor.com), [Kiro](https://kiro.dev), [CodeBuddy](https://www.codebuddy.ai), and [OpenClaw](https://openclaw.ai). No more manual file editing, symlink juggling, or YAML parsing by hand.
 
 ## Screenshots
 
@@ -40,7 +40,7 @@
 
 ## Features
 
-- **Multi-Agent Support** — Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor, Kiro, CodeBuddy
+- **Multi-Agent Support** — Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor, Kiro, CodeBuddy, OpenClaw
 - **Registry Browser** — Browse [skills.sh](https://skills.sh) leaderboard (All Time, Trending, Hot) and search the catalog
 - **Unified Dashboard** — All skills in one three-pane macOS-native view
 - **One-Click Install** — Clone from GitHub, auto-create symlinks and update lock file
@@ -103,6 +103,7 @@ swift test
 | [Cursor](https://cursor.com) | `~/.cursor/skills/` | `cursor` binary | Own → `~/.claude/skills/` |
 | [Kiro](https://kiro.dev) | `~/.kiro/skills/` | `kiro` binary | Own directory only |
 | [CodeBuddy](https://www.codebuddy.ai) | `~/.codebuddy/skills/` | `codebuddy` binary | Own directory only |
+| [OpenClaw](https://openclaw.ai) | `~/.openclaw/skills/` | `openclaw` binary | Own directory only |
 
 ## Architecture
 
