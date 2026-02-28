@@ -38,9 +38,16 @@ final class RegistryBrowserViewModel {
     /// Separate from errorMessage to allow different UI treatment
     var leaderboardUnavailable = false
 
-    /// Set of locally installed skill IDs (for showing "Installed" badges)
-    /// Uses Set for O(1) lookup — similar to Java's HashSet
-    var installedSkillIDs: Set<String> = []
+    /// Dictionary mapping installed skill ID → source repo (owner/repo) from lock file.
+    /// Used for source-aware "Installed" badge matching so that two registry skills
+    /// with the same skillId but from different repos are distinguished correctly.
+    /// Only populated for skills that have a lock entry with a `source` field.
+    private var installedSkillSources: [String: String] = [:]
+
+    /// Set of skill IDs installed without source tracking (no lock entry).
+    /// Falls back to skillId-only matching for backward compatibility with
+    /// manually installed skills that were not installed via the registry flow.
+    private var installedSkillIDsNoSource: Set<String> = []
 
     /// Install sheet ViewModel (non-nil triggers sheet display)
     ///
@@ -141,12 +148,31 @@ final class RegistryBrowserViewModel {
         await loadLeaderboard()
     }
 
-    /// Sync the set of locally installed skill IDs from SkillManager
+    /// Sync installed skill data from SkillManager for source-aware "Installed" badge matching.
     ///
-    /// Cross-references registry skills with locally installed skills to show "Installed" badges.
-    /// Called on appear and after each install to keep badges up-to-date.
+    /// Builds two data structures:
+    /// - `installedSkillSources`: maps skillId → source repo for skills with lock entries
+    /// - `installedSkillIDsNoSource`: collects skillIds that have no lock entry (manual installs)
+    ///
+    /// This ensures that two registry skills sharing the same skillId but from different
+    /// repositories are NOT both marked as "Installed" — only the one whose source matches
+    /// the locally installed skill's lock entry will show the badge.
     func syncInstalledSkills() {
-        installedSkillIDs = Set(skillManager.skills.map(\.id))
+        var sources: [String: String] = [:]
+        var noSource: Set<String> = []
+        for skill in skillManager.skills {
+            // If the skill has a lock entry with a source field (e.g., "owner/repo"),
+            // record it for exact source matching.
+            if let source = skill.lockEntry?.source {
+                sources[skill.id] = source
+            } else {
+                // No lock entry means manually installed (not from registry).
+                // Fall back to skillId-only matching for backward compatibility.
+                noSource.insert(skill.id)
+            }
+        }
+        installedSkillSources = sources
+        installedSkillIDsNoSource = noSource
     }
 
     // MARK: - Leaderboard
@@ -287,10 +313,21 @@ final class RegistryBrowserViewModel {
 
     /// Check if a registry skill is already installed locally
     ///
-    /// Compares the registry skill's skillId against locally installed skill IDs.
-    /// Returns true if found — the UI will show an "Installed" badge and disable the install button.
+    /// Performs source-aware matching to avoid false positives when multiple registry skills
+    /// share the same skillId but come from different repositories:
+    ///
+    /// 1. If a locally installed skill has the same skillId AND a matching source repo
+    ///    (from its lock entry), return true — exact match.
+    /// 2. If a locally installed skill has the same skillId but NO lock entry (manual install),
+    ///    fall back to skillId-only matching for backward compatibility.
+    /// 3. Otherwise return false — the skill is not installed.
     func isInstalled(_ registrySkill: RegistrySkill) -> Bool {
-        installedSkillIDs.contains(registrySkill.skillId)
+        // Check if installed with matching source repo (exact match on both skillId and source)
+        if let installedSource = installedSkillSources[registrySkill.skillId] {
+            return installedSource == registrySkill.source
+        }
+        // Fallback: skill installed without source tracking — match by ID only
+        return installedSkillIDsNoSource.contains(registrySkill.skillId)
     }
 
     // MARK: - Skill Content Loading
