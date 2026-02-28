@@ -9,15 +9,18 @@ import Foundation
 /// - **Flat layout**: `{skillId}/SKILL.md` at repo root (e.g., `vercel-labs/agent-skills`)
 /// - **Monorepo layout**: `skills/{skillId}/SKILL.md` under a `skills/` subdirectory
 ///   (e.g., `inference-sh/skills` stores skills at `skills/remotion-render/SKILL.md`)
+/// - **Plugin-style layout**: `.claude/skills/{skillId}/SKILL.md` (e.g.,
+///   `nextlevelbuilder/ui-ux-pro-max-skill` stores at `.claude/skills/ui-ux-pro-max/SKILL.md`)
+/// - **Root layout**: `SKILL.md` at the repository root (single-skill repos)
 ///
 /// Additionally, the directory name on GitHub may differ from the `skillId` returned by
 /// the registry API. For example, `remotion-dev/skills` has a skill with
 /// `skillId = "remotion-best-practices"` but the directory is just `remotion/`.
-/// When direct URL lookup fails, the fetcher falls back to the GitHub Contents API
-/// to discover the actual directory containing the SKILL.md.
+/// When direct URL lookup fails, the fetcher falls back to the GitHub Git Tree API
+/// to discover the actual path containing the SKILL.md at any nesting depth.
 ///
-/// The fetcher tries both layouts on both `main` and `master` branches (4 attempts total),
-/// then falls back to API-based discovery if all direct attempts return 404.
+/// The fetcher tries all 4 layouts on both `main` and `master` branches (8 attempts total),
+/// then falls back to Git Tree API-based discovery if all direct attempts return 404.
 ///
 /// Uses `actor` for thread-safe cache access, consistent with other service actors
 /// in the project (SkillRegistryService, LockFileManager, AgentDetector).
@@ -79,10 +82,10 @@ actor SkillContentFetcher {
     ///
     /// Fetch strategy:
     /// 1. Check in-memory cache (10-minute TTL)
-    /// 2. Try direct URLs (4 candidates: 2 branches × 2 layouts) using skillId as directory name
-    /// 3. If all 404, fall back to GitHub Contents API to discover the actual directory
+    /// 2. Try direct URLs (8 candidates: 2 branches × 4 layouts) using skillId as directory name
+    /// 3. If all 404, fall back to GitHub Git Tree API to discover the actual path
     ///    (handles cases where skillId differs from directory name, e.g., "remotion-best-practices"
-    ///    is in directory "remotion")
+    ///    is in directory "remotion", or SKILL.md is deeply nested)
     /// 4. Throw `.notFound` if all attempts fail
     ///
     /// - Parameters:
@@ -110,11 +113,12 @@ actor SkillContentFetcher {
             }
         }
 
-        // 3. Fallback: use GitHub Contents API to discover the actual directory.
-        // This handles repos where the directory name differs from the skillId.
-        // For example, `remotion-dev/skills` has skillId "remotion-best-practices"
-        // but the directory is just "remotion/".
-        if let content = try await discoverViaContentsAPI(source: source, skillId: skillId) {
+        // 3. Fallback: use GitHub Git Tree API to discover the actual SKILL.md path.
+        // The Tree API returns the entire repo file tree in a single request (recursive=1),
+        // so we can find SKILL.md at any depth without multiple API calls.
+        // This handles repos where the directory name differs from the skillId,
+        // or where SKILL.md is nested in an unexpected location.
+        if let content = try await discoverViaTreeAPI(source: source, skillId: skillId) {
             cache[cacheKey] = (content: content, fetchedAt: Date())
             return content
         }
@@ -147,7 +151,11 @@ actor SkillContentFetcher {
         // Force-unwrap is safe here because the URL components are controlled by us.
         // `raw.githubusercontent.com` is GitHub's CDN for serving raw file content —
         // it returns plain text without any HTML wrapping or GitHub UI.
-        URL(string: "https://raw.githubusercontent.com/\(source)/\(branch)/\(path)/SKILL.md")!
+        //
+        // When `path` is empty (root-level SKILL.md), we must avoid producing a double
+        // slash like `/{branch}//SKILL.md`. Instead, emit `/{branch}/SKILL.md`.
+        let filePath = path.isEmpty ? "SKILL.md" : "\(path)/SKILL.md"
+        return URL(string: "https://raw.githubusercontent.com/\(source)/\(branch)/\(filePath)")!
     }
 
     /// Generate all candidate URLs to try when fetching a skill's SKILL.md
@@ -155,28 +163,34 @@ actor SkillContentFetcher {
     /// Returns URLs ordered by likelihood of success:
     /// 1. `main` branch, flat layout: `{skillId}/SKILL.md` (repo root)
     /// 2. `main` branch, monorepo layout: `skills/{skillId}/SKILL.md` (skills/ subdirectory)
-    /// 3. `master` branch, flat layout (older repos)
-    /// 4. `master` branch, monorepo layout (older repos)
+    /// 3. `main` branch, plugin-style: `.claude/skills/{skillId}/SKILL.md`
+    /// 4. `main` branch, root layout: `SKILL.md` (repo root, no subdirectory)
+    /// 5–8. Same 4 patterns on `master` branch (older repos)
     ///
     /// Many large skill repositories (e.g., `inference-sh/skills`) use a `skills/` subdirectory
     /// to organize skills within a monorepo. Other repos (e.g., `vercel-labs/agent-skills`)
-    /// place skill folders directly at the repository root.
+    /// place skill folders directly at the repository root. Some repos (e.g.,
+    /// `nextlevelbuilder/ui-ux-pro-max-skill`) use `.claude/skills/` as the skill directory.
+    /// Single-skill repos may place SKILL.md directly at the repository root.
     ///
     /// - Parameters:
     ///   - source: Repository in "owner/repo" format
     ///   - skillId: Skill identifier (directory name)
     /// - Returns: Array of candidate URLs to try in order
     func candidateURLs(source: String, skillId: String) -> [URL] {
-        // Two possible directory layouts within the repo
+        // Four possible directory layouts within the repo, ordered by likelihood:
         let paths = [
-            skillId,              // Flat layout: {skillId}/SKILL.md at repo root
-            "skills/\(skillId)",  // Monorepo layout: skills/{skillId}/SKILL.md
+            skillId,                          // Flat layout: {skillId}/SKILL.md at repo root
+            "skills/\(skillId)",              // Monorepo layout: skills/{skillId}/SKILL.md
+            ".claude/skills/\(skillId)",      // Plugin-style: .claude/skills/{skillId}/SKILL.md
+            "",                               // Root level: SKILL.md at repo root (no subdirectory)
         ]
         // Two possible branch names
         let branches = ["main", "master"]
 
         // Generate all combinations: branch × path
         // `flatMap` + `map` produces the cartesian product (similar to a nested for-loop)
+        // Result: 4 paths × 2 branches = 8 candidate URLs
         return branches.flatMap { branch in
             paths.map { path in
                 buildRawURL(source: source, path: path, branch: branch)
@@ -193,70 +207,77 @@ actor SkillContentFetcher {
 
     // MARK: - Private Networking
 
-    /// Fallback discovery: use GitHub Contents API to find the actual SKILL.md path
+    /// Fallback discovery: use GitHub Git Tree API to find the actual SKILL.md path
     ///
     /// When the `skillId` doesn't match the directory name on GitHub (e.g., skillId is
     /// "remotion-best-practices" but the directory is "remotion"), direct URL lookup fails.
-    /// This method lists directories in the repository via the GitHub Contents API and tries
-    /// each one until it finds a SKILL.md whose `name:` field matches the skillId.
+    /// This method fetches the entire repository file tree via the Git Tree API in a single
+    /// request (recursive mode), then searches for any file named `SKILL.md` at any depth.
     ///
-    /// GitHub Contents API: `GET https://api.github.com/repos/{owner}/{repo}/contents/{path}`
-    /// Returns a JSON array of file/directory entries with `name`, `type`, and `path` fields.
+    /// GitHub Git Tree API: `GET /repos/{owner}/{repo}/git/trees/{branch}?recursive=1`
+    /// Returns a JSON object with a `tree` array containing all files/directories recursively.
+    /// Each entry has `path` (full relative path), `type` ("blob" for files, "tree" for dirs),
+    /// and other git metadata.
+    ///
+    /// Advantages over the Contents API:
+    /// - **1 API call per branch** instead of 2+ (one per directory scanned)
+    /// - **Unlimited depth** — finds SKILL.md at any nesting level
+    /// - **Lower rate limit impact** — 2 total requests (main + master) vs 4+ with Contents API
+    ///
     /// Rate limit: 60 requests/hour for unauthenticated requests — sufficient for a desktop app.
     ///
     /// Strategy:
-    /// 1. List the `skills/` subdirectory (most monorepos use this convention)
-    /// 2. List the repo root (for flat-layout repos)
-    /// 3. For each discovered subdirectory, fetch its SKILL.md
-    /// 4. Verify the `name:` field in YAML frontmatter matches our skillId
+    /// 1. Fetch the full file tree for `main` (then `master` if that fails)
+    /// 2. Find all paths ending in `SKILL.md`
+    /// 3. For each match, fetch the raw content and verify the `name:` field matches our skillId
     ///
     /// - Parameters:
     ///   - source: Repository in "owner/repo" format
     ///   - skillId: The skill identifier to match against the YAML `name:` field
     /// - Returns: Raw SKILL.md content if found, nil otherwise
-    private func discoverViaContentsAPI(source: String, skillId: String) async throws -> String? {
+    private func discoverViaTreeAPI(source: String, skillId: String) async throws -> String? {
         // Try both "main" and "master" branches
         for branch in ["main", "master"] {
-            // Try listing directories at two levels: "skills/" first (monorepo), then root (flat)
-            let directoryPaths = ["skills", ""]
-            for dirPath in directoryPaths {
-                // Build GitHub Contents API URL.
-                // Format: `https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}`
-                // The `ref` query parameter selects the branch.
-                let apiPath = dirPath.isEmpty ? "" : "/\(dirPath)"
-                guard let apiURL = URL(string: "https://api.github.com/repos/\(source)/contents\(apiPath)?ref=\(branch)") else {
+            // Build Git Tree API URL with recursive flag to get the entire tree in one call.
+            // Format: `https://api.github.com/repos/{owner}/{repo}/git/trees/{branch}?recursive=1`
+            guard let apiURL = URL(
+                string: "https://api.github.com/repos/\(source)/git/trees/\(branch)?recursive=1"
+            ) else {
+                continue
+            }
+
+            // Fetch the full file tree from GitHub
+            guard let treePaths = await fetchTreeAPIListing(apiURL) else {
+                continue
+            }
+
+            // Filter for paths ending in "SKILL.md" — these are the candidate files.
+            // `hasSuffix` is Swift's endsWith (similar to Java's String.endsWith or Go's strings.HasSuffix).
+            let skillMDPaths = treePaths.filter { $0.hasSuffix("SKILL.md") }
+
+            // Try each discovered SKILL.md — fetch content and verify the name matches
+            for path in skillMDPaths {
+                // Remove the trailing "/SKILL.md" to get the directory path,
+                // or use empty string if it's a root-level SKILL.md
+                let dirPath: String
+                if path == "SKILL.md" {
+                    dirPath = ""
+                } else {
+                    // `dropLast` removes the trailing "/SKILL.md" (10 characters)
+                    dirPath = String(path.dropLast("/SKILL.md".count))
+                }
+
+                let rawURL = buildRawURL(source: source, path: dirPath, branch: branch)
+
+                guard let content = try await fetchFromURL(rawURL) else {
                     continue
                 }
 
-                // Fetch directory listing from GitHub API
-                guard let entries = await fetchContentsAPIListing(apiURL) else {
-                    continue
-                }
-
-                // Try each subdirectory to find the SKILL.md matching our skillId.
-                // We only check directories (type == "dir"), skip files.
-                for entry in entries {
-                    guard let entryType = entry["type"] as? String,
-                          entryType == "dir",
-                          let dirName = entry["name"] as? String else {
-                        continue
-                    }
-
-                    // Build the raw URL for this directory's SKILL.md
-                    let path = dirPath.isEmpty ? dirName : "\(dirPath)/\(dirName)"
-                    let rawURL = buildRawURL(source: source, path: path, branch: branch)
-
-                    // Fetch the SKILL.md content
-                    guard let content = try await fetchFromURL(rawURL) else {
-                        continue
-                    }
-
-                    // Verify this SKILL.md belongs to our skill by checking the `name:` field
-                    // in the YAML frontmatter. This avoids returning the wrong skill's content
-                    // in repos with multiple skills.
-                    if contentMatchesSkillId(content, skillId: skillId) {
-                        return content
-                    }
+                // Verify this SKILL.md belongs to our skill by checking the `name:` field
+                // in the YAML frontmatter. This avoids returning the wrong skill's content
+                // in repos with multiple skills.
+                if contentMatchesSkillId(content, skillId: skillId) {
+                    return content
                 }
             }
         }
@@ -264,19 +285,34 @@ actor SkillContentFetcher {
         return nil
     }
 
-    /// Fetch a directory listing from the GitHub Contents API
+    /// Fetch the full file tree from the GitHub Git Tree API
     ///
-    /// Sends a GET request to the API URL and parses the JSON response as an array
-    /// of directory entry dictionaries. Returns nil on any failure (network error,
-    /// non-200 status, invalid JSON) — the caller treats this as "directory not found".
+    /// Sends a GET request to the Tree API URL and parses the JSON response to extract
+    /// all file paths from the `tree` array. Returns nil on any failure (network error,
+    /// non-200 status, invalid JSON) — the caller treats this as "tree not available".
     ///
-    /// - Parameter url: The GitHub Contents API URL to fetch
-    /// - Returns: Array of entry dictionaries, or nil on failure
-    private func fetchContentsAPIListing(_ url: URL) async -> [[String: Any]]? {
+    /// The response JSON structure:
+    /// ```json
+    /// {
+    ///   "sha": "abc123...",
+    ///   "tree": [
+    ///     {"path": "README.md", "type": "blob", ...},
+    ///     {"path": "skills/my-skill/SKILL.md", "type": "blob", ...},
+    ///     {"path": "skills", "type": "tree", ...}
+    ///   ],
+    ///   "truncated": false
+    /// }
+    /// ```
+    ///
+    /// We only extract `path` values where `type == "blob"` (files, not directories).
+    ///
+    /// - Parameter url: The GitHub Git Tree API URL to fetch
+    /// - Returns: Array of file paths, or nil on failure
+    private func fetchTreeAPIListing(_ url: URL) async -> [String]? {
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
-        // GitHub API requires a specific Accept header for JSON responses
-        // v3+json is the stable REST API version
+        // GitHub API requires a specific Accept header for JSON responses.
+        // v3+json is the stable REST API version.
         request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
         // User-Agent is required by GitHub API — requests without it may be rejected
         request.setValue("SkillDeck", forHTTPHeaderField: "User-Agent")
@@ -289,10 +325,25 @@ actor SkillContentFetcher {
             return nil
         }
 
-        // Parse JSON array of directory entries
-        // `JSONSerialization` is Foundation's JSON parser (similar to Java's org.json or Go's encoding/json)
-        // Each entry has: {"name": "dirname", "type": "dir", "path": "skills/dirname", ...}
-        return try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+        // Parse JSON response and extract the `tree` array.
+        // `JSONSerialization` is Foundation's JSON parser (similar to Java's org.json or Go's encoding/json).
+        // We cast to [String: Any] (dictionary) since the Tree API returns an object, not an array.
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let tree = json["tree"] as? [[String: Any]] else {
+            return nil
+        }
+
+        // Extract file paths from tree entries (only blobs = files, skip tree = directories).
+        // `compactMap` filters out nil values — similar to Java's Stream.filter().map() or
+        // Go's slice filtering pattern.
+        return tree.compactMap { entry -> String? in
+            guard let type = entry["type"] as? String,
+                  type == "blob",
+                  let path = entry["path"] as? String else {
+                return nil
+            }
+            return path
+        }
     }
 
     /// Check if a SKILL.md content's `name:` field matches the expected skillId
