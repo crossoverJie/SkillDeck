@@ -95,4 +95,106 @@ final class GitServiceTests: XCTestCase {
         XCTAssertEqual(repoURL, "https://github.com/vercel-labs/skills.git")
         XCTAssertEqual(source, "vercel-labs/skills")
     }
+
+    // MARK: - scanSkillsInRepo Tests
+
+    /// Test that scanSkillsInRepo discovers SKILL.md inside hidden directories like `.claude/skills/`.
+    ///
+    /// Some repositories (e.g. nextlevelbuilder/ui-ux-pro-max-skill) store skills at
+    /// `.claude/skills/<name>/SKILL.md`. Previously, `FileManager.enumerator` was created
+    /// with `.skipsHiddenFiles`, which caused `.claude/` to be skipped entirely.
+    /// This test verifies the fix: hidden directories are now traversed.
+    func testScanSkillsInRepoFindsHiddenDirectorySkills() async throws {
+        let fm = FileManager.default
+        // Create a temporary directory simulating a cloned repo
+        let repoDir = fm.temporaryDirectory.appendingPathComponent("SkillDeck-test-\(UUID().uuidString)")
+        // Simulate `.claude/skills/my-skill/SKILL.md` layout
+        let skillDir = repoDir
+            .appendingPathComponent(".claude")
+            .appendingPathComponent("skills")
+            .appendingPathComponent("my-skill")
+        try fm.createDirectory(at: skillDir, withIntermediateDirectories: true)
+
+        // Write a minimal SKILL.md with YAML frontmatter
+        let skillMDContent = """
+        ---
+        name: my-skill
+        description: A test skill in a hidden directory
+        ---
+        # My Skill
+        Hello world
+        """
+        try skillMDContent.write(
+            to: skillDir.appendingPathComponent("SKILL.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        // `defer` ensures cleanup runs when the function exits (similar to Go's defer)
+        defer { try? fm.removeItem(at: repoDir) }
+
+        // GitService is an actor, so we need `await` to call its methods
+        let gitService = GitService()
+        let skills = await gitService.scanSkillsInRepo(repoDir: repoDir)
+
+        // Should find exactly 1 skill
+        XCTAssertEqual(skills.count, 1, "Expected 1 skill in hidden directory, found \(skills.count)")
+        // Verify skill metadata
+        let skill = try XCTUnwrap(skills.first)
+        XCTAssertEqual(skill.id, "my-skill")
+        XCTAssertEqual(skill.folderPath, ".claude/skills/my-skill")
+        XCTAssertEqual(skill.skillMDPath, ".claude/skills/my-skill/SKILL.md")
+    }
+
+    /// Test that scanSkillsInRepo skips the `.git` directory when scanning.
+    ///
+    /// The `.git` directory is large and never contains real skills.
+    /// After removing `.skipsHiddenFiles`, we manually skip `.git` to avoid
+    /// false positives (e.g. a SKILL.md inside `.git/` should be ignored).
+    func testScanSkillsInRepoSkipsGitDirectory() async throws {
+        let fm = FileManager.default
+        let repoDir = fm.temporaryDirectory.appendingPathComponent("SkillDeck-test-\(UUID().uuidString)")
+
+        // Create a real skill at top level
+        let realSkillDir = repoDir.appendingPathComponent("my-real-skill")
+        try fm.createDirectory(at: realSkillDir, withIntermediateDirectories: true)
+        let realContent = """
+        ---
+        name: my-real-skill
+        description: A legitimate skill
+        ---
+        # Real Skill
+        """
+        try realContent.write(
+            to: realSkillDir.appendingPathComponent("SKILL.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        // Create a fake SKILL.md inside `.git/` — this should be ignored
+        let gitDir = repoDir.appendingPathComponent(".git")
+        try fm.createDirectory(at: gitDir, withIntermediateDirectories: true)
+        let fakeContent = """
+        ---
+        name: fake-git-skill
+        description: Should be ignored
+        ---
+        # Fake
+        """
+        try fakeContent.write(
+            to: gitDir.appendingPathComponent("SKILL.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        defer { try? fm.removeItem(at: repoDir) }
+
+        let gitService = GitService()
+        let skills = await gitService.scanSkillsInRepo(repoDir: repoDir)
+
+        // Should find only the real skill, not the one inside .git/
+        XCTAssertEqual(skills.count, 1, "Expected 1 skill (should skip .git), found \(skills.count)")
+        let skill = try XCTUnwrap(skills.first)
+        XCTAssertEqual(skill.id, "my-real-skill")
+    }
 }

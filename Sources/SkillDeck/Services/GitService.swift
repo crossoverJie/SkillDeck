@@ -228,17 +228,28 @@ actor GitService {
 
         // enumerator recursively traverses directory tree (similar to Python's os.walk or Go's filepath.Walk)
         // includingPropertiesForKeys prefetches file attributes for better performance
+        // Don't use .skipsHiddenFiles — some repos store skills under hidden directories
+        // like `.claude/skills/`, which would be skipped entirely by that option.
+        // Instead, we manually skip `.git` (the only hidden directory we must avoid).
         guard let enumerator = fm.enumerator(
             at: repoDir,
             includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]  // Skip hidden directories like .git
+            options: []  // Don't skip hidden files — .claude/skills/ is hidden but valid
         ) else {
             return []
         }
 
-        // Collect paths of all SKILL.md files
+        // Collect paths of all SKILL.md files, skipping .git directory
         var skillMDURLs: [URL] = []
         while let fileURL = enumerator.nextObject() as? URL {
+            // Skip .git directory — it's large and never contains skills.
+            // Using lastPathComponent so we catch .git at any nesting level.
+            if fileURL.lastPathComponent == ".git" {
+                // skipDescendants() tells the enumerator to not recurse into this directory,
+                // similar to returning filepath.SkipDir in Go's filepath.Walk.
+                enumerator.skipDescendants()
+                continue
+            }
             if fileURL.lastPathComponent == "SKILL.md" {
                 skillMDURLs.append(fileURL)
             }
