@@ -112,6 +112,13 @@ private struct RepositoryRowView: View {
                     Text("•")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                    Text(repo.scanHiddenPaths ? "Hidden paths: On" : "Hidden paths: Off")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .help("When enabled, SkillDeck also scans hidden directories (paths containing segments like .claude or .config).")
+                    Text("•")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                     Text(repo.repoURL)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -128,9 +135,12 @@ private struct RepositoryRowView: View {
                     Text("Synced")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text(date, style: .relative)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        Text(gitStyleRelativeTime(from: date, now: context.date))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .help(absoluteDateText(date))
                 } else {
                     Text("Never synced")
                         .font(.caption2)
@@ -194,6 +204,49 @@ private struct RepositoryRowView: View {
         await skillManager.removeRepository(id: repo.id)
         isRemoving = false
     }
+
+    /// Compact relative time style similar to git UIs (e.g. "3m ago", "2h ago", "yesterday").
+    private func gitStyleRelativeTime(from date: Date, now: Date) -> String {
+        let delta = now.timeIntervalSince(date)
+        if delta < 0 {
+            return "just now"
+        }
+        if delta < 60 {
+            return "just now"
+        }
+        if delta < 3600 {
+            return "\(Int(delta / 60))m ago"
+        }
+        if delta < 86_400 {
+            return "\(Int(delta / 3600))h ago"
+        }
+        if delta < 172_800 {
+            return "yesterday"
+        }
+        if delta < 604_800 {
+            return "\(Int(delta / 86_400))d ago"
+        }
+        if delta < 2_592_000 {
+            return "\(Int(delta / 604_800))w ago"
+        }
+        if delta < 31_536_000 {
+            return "\(Int(delta / 2_592_000))mo ago"
+        }
+        return "\(Int(delta / 31_536_000))y ago"
+    }
+
+    /// Full timestamp shown on hover so users can inspect exact sync time.
+    private func absoluteDateText(_ date: Date) -> String {
+        Self.absoluteDateFormatter.string(from: date)
+    }
+
+    private static let absoluteDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
 }
 
 // MARK: - Add Repository Sheet
@@ -204,6 +257,7 @@ private struct RepositoryRowView: View {
 /// - Repository URL (required): SSH or HTTPS
 /// - Optional HTTPS credentials (username + token)
 /// - Display name (optional, auto-derived from URL if empty)
+/// - Hidden-path scan switch (default off)
 ///
 /// On confirm: creates a SkillRepository, calls SkillManager.addRepository(), then syncs.
 struct AddRepositorySheet: View {
@@ -217,6 +271,7 @@ struct AddRepositorySheet: View {
     @State private var httpUsername = "git"
     @State private var accessToken = ""
     @State private var displayName = ""
+    @State private var scanHiddenPaths = false
     @State private var isAdding = false
     @State private var errorMessage: String?
 
@@ -245,9 +300,10 @@ struct AddRepositorySheet: View {
                         Text(mode.displayName).tag(mode)
                     }
                 }
-                .pickerStyle(.segmented)
-                .onChange(of: authType) { _, _ in
-                    errorMessage = nil
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .onChange(of: authType) { _, newValue in
+                    applyAuthTypeChange(newValue)
                 }
             }
 
@@ -328,6 +384,17 @@ struct AddRepositorySheet: View {
                     .foregroundStyle(.tertiary)
             }
 
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle("Scan hidden paths", isOn: $scanHiddenPaths)
+                    .help("Disabled by default to avoid duplicate/ambiguous skills from hidden mirrors. Enable only when your skills are intentionally stored under hidden directories.")
+
+                Text(scanHiddenPaths
+                     ? "Includes SKILL.md under hidden folders (path segments starting with '.')."
+                     : "Default mode: only scans non-hidden paths. This avoids accidental duplicates from hidden mirror folders.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+
             // Error message (shown if add fails)
             if let errorMessage {
                 HStack(spacing: 6) {
@@ -362,7 +429,7 @@ struct AddRepositorySheet: View {
             }
         }
         .padding(20)
-        .frame(width: 500, height: authType == .ssh ? 360 : 470)
+        .frame(width: 500, height: authType == .ssh ? 430 : 540)
     }
 
     /// Validate input, create SkillRepository, add via SkillManager, then trigger sync.
@@ -404,7 +471,8 @@ struct AddRepositorySheet: View {
             lastSyncedAt: nil,
             localSlug: SkillRepository.slugFrom(repoURL: url),
             httpUsername: authType == .httpsToken ? (username.isEmpty ? nil : username) : nil,
-            credentialKey: credentialKey
+            credentialKey: credentialKey,
+            scanHiddenPaths: scanHiddenPaths
         )
 
         do {
@@ -418,6 +486,20 @@ struct AddRepositorySheet: View {
         } catch {
             errorMessage = error.localizedDescription
             isAdding = false
+        }
+    }
+
+    /// Keep form values coherent when switching between SSH and HTTPS modes.
+    private func applyAuthTypeChange(_ newType: SkillRepository.AuthType) {
+        errorMessage = nil
+
+        let converted = SkillRepository.convertRepoURL(repoURL, to: newType)
+        if converted != repoURL {
+            repoURL = converted
+        }
+
+        if newType == .httpsToken && httpUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            httpUsername = "git"
         }
     }
 }

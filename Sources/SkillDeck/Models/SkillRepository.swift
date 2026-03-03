@@ -114,6 +114,11 @@ struct SkillRepository: Codable, Identifiable, Hashable {
     /// Usually the repository UUID string.
     var credentialKey: String?
 
+    /// Whether hidden directories/files should be scanned for SKILL.md in this repository.
+    ///
+    /// Default is false to reduce ambiguity from duplicated hidden mirror directories.
+    var scanHiddenPaths: Bool = false
+
     // MARK: - Computed Properties
 
     /// Full local path to the cloned repository directory.
@@ -224,6 +229,60 @@ extension SkillRepository {
             return nil
         }
     }
+
+    /// Convert repository URL to the desired authentication scheme while preserving host and path.
+    ///
+    /// Examples:
+    /// - git@github.com:org/repo.git -> https://github.com/org/repo.git
+    /// - https://gitlab.com/org/repo.git -> git@gitlab.com:org/repo.git
+    ///
+    /// Returns the original value unchanged when URL format cannot be parsed safely.
+    static func convertRepoURL(_ repoURL: String, to authType: AuthType) -> String {
+        let trimmed = repoURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return trimmed }
+        guard let parsed = parseHostAndPath(from: trimmed) else { return trimmed }
+
+        switch authType {
+        case .ssh:
+            return "git@\(parsed.host):\(parsed.path).git"
+        case .httpsToken:
+            return "https://\(parsed.host)/\(parsed.path).git"
+        }
+    }
+
+    /// Parse host/path from SSH/HTTPS repository URL formats used by SkillDeck.
+    private static func parseHostAndPath(from repoURL: String) -> (host: String, path: String)? {
+        let lower = repoURL.lowercased()
+        var host: String?
+        var path: String?
+
+        if lower.hasPrefix("git@") {
+            let withoutPrefix = String(repoURL.dropFirst(4))
+            let parts = withoutPrefix.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: true)
+            guard parts.count == 2 else { return nil }
+            host = String(parts[0])
+            path = String(parts[1])
+        } else if lower.hasPrefix("ssh://") || lower.hasPrefix("https://") {
+            guard let components = URLComponents(string: repoURL),
+                  let parsedHost = components.host else {
+                return nil
+            }
+            host = parsedHost
+            path = components.path
+        } else {
+            return nil
+        }
+
+        guard let host, var path else { return nil }
+        path = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if path.hasSuffix(".git") {
+            path = String(path.dropLast(4))
+        }
+        guard !host.isEmpty, !path.isEmpty, path.contains("/") else {
+            return nil
+        }
+        return (host, path)
+    }
 }
 
 // MARK: - Codable Backward Compatibility
@@ -241,6 +300,7 @@ extension SkillRepository {
         case localSlug
         case httpUsername
         case credentialKey
+        case scanHiddenPaths
     }
 
     init(from decoder: Decoder) throws {
@@ -259,6 +319,7 @@ extension SkillRepository {
         self.localSlug = try container.decode(String.self, forKey: .localSlug)
         self.httpUsername = try container.decodeIfPresent(String.self, forKey: .httpUsername)
         self.credentialKey = try container.decodeIfPresent(String.self, forKey: .credentialKey)
+        self.scanHiddenPaths = try container.decodeIfPresent(Bool.self, forKey: .scanHiddenPaths) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -273,5 +334,6 @@ extension SkillRepository {
         try container.encode(localSlug, forKey: .localSlug)
         try container.encodeIfPresent(httpUsername, forKey: .httpUsername)
         try container.encodeIfPresent(credentialKey, forKey: .credentialKey)
+        try container.encode(scanHiddenPaths, forKey: .scanHiddenPaths)
     }
 }

@@ -226,14 +226,18 @@ actor GitService {
 
     /// Scan cloned repository directory, discover all skills containing SKILL.md
     ///
-    /// - Parameter repoDir: Local directory of cloned repository
+    /// - Parameters:
+    ///   - repoDir: Local directory of cloned repository
+    ///   - includeHiddenPaths: Whether hidden path segments (e.g. `.claude/`) should be scanned.
+    ///     Defaults to true for generic scan use-cases. Custom repositories can override this.
     /// - Returns: Array of all discovered skills
     ///
     /// Recursively traverse repository directory tree, find directories containing SKILL.md,
     /// and parse metadata with SkillMDParser. Similar to Go's filepath.Walk.
-    func scanSkillsInRepo(repoDir: URL) -> [DiscoveredSkill] {
+    func scanSkillsInRepo(repoDir: URL, includeHiddenPaths: Bool = true) -> [DiscoveredSkill] {
         let fm = FileManager.default
         var discovered: [DiscoveredSkill] = []
+        let repoDirPath = repoDir.standardizedFileURL.path
 
         // enumerator recursively traverses directory tree (similar to Python's os.walk or Go's filepath.Walk)
         // includingPropertiesForKeys prefetches file attributes for better performance
@@ -260,6 +264,18 @@ actor GitService {
                 continue
             }
             if fileURL.lastPathComponent == "SKILL.md" {
+                let fullPath = fileURL.standardizedFileURL.path
+                if fullPath.hasPrefix(repoDirPath) {
+                    var relative = String(fullPath.dropFirst(repoDirPath.count))
+                    if relative.hasPrefix("/") {
+                        relative = String(relative.dropFirst())
+                    }
+                    // Custom repos can disable hidden-path scan to avoid ambiguity from
+                    // duplicate mirrors under hidden directories.
+                    if !includeHiddenPaths && containsHiddenPathSegment(relative) {
+                        continue
+                    }
+                }
                 skillMDURLs.append(fileURL)
             }
         }
@@ -317,8 +333,53 @@ actor GitService {
             }
         }
 
-        // Sort by name
-        return discovered.sorted { $0.id.lowercased() < $1.id.lowercased() }
+        // Deduplicate by skill id. If duplicates exist (e.g. hidden mirror + normal path),
+        // prefer non-hidden and shallower path.
+        var uniqueByID: [String: DiscoveredSkill] = [:]
+        for skill in discovered {
+            if let existing = uniqueByID[skill.id] {
+                if shouldPrefer(skill, over: existing) {
+                    uniqueByID[skill.id] = skill
+                }
+            } else {
+                uniqueByID[skill.id] = skill
+            }
+        }
+
+        // Sort by id with a folderPath tie-breaker for deterministic UI ordering.
+        return uniqueByID.values.sorted {
+            let lhsID = $0.id.lowercased()
+            let rhsID = $1.id.lowercased()
+            if lhsID == rhsID {
+                return $0.folderPath.lowercased() < $1.folderPath.lowercased()
+            }
+            return lhsID < rhsID
+        }
+    }
+
+    private func containsHiddenPathSegment(_ relativePath: String) -> Bool {
+        relativePath.split(separator: "/").contains { $0.hasPrefix(".") }
+    }
+
+    /// Pick the better candidate when multiple discovered entries share the same skill id.
+    private func shouldPrefer(_ lhs: DiscoveredSkill, over rhs: DiscoveredSkill) -> Bool {
+        let lhsHidden = containsHiddenPathComponent(lhs.folderPath)
+        let rhsHidden = containsHiddenPathComponent(rhs.folderPath)
+        if lhsHidden != rhsHidden {
+            return !lhsHidden
+        }
+
+        let lhsDepth = lhs.folderPath.split(separator: "/").count
+        let rhsDepth = rhs.folderPath.split(separator: "/").count
+        if lhsDepth != rhsDepth {
+            return lhsDepth < rhsDepth
+        }
+
+        return lhs.folderPath.lowercased() < rhs.folderPath.lowercased()
+    }
+
+    private func containsHiddenPathComponent(_ folderPath: String) -> Bool {
+        folderPath.split(separator: "/").contains { $0.hasPrefix(".") }
     }
 
     /// Clean up temporary directory

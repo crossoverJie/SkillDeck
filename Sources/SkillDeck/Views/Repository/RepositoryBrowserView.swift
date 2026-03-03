@@ -114,9 +114,12 @@ struct RepositoryBrowserView: View {
 
             // Last synced timestamp
             if let date = viewModel.repository.lastSyncedAt {
-                Text("Synced \(date, style: .relative) ago")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    Text("Synced \(gitStyleRelativeTime(from: date, now: context.date))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                .help(absoluteDateText(date))
             } else {
                 Text("Never synced")
                     .font(.caption2)
@@ -194,6 +197,49 @@ struct RepositoryBrowserView: View {
     private var trimmedSearchText: String {
         viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    /// Compact relative time style similar to git UIs (e.g. "3m ago", "2h ago", "yesterday").
+    private func gitStyleRelativeTime(from date: Date, now: Date) -> String {
+        let delta = now.timeIntervalSince(date)
+        if delta < 0 {
+            return "just now"
+        }
+        if delta < 60 {
+            return "just now"
+        }
+        if delta < 3600 {
+            return "\(Int(delta / 60))m ago"
+        }
+        if delta < 86_400 {
+            return "\(Int(delta / 3600))h ago"
+        }
+        if delta < 172_800 {
+            return "yesterday"
+        }
+        if delta < 604_800 {
+            return "\(Int(delta / 86_400))d ago"
+        }
+        if delta < 2_592_000 {
+            return "\(Int(delta / 604_800))w ago"
+        }
+        if delta < 31_536_000 {
+            return "\(Int(delta / 2_592_000))mo ago"
+        }
+        return "\(Int(delta / 31_536_000))y ago"
+    }
+
+    /// Full timestamp shown on hover so users can inspect exact sync time.
+    private func absoluteDateText(_ date: Date) -> String {
+        Self.absoluteDateFormatter.string(from: date)
+    }
+
+    private static let absoluteDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
 
     /// Scrollable list of skills
     private var skillList: some View {

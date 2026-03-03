@@ -90,13 +90,24 @@ struct ContentView: View {
                     )
                 }
             } else if case .customRepo = selectedSidebarItem {
-                // Custom repo: detail pane shows "Select a skill" placeholder
-                // (individual skill detail for custom repos can be added in a future iteration)
-                EmptyStateView(
-                    icon: "archivebox",
-                    title: "Select a Skill",
-                    subtitle: "Choose a skill from the repository to install it"
-                )
+                if case .customRepo(let repoID) = selectedSidebarItem,
+                   let vm = repoVMs[repoID],
+                   let skill = vm.selectedSkill {
+                    RepositorySkillDetailView(
+                        skill: skill,
+                        repository: vm.repository,
+                        isInstalled: vm.isInstalled(skill),
+                        canInstall: vm.canInstallFromLocal,
+                        installDisabledReason: vm.installDisabledReason,
+                        onInstall: { vm.installSkill(skill) }
+                    )
+                } else {
+                    EmptyStateView(
+                        icon: "archivebox",
+                        title: "Select a Skill",
+                        subtitle: "Choose a skill from the repository to view its details"
+                    )
+                }
             } else if let skillID = selectedSkillID, let vm = detailVM {
                 SkillDetailView(skillID: skillID, viewModel: vm)
                     // .id(skillID) forces SwiftUI to destroy and recreate the detail view

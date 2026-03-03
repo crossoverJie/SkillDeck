@@ -183,6 +183,7 @@ actor RepositoryManager {
     ///
     /// Reuses `GitService.scanSkillsInRepo` which recursively walks the repo
     /// directory and parses all SKILL.md files it finds.
+    /// Hidden-path scanning follows each repository's `scanHiddenPaths` setting.
     ///
     /// Marked `async` because `gitService.scanSkillsInRepo` is an actor-isolated method —
     /// calling it from outside the `GitService` actor requires `await` (cross-actor async hop).
@@ -192,7 +193,10 @@ actor RepositoryManager {
     func scanSkills(in repo: SkillRepository) async -> [GitService.DiscoveredSkill] {
         guard repo.isCloned else { return [] }
         let repoDir = URL(fileURLWithPath: repo.localPath)
-        return await gitService.scanSkillsInRepo(repoDir: repoDir)
+        return await gitService.scanSkillsInRepo(
+            repoDir: repoDir,
+            includeHiddenPaths: repo.scanHiddenPaths
+        )
     }
 
     // MARK: - Private: Clone

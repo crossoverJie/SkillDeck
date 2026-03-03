@@ -48,6 +48,14 @@ final class RepositoryBrowserViewModel {
     /// Currently selected skill (drives the detail pane in ContentView)
     var selectedSkillID: String?
 
+    /// Selected skill object resolved from `selectedSkillID`.
+    ///
+    /// This is consumed by ContentView's detail column for custom repositories.
+    var selectedSkill: GitService.DiscoveredSkill? {
+        guard let id = selectedSkillID else { return nil }
+        return allSkills.first { $0.id == id }
+    }
+
     /// Install sheet ViewModel — non-nil triggers the install sheet.
     /// Same pattern as RegistryBrowserViewModel.installVM.
     var installVM: SkillInstallViewModel?
@@ -133,6 +141,10 @@ final class RepositoryBrowserViewModel {
         await Task.yield()
 
         allSkills = skills
+        // If selected skill no longer exists after reload/sync, clear stale selection.
+        if let selectedSkillID, !allSkills.contains(where: { $0.id == selectedSkillID }) {
+            self.selectedSkillID = nil
+        }
         isLoading = false
 
         if let override = overrideError {
