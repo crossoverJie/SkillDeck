@@ -124,7 +124,7 @@ actor RepositoryManager {
         }
     }
 
-    /// Sync all enabled repositories: clone if not yet cloned, pull otherwise.
+    /// Sync all repositories configured to sync on launch: clone if not yet cloned, pull otherwise.
     ///
     /// Runs each repository's sync sequentially to avoid hitting git's SSH connection limits.
     /// Errors are logged per-repository and do not stop other repos from syncing.
@@ -135,7 +135,7 @@ actor RepositoryManager {
         if !isLoaded { await loadFromDisk() }
 
         var results: [UUID: String?] = [:]
-        for repo in cachedRepos where repo.isEnabled {
+        for repo in cachedRepos where repo.syncOnLaunch {
             do {
                 try await sync(repo: repo)
                 results[repo.id] = nil  // nil = success

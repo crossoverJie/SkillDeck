@@ -26,4 +26,41 @@ final class SkillRepositoryTests: XCTestCase {
         let output = SkillRepository.convertRepoURL(input, to: .httpsToken)
         XCTAssertEqual(output, input)
     }
+
+    func testDecodeSyncOnLaunchDefaultsToFalseWhenMissing() throws {
+        let json = """
+        {
+          "id": "11111111-1111-1111-1111-111111111111",
+          "name": "team-skills",
+          "repoURL": "https://example.com/org/repo.git",
+          "authType": "httpsToken",
+          "platform": "github",
+          "isEnabled": true,
+          "localSlug": "org-repo"
+        }
+        """
+
+        let data = Data(json.utf8)
+        let repo = try JSONDecoder().decode(SkillRepository.self, from: data)
+        XCTAssertFalse(repo.syncOnLaunch)
+    }
+
+    func testDecodeSyncOnLaunchTrueWhenPresent() throws {
+        let json = """
+        {
+          "id": "22222222-2222-2222-2222-222222222222",
+          "name": "team-skills",
+          "repoURL": "https://example.com/org/repo.git",
+          "authType": "httpsToken",
+          "platform": "github",
+          "isEnabled": true,
+          "localSlug": "org-repo",
+          "syncOnLaunch": true
+        }
+        """
+
+        let data = Data(json.utf8)
+        let repo = try JSONDecoder().decode(SkillRepository.self, from: data)
+        XCTAssertTrue(repo.syncOnLaunch)
+    }
 }

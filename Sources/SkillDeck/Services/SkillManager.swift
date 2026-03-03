@@ -138,7 +138,7 @@ final class SkillManager {
         // Load custom repositories config from disk (fast — JSON read only)
         repositories = await repositoryManager.loadAll()
 
-        // Trigger background sync for all enabled repos (clone/pull).
+        // Trigger background sync for all repos configured with "sync on launch" (clone/pull).
         // `Task { }` creates a detached child task that runs concurrently,
         // similar to Go's `go func(){}` — we don't await it here.
         Task { await syncAllRepositories() }
@@ -808,6 +808,14 @@ final class SkillManager {
         repoSyncStatuses.removeValue(forKey: id)
     }
 
+    /// Update an existing custom repository configuration.
+    ///
+    /// Used for editable per-repository settings (for example: startup sync toggle).
+    func updateRepository(_ repo: SkillRepository) async {
+        await repositoryManager.update(repo)
+        repositories = await repositoryManager.loadAll()
+    }
+
     /// Sync (clone or pull) a single repository and update its status in the UI.
     ///
     /// Updates `repoSyncStatuses[id]` to `.syncing` while in progress,
@@ -826,12 +834,12 @@ final class SkillManager {
         }
     }
 
-    /// Sync all enabled repositories in the background.
+    /// Sync all repositories configured to "sync on launch" in the background.
     ///
     /// Called automatically on startup by `refresh()`.
     /// Each repo's status is updated in `repoSyncStatuses` independently.
     func syncAllRepositories() async {
-        for repo in repositories where repo.isEnabled {
+        for repo in repositories where repo.syncOnLaunch {
             await syncRepository(id: repo.id)
         }
     }

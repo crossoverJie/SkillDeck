@@ -90,6 +90,7 @@ private struct RepositoryRowView: View {
     @Environment(SkillManager.self) private var skillManager
     let repo: SkillRepository
     @State private var showDeleteConfirmation = false
+    @State private var showEditSheet = false
     @State private var isRemoving = false
 
     var body: some View {
@@ -109,13 +110,6 @@ private struct RepositoryRowView: View {
                     Text(repo.authType.displayName)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text("•")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                    Text(repo.scanHiddenPaths ? "Hidden paths: On" : "Hidden paths: Off")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .help("When enabled, SkillDeck also scans hidden directories (paths containing segments like .claude or .config).")
                     Text("•")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
@@ -151,6 +145,15 @@ private struct RepositoryRowView: View {
             // Sync status indicator
             syncStatusView
 
+            Button {
+                showEditSheet = true
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+            }
+            .buttonStyle(.borderless)
+            .help("Edit repository settings")
+            .disabled(isRemoving)
+
             Button(role: .destructive) {
                 showDeleteConfirmation = true
             } label: {
@@ -174,6 +177,10 @@ private struct RepositoryRowView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This removes the repository config from SkillDeck. Local clone files are kept.")
+        }
+        .sheet(isPresented: $showEditSheet) {
+            EditRepositorySheet(repo: repo, isPresented: $showEditSheet)
+                .environment(skillManager)
         }
     }
 
@@ -249,6 +256,147 @@ private struct RepositoryRowView: View {
     }()
 }
 
+// MARK: - Edit Repository Sheet
+
+/// Sheet for editing existing repository settings.
+///
+/// Editable fields:
+/// - Display name
+/// - Sync on Launch
+/// - Scan hidden paths
+///
+/// Read-only fields:
+/// - Authentication
+/// - Repository URL
+private struct EditRepositorySheet: View {
+
+    @Environment(SkillManager.self) private var skillManager
+    let repo: SkillRepository
+    @Binding var isPresented: Bool
+
+    @State private var displayName: String
+    @State private var syncOnLaunch: Bool
+    @State private var scanHiddenPaths: Bool
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    init(repo: SkillRepository, isPresented: Binding<Bool>) {
+        self.repo = repo
+        self._isPresented = isPresented
+        self._displayName = State(initialValue: repo.name)
+        self._syncOnLaunch = State(initialValue: repo.syncOnLaunch)
+        self._scanHiddenPaths = State(initialValue: repo.scanHiddenPaths)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Edit Repository")
+                .font(.headline)
+                .padding(.bottom, 4)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Display Name")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fontWeight(.medium)
+                TextField("e.g. team-skills", text: $displayName)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle("Sync on Launch", isOn: $syncOnLaunch)
+                    .help("Controls only startup auto-sync. Manual 'Sync Now' is always available.")
+                Text(syncOnLaunch
+                     ? "This repository will auto-sync when SkillDeck starts."
+                     : "No startup auto-sync. Use 'Sync Now' when needed.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle("Scan hidden paths", isOn: $scanHiddenPaths)
+                    .help("When enabled, SKILL.md files under hidden path segments (e.g. .claude) are included.")
+                Text(scanHiddenPaths
+                     ? "Hidden path scanning is enabled for this repository."
+                     : "Only non-hidden paths are scanned for this repository.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+
+            Divider()
+
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                GridRow {
+                    Text("Authentication")
+                        .foregroundStyle(.secondary)
+                    Text(repo.authType.displayName)
+                }
+                GridRow {
+                    Text("Repository URL")
+                        .foregroundStyle(.secondary)
+                    Text(repo.repoURL)
+                        .textSelection(.enabled)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            .font(.caption)
+
+            if let errorMessage {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .lineLimit(3)
+                }
+            }
+
+            Spacer()
+
+            HStack {
+                Button("Cancel") {
+                    isPresented = false
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Spacer()
+
+                Button(isSaving ? "Saving…" : "Save") {
+                    Task { await save() }
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(isSaving)
+            }
+        }
+        .padding(20)
+        .frame(width: 500, height: 420)
+    }
+
+    private func save() async {
+        let trimmedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            errorMessage = "Display Name cannot be empty"
+            return
+        }
+
+        isSaving = true
+        errorMessage = nil
+
+        var updated = repo
+        updated.name = trimmedName
+        updated.syncOnLaunch = syncOnLaunch
+        updated.scanHiddenPaths = scanHiddenPaths
+
+        await skillManager.updateRepository(updated)
+        isSaving = false
+        isPresented = false
+    }
+}
+
 // MARK: - Add Repository Sheet
 
 /// Sheet for adding a new custom repository.
@@ -257,6 +405,7 @@ private struct RepositoryRowView: View {
 /// - Repository URL (required): SSH or HTTPS
 /// - Optional HTTPS credentials (username + token)
 /// - Display name (optional, auto-derived from URL if empty)
+/// - Startup sync switch (default off)
 /// - Hidden-path scan switch (default off)
 ///
 /// On confirm: creates a SkillRepository, calls SkillManager.addRepository(), then syncs.
@@ -271,6 +420,7 @@ struct AddRepositorySheet: View {
     @State private var httpUsername = "git"
     @State private var accessToken = ""
     @State private var displayName = ""
+    @State private var syncOnLaunch = false
     @State private var scanHiddenPaths = false
     @State private var isAdding = false
     @State private var errorMessage: String?
@@ -385,6 +535,17 @@ struct AddRepositorySheet: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
+                Toggle("Sync on Launch", isOn: $syncOnLaunch)
+                    .help("When enabled, this repository auto-syncs when SkillDeck starts. Disabled by default for better startup performance.")
+
+                Text(syncOnLaunch
+                     ? "This repository will auto-sync at app startup."
+                     : "Default mode: no startup auto-sync. You can always sync manually with 'Sync Now'.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
                 Toggle("Scan hidden paths", isOn: $scanHiddenPaths)
                     .help("Disabled by default to avoid duplicate/ambiguous skills from hidden mirrors. Enable only when your skills are intentionally stored under hidden directories.")
 
@@ -429,7 +590,7 @@ struct AddRepositorySheet: View {
             }
         }
         .padding(20)
-        .frame(width: 500, height: authType == .ssh ? 430 : 540)
+        .frame(width: 500, height: authType == .ssh ? 500 : 610)
     }
 
     /// Validate input, create SkillRepository, add via SkillManager, then trigger sync.
@@ -472,7 +633,8 @@ struct AddRepositorySheet: View {
             localSlug: SkillRepository.slugFrom(repoURL: url),
             httpUsername: authType == .httpsToken ? (username.isEmpty ? nil : username) : nil,
             credentialKey: credentialKey,
-            scanHiddenPaths: scanHiddenPaths
+            scanHiddenPaths: scanHiddenPaths,
+            syncOnLaunch: syncOnLaunch
         )
 
         do {

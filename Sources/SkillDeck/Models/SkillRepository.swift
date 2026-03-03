@@ -119,6 +119,11 @@ struct SkillRepository: Codable, Identifiable, Hashable {
     /// Default is false to reduce ambiguity from duplicated hidden mirror directories.
     var scanHiddenPaths: Bool = false
 
+    /// Whether this repository should auto-sync when app starts.
+    ///
+    /// Default is false to avoid startup performance impact when many repositories are configured.
+    var syncOnLaunch: Bool = false
+
     // MARK: - Computed Properties
 
     /// Full local path to the cloned repository directory.
@@ -301,6 +306,7 @@ extension SkillRepository {
         case httpUsername
         case credentialKey
         case scanHiddenPaths
+        case syncOnLaunch
     }
 
     init(from decoder: Decoder) throws {
@@ -320,6 +326,7 @@ extension SkillRepository {
         self.httpUsername = try container.decodeIfPresent(String.self, forKey: .httpUsername)
         self.credentialKey = try container.decodeIfPresent(String.self, forKey: .credentialKey)
         self.scanHiddenPaths = try container.decodeIfPresent(Bool.self, forKey: .scanHiddenPaths) ?? false
+        self.syncOnLaunch = try container.decodeIfPresent(Bool.self, forKey: .syncOnLaunch) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -335,5 +342,6 @@ extension SkillRepository {
         try container.encodeIfPresent(httpUsername, forKey: .httpUsername)
         try container.encodeIfPresent(credentialKey, forKey: .credentialKey)
         try container.encode(scanHiddenPaths, forKey: .scanHiddenPaths)
+        try container.encode(syncOnLaunch, forKey: .syncOnLaunch)
     }
 }
