@@ -78,6 +78,14 @@ struct ContentView: View {
                 }
             } else if let skillID = selectedSkillID, let vm = detailVM {
                 SkillDetailView(skillID: skillID, viewModel: vm)
+                    // .id(skillID) forces SwiftUI to destroy and recreate the detail view
+                    // whenever the selected skill changes, rather than reusing the same view
+                    // instance with an implicit cross-fade transition.
+                    // Without this, NavigationSplitView keeps the old content visible during
+                    // its built-in transition animation, causing the 1-3s "stale content" delay.
+                    // This is equivalent to React's `key` prop — a changed key tells SwiftUI
+                    // "this is a completely new view", ensuring immediate visual feedback.
+                    .id(skillID)
             } else {
                 EmptyStateView(
                     icon: "square.stack.3d.up",

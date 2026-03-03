@@ -16,29 +16,72 @@ import Markdown
 /// - Fast rendering (no web engine overhead)
 /// - Text selection support via `.textSelection(.enabled)`
 ///
+/// ## Performance design
+/// `Document(parsing:)` is a CPU-intensive operation that blocks the main thread if called
+/// directly inside `body`. We use `@State` + `.task(id:)` to run parsing on a background
+/// thread (Swift concurrency cooperative thread pool) and store the result. While parsing
+/// is in progress, a lightweight skeleton placeholder is shown so the UI stays responsive.
+///
 /// Usage: `MarkdownContentView(markdownText: "# Hello\n\nSome **bold** text")`
 struct MarkdownContentView: View {
 
     /// Raw markdown string to parse and render
     let markdownText: String
 
-    var body: some View {
-        // Parse the markdown string into an AST using swift-markdown's Document type.
-        // `Document(parsing:)` creates a tree of `Markup` nodes (Heading, Paragraph, CodeBlock, etc.).
-        // This is similar to how an HTML parser creates a DOM tree.
-        let document = Document(parsing: markdownText)
+    /// Parsed AST document — nil until background parsing completes.
+    /// `@State` is a SwiftUI property wrapper that stores mutable view-local state.
+    /// When this value changes (parsing finishes), SwiftUI automatically re-renders the view.
+    @State private var document: Document?
 
-        // Walk the AST and convert each block-level node into a SwiftUI view.
-        // `document.children` returns the top-level block elements (headings, paragraphs, etc.).
-        // `LazyVStack` defers view creation until needed (performance optimization for long content).
-        LazyVStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(document.children.enumerated()), id: \.offset) { _, child in
-                // Render each top-level block element using our custom visitor
-                MarkdownNodeView(node: child)
+    var body: some View {
+        Group {
+            if let document {
+                // Parsing complete: render the full AST as SwiftUI views.
+                // `LazyVStack` defers view creation for off-screen nodes —
+                // only the nodes currently visible in the ScrollView are instantiated.
+                // This is similar to RecyclerView in Android or virtualized lists in React.
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    ForEach(Array(document.children.enumerated()), id: \.offset) { _, child in
+                        // Render each top-level block element using our custom visitor
+                        MarkdownNodeView(node: child)
+                    }
+                }
+                .textSelection(.enabled)
+            } else {
+                // Parsing in progress: show a subtle loading placeholder.
+                // This keeps the UI responsive instead of blocking with a blank screen.
+                // `ProgressView()` renders macOS's spinning activity indicator.
+                HStack {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Rendering...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 4)
             }
         }
-        // Enable text selection across the entire rendered markdown content
-        .textSelection(.enabled)
+        // `.task(id: markdownText)` launches an async Task whenever `markdownText` changes.
+        // In Swift concurrency, `Task { }` runs on the cooperative thread pool (not the main thread),
+        // so `Document(parsing:)` executes in the background without blocking the UI.
+        // This is equivalent to Java's ExecutorService.submit() or Go's `go func()`.
+        // When `markdownText` changes (e.g., user navigates to a different skill),
+        // the previous task is automatically cancelled and a new one starts.
+        .task(id: markdownText) {
+            // Reset to nil first so the loading placeholder is shown immediately
+            // when content changes — avoids stale content flickering.
+            document = nil
+            // `Document(parsing:)` is CPU-bound work. Running it inside a `Task`
+            // allows Swift to schedule it on a background thread, keeping the main
+            // actor (and thus the UI) free. The `await` here yields control back to
+            // the main actor only when the result is ready to be stored in @State.
+            let parsed = Document(parsing: markdownText)
+            // Assigning to @State must happen on the main actor (SwiftUI requirement).
+            // Since `.task` runs the closure on the main actor by default in SwiftUI,
+            // this assignment is safe — it triggers a re-render to show the parsed content.
+            document = parsed
+        }
     }
 }
 

@@ -201,15 +201,13 @@ struct SkillDetailView: View {
                     .foregroundStyle(.tertiary)
                     .italic()
             } else {
-                // Display markdown source in monospace font
-                // Can be replaced with rendered markdown in the future
-                Text(skill.markdownBody)
-                    .font(.system(.body, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .cornerRadius(8)
+                // MarkdownContentView parses and renders markdown asynchronously:
+                // - Document(parsing:) runs on a background thread via .task(id:)
+                // - LazyVStack defers rendering of off-screen nodes
+                // - A lightweight "Rendering..." placeholder is shown during parsing
+                // This prevents blocking the main thread with CoreText layout
+                // for large markdown bodies, eliminating the 1-3s render stall.
+                MarkdownContentView(markdownText: skill.markdownBody)
             }
         }
     }
