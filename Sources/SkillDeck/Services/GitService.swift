@@ -1,4 +1,5 @@
 import Foundation
+import Dispatch
 
 /// GitService encapsulates all git CLI operations, core infrastructure for F10 (One-Click Install) and F12 (Update Check)
 ///
@@ -8,6 +9,10 @@ import Foundation
 ///
 /// Design pattern: Reuse the Process API pattern verified in AgentDetector to execute external commands
 actor GitService {
+
+    /// Max time to wait for a single git command.
+    /// Prevents UI from spinning forever when ssh/git hangs on interactive prompts.
+    private static let gitCommandTimeoutSeconds: TimeInterval = 300
 
     // MARK: - Error Types
 
@@ -85,14 +90,18 @@ actor GitService {
     ///
     /// Shallow clone `--depth 1` is similar to go-git's Depth: 1 option in Go.
     /// Full clone requires more time and space, but allows access to git history.
-    func cloneRepo(repoURL: String, shallow: Bool) async throws -> URL {
+    func cloneRepo(repoURL: String, shallow: Bool, httpAuthorization: String? = nil) async throws -> URL {
         // Create temporary directory: /tmp/SkillDeck-<UUID>/
         // UUID ensures each clone uses a different directory to avoid conflicts
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("SkillDeck-\(UUID().uuidString)")
 
         // Decide clone depth based on shallow parameter
-        var arguments = ["clone"]
+        var arguments: [String] = []
+        if let httpAuthorization {
+            arguments += ["-c", "http.extraHeader=\(httpAuthorization)"]
+        }
+        arguments += ["clone", "--quiet"]
         if shallow {
             arguments += ["--depth", "1"]
         }
@@ -114,8 +123,8 @@ actor GitService {
     /// Convenience method for shallow clone (maintains API compatibility)
     ///
     /// Internally calls `cloneRepo(shallow: true)`, equivalent to `git clone --depth 1`
-    func shallowClone(repoURL: String) async throws -> URL {
-        try await cloneRepo(repoURL: repoURL, shallow: true)
+    func shallowClone(repoURL: String, httpAuthorization: String? = nil) async throws -> URL {
+        try await cloneRepo(repoURL: repoURL, shallow: true, httpAuthorization: httpAuthorization)
     }
 
     /// Get commit hash at repository HEAD (full 40-character SHA-1)
@@ -318,6 +327,25 @@ actor GitService {
         try? FileManager.default.removeItem(at: url)
     }
 
+    /// Pull latest changes for an already-cloned repository.
+    ///
+    /// - Parameter repoDir: Local directory of the cloned repository (must contain a `.git` subdirectory)
+    /// - Throws: GitError.cloneFailed if `git pull` exits with a non-zero status
+    ///
+    /// Equivalent to running `git pull` in the repository directory.
+    /// SSH authentication is handled transparently by the system's ssh-agent / ~/.ssh/config.
+    func pull(repoDir: URL, httpAuthorization: String? = nil) async throws {
+        var arguments: [String] = []
+        if let httpAuthorization {
+            arguments += ["-c", "http.extraHeader=\(httpAuthorization)"]
+        }
+        arguments += ["pull", "--quiet"]
+        _ = try await runGitCommand(
+            arguments: arguments,
+            workingDirectory: repoDir
+        )
+    }
+
     // MARK: - URL Normalization (static methods, no actor isolation needed)
 
     /// Generate GitHub web URL from git repository URL
@@ -346,9 +374,11 @@ actor GitService {
     /// Normalize repository URL input, supports multiple formats
     ///
     /// Supported input formats:
-    /// - `owner/repo` (e.g. "vercel-labs/skills") → auto-completes to GitHub URL
+    /// - `owner/repo` (e.g. "vercel-labs/skills") → auto-completes to GitHub HTTPS URL
     /// - `https://github.com/owner/repo` (full HTTPS URL)
     /// - `https://github.com/owner/repo.git` (with .git suffix)
+    /// - `git@github.com:owner/repo.git` (SSH format — passed through unchanged)
+    /// - `git@gitlab.com:owner/repo.git` (GitLab SSH format — passed through unchanged)
     ///
     /// - Parameter input: User input repository address
     /// - Returns: Tuple (full repoURL, source identifier for display)
@@ -362,6 +392,27 @@ actor GitService {
 
         guard !trimmed.isEmpty else {
             throw GitError.invalidRepoURL(input)
+        }
+
+        // Case 0: SSH URL format — git@hostname:org/repo.git
+        // Passes through unchanged; SSH auth is handled by the system's ssh-agent / ~/.ssh/config.
+        // Example: "git@github.com:org/repo.git" → source = "org/repo"
+        if trimmed.lowercased().hasPrefix("git@") {
+            // Extract org/repo from the path after ":"
+            var source = trimmed
+            if let colonIdx = source.firstIndex(of: ":") {
+                source = String(source[source.index(after: colonIdx)...])
+            }
+            // Strip .git suffix for the display source
+            if source.hasSuffix(".git") {
+                source = String(source.dropLast(4))
+            }
+            // Ensure .git suffix on the clone URL (git requires it for some hosts)
+            var repoURL = trimmed
+            if !repoURL.hasSuffix(".git") {
+                repoURL += ".git"
+            }
+            return (repoURL: repoURL, source: source)
         }
 
         // Case 1: Full HTTPS URL (starts with https://)
@@ -435,26 +486,79 @@ actor GitService {
         process.executableURL = URL(fileURLWithPath: gitPath)
         process.arguments = arguments
 
+        // Force non-interactive behavior so git/ssh fails fast with an error
+        // instead of waiting for invisible prompts in a GUI app.
+        var env = ProcessInfo.processInfo.environment
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        env["GCM_INTERACTIVE"] = "Never"
+        if env["GIT_SSH_COMMAND"] == nil {
+            env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes"
+        }
+        process.environment = env
+
         // Set working directory (if specified)
         if let workingDirectory {
             process.currentDirectoryURL = workingDirectory
         }
 
-        // Pipe for capturing command output (similar to Go's exec.Command().Output())
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
+        // Capture output to files instead of pipes to avoid deadlocks when command output is large.
+        let fm = FileManager.default
+        let captureDir = fm.temporaryDirectory
+            .appendingPathComponent("SkillDeck-git-output-\(UUID().uuidString)")
+        let stdoutURL = captureDir.appendingPathComponent("stdout.log")
+        let stderrURL = captureDir.appendingPathComponent("stderr.log")
+
+        do {
+            try fm.createDirectory(at: captureDir, withIntermediateDirectories: true)
+            fm.createFile(atPath: stdoutURL.path, contents: nil)
+            fm.createFile(atPath: stderrURL.path, contents: nil)
+        } catch {
+            throw GitError.cloneFailed("Failed to prepare git output capture: \(error.localizedDescription)")
+        }
+
+        let stdoutHandle: FileHandle
+        let stderrHandle: FileHandle
+        do {
+            stdoutHandle = try FileHandle(forWritingTo: stdoutURL)
+            stderrHandle = try FileHandle(forWritingTo: stderrURL)
+        } catch {
+            throw GitError.cloneFailed("Failed to open git output capture files: \(error.localizedDescription)")
+        }
+
+        defer {
+            try? stdoutHandle.close()
+            try? stderrHandle.close()
+            try? fm.removeItem(at: captureDir)
+        }
+
+        process.standardOutput = stdoutHandle
+        process.standardError = stderrHandle
 
         do {
             try process.run()
-            process.waitUntilExit()
+            let exitedInTime = await waitForProcessExit(
+                process,
+                timeoutSeconds: GitService.gitCommandTimeoutSeconds
+            )
+            if !exitedInTime {
+                process.terminate()
+                _ = await waitForProcessExit(process, timeoutSeconds: 5)
+                let safeArgs = sanitizeArgumentsForLogging(arguments)
+                throw GitError.cloneFailed(
+                    "Git command timed out after \(Int(GitService.gitCommandTimeoutSeconds))s: git \(safeArgs.joined(separator: " "))"
+                )
+            }
+        } catch let gitError as GitError {
+            throw gitError
         } catch {
             throw GitError.cloneFailed(error.localizedDescription)
         }
 
-        let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        stdoutHandle.synchronizeFile()
+        stderrHandle.synchronizeFile()
+
+        let stdoutData = (try? Data(contentsOf: stdoutURL)) ?? Data()
+        let stderrData = (try? Data(contentsOf: stderrURL)) ?? Data()
 
         let stdout = String(data: stdoutData, encoding: .utf8) ?? ""
         let stderr = String(data: stderrData, encoding: .utf8) ?? ""
@@ -462,10 +566,51 @@ actor GitService {
         // Non-zero exit code means command execution failed
         guard process.terminationStatus == 0 else {
             let errorMessage = stderr.isEmpty ? stdout : stderr
-            throw GitError.cloneFailed(errorMessage.trimmingCharacters(in: .whitespacesAndNewlines))
+            let trimmed = errorMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.localizedCaseInsensitiveContains("Host key verification failed") {
+                throw GitError.cloneFailed(
+                    "\(trimmed)\n\nSSH host key verification failed. Run `ssh -T git@<your-host>` once in Terminal and trust the host key, then retry Sync."
+                )
+            }
+            throw GitError.cloneFailed(trimmed)
         }
 
         return stdout
+    }
+
+    /// Wait for process exit without blocking async contexts.
+    /// Returns false when timeout is reached before process exits.
+    private func waitForProcessExit(_ process: Process, timeoutSeconds: TimeInterval) async -> Bool {
+        await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                await withCheckedContinuation { continuation in
+                    DispatchQueue.global(qos: .utility).async {
+                        process.waitUntilExit()
+                        continuation.resume(returning: true)
+                    }
+                }
+            }
+
+            group.addTask {
+                let nanos = UInt64(timeoutSeconds * 1_000_000_000)
+                try? await Task.sleep(nanoseconds: nanos)
+                return false
+            }
+
+            let result = await group.next() ?? false
+            group.cancelAll()
+            return result
+        }
+    }
+
+    /// Redact sensitive auth values before composing human-readable logs/errors.
+    private func sanitizeArgumentsForLogging(_ arguments: [String]) -> [String] {
+        arguments.map { arg in
+            if arg.hasPrefix("http.extraHeader=Authorization:") {
+                return "http.extraHeader=Authorization: <redacted>"
+            }
+            return arg
+        }
     }
 
     /// Find full path of git executable

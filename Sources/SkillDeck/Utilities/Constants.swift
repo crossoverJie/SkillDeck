@@ -41,4 +41,10 @@ enum Constants {
 
     /// Lock file path
     static let lockFilePath = "~/.agents/.skill-lock.json"
+
+    /// Directory where custom repositories are cloned: ~/.agents/repos/
+    static let reposBasePath = "~/.agents/repos"
+
+    /// Config file that stores the list of user-configured custom repositories
+    static let skillReposConfigPath = "~/.agents/.skilldeck-repos.json"
 }

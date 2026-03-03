@@ -54,7 +54,7 @@ struct SkillInstallView: View {
     /// Header bar (common to all phases)
     private var headerBar: some View {
         HStack {
-            Text("Install Skills from GitHub")
+            Text(viewModel.sheetTitle)
                 .font(.headline)
             Spacer()
             // Close button
@@ -288,9 +288,15 @@ struct SkillInstallView: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 12) {
-                // "Install More" button: reset state and start over
-                Button("Install More") {
-                    viewModel.reset()
+                if viewModel.isLocalSource {
+                    Button("Back to Selection") {
+                        viewModel.backToSelectionForLocalInstall()
+                    }
+                } else {
+                    // "Install More" button: reset state and start over
+                    Button("Install More") {
+                        viewModel.reset()
+                    }
                 }
 
                 Button("Done") {

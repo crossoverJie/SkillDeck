@@ -4,22 +4,26 @@ import SwiftUI
 ///
 /// Each case represents a clickable item in the sidebar.
 /// F09 adds `.registry` for browsing the skills.sh catalog.
+/// Custom repos: `.customRepo(UUID)` for user-configured GitHub/GitLab repositories.
 enum SidebarItem: Hashable {
     case dashboard
     /// F09: Browse skills.sh catalog (leaderboard + search)
     case registry
+    /// Custom repository browser — each configured repo gets its own sidebar row.
+    /// The associated UUID is the SkillRepository.id, used to look up the VM in ContentView.
+    case customRepo(UUID)
     case agent(AgentType)
     case settings
 
     /// Maps sidebar options to Agent filter values
-    /// - .dashboard / .settings / .registry → nil (show all skills or different content)
+    /// - .dashboard / .settings / .registry / .customRepo → nil (show all skills or different content)
     /// - .agent(type) → type (only show skills for this Agent)
     /// This computed property is similar to Java's getter, executes switch calculation on each access
     var agentFilter: AgentType? {
         switch self {
         case .agent(let agentType):
             return agentType
-        case .dashboard, .settings, .registry:
+        case .dashboard, .settings, .registry, .customRepo:
             return nil
         }
     }
@@ -77,6 +81,42 @@ struct SidebarView: View {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(rowBackground(for: .registry))
                 )
+            }
+
+            // Custom Repos section: shown only when at least one repository is configured
+            // ForEach on an empty array renders nothing, so the section header would still appear.
+            // We wrap in an `if !isEmpty` guard to fully hide the section when no repos are configured.
+            if !skillManager.repositories.isEmpty {
+                Section("Custom Repos") {
+                    ForEach(skillManager.repositories) { repo in
+                        let item = SidebarItem.customRepo(repo.id)
+                        let syncStatus = skillManager.repoSyncStatuses[repo.id] ?? .idle
+
+                        sidebarRow(item: item) {
+                            Label {
+                                Text(repo.name)
+                            } icon: {
+                                // Show a spinner when syncing, otherwise the platform icon
+                                if case .syncing = syncStatus {
+                                    ProgressView()
+                                        .controlSize(.mini)
+                                        .frame(width: 16, height: 16)
+                                } else {
+                                    Image(systemName: repo.platform.iconName)
+                                        .foregroundStyle(
+                                            syncStatus == .idle
+                                                ? Color.secondary
+                                                : (syncErrorStatus(syncStatus) ? Color.red : Color.green)
+                                        )
+                                }
+                            }
+                        }
+                        .listRowBackground(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(rowBackground(for: item))
+                        )
+                    }
+                }
             }
 
             Section("Agents") {
@@ -259,5 +299,12 @@ struct SidebarView: View {
         }
         // Normal state: transparent
         return Color.clear
+    }
+
+    /// Returns true if the given SyncStatus represents an error state.
+    /// Used to decide the icon foreground color in the Custom Repos section.
+    private func syncErrorStatus(_ status: SkillRepository.SyncStatus) -> Bool {
+        if case .error = status { return true }
+        return false
     }
 }
