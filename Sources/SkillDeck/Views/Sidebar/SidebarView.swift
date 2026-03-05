@@ -52,6 +52,10 @@ struct SidebarView: View {
     /// This way uses only one @State variable to control both sheet display and content, avoiding dual state synchronization timing issues
     @State private var installVM: SkillInstallViewModel?
 
+    /// Local import modal's ViewModel (created only when showing sheet)
+    /// Same pattern as installVM: nil = hidden, non-nil = show sheet
+    @State private var localImportVM: LocalImportViewModel?
+
     var body: some View {
         List(selection: $selection) {
             // Section creates groups (shown as collapsible groups in macOS sidebar)
@@ -132,14 +136,30 @@ struct SidebarView: View {
             }
 
             // F10: "+" button for installing new skill
-            // ToolbarItem defaults to toolbar trailing when placement is not specified
+            // Menu with primaryAction: clicking the button directly opens GitHub install,
+            // long-press or clicking the chevron reveals dropdown with both options.
+            // primaryAction makes the menu button behave as a split button (action + dropdown)
             ToolbarItem {
-                Button {
-                    installVM = SkillInstallViewModel(skillManager: skillManager)
+                Menu {
+                    // Dropdown menu items (shown on long-press or chevron click)
+                    Button {
+                        installVM = SkillInstallViewModel(skillManager: skillManager)
+                    } label: {
+                        Label("From GitHub...", systemImage: "globe")
+                    }
+
+                    Button {
+                        localImportVM = LocalImportViewModel(skillManager: skillManager)
+                    } label: {
+                        Label("From Local Folder...", systemImage: "folder")
+                    }
                 } label: {
                     Image(systemName: "plus")
+                } primaryAction: {
+                    // Default click action: open GitHub install (most common use case)
+                    installVM = SkillInstallViewModel(skillManager: skillManager)
                 }
-                .help("Install skill from GitHub")
+                .help("Install skill")
             }
 
             // F12: Batch check updates for all skills
@@ -197,6 +217,14 @@ struct SidebarView: View {
             SkillInstallView(viewModel: vm)
                 // .environment() injects SkillManager into sheet's view tree
                 // Sheet creates new view hierarchy, needs to re-inject environment dependencies
+                .environment(skillManager)
+        }
+        // Local import sheet modal
+        // Same pattern as install sheet: .sheet(item:) binds display to Optional variable
+        .sheet(item: $localImportVM, onDismiss: {
+            localImportVM = nil
+        }) { vm in
+            LocalImportView(viewModel: vm)
                 .environment(skillManager)
         }
     }

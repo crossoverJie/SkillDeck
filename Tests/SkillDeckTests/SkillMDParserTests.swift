@@ -132,6 +132,28 @@ final class SkillMDParserTests: XCTestCase {
         XCTAssertTrue(result.contains("World"))
     }
 
+    // MARK: - Edge Case Tests
+
+    /// Test parsing description with colons (common in real-world SKILL.md files)
+    /// YAML spec: ": " inside a plain scalar value should be valid in block context,
+    /// but some parsers may interpret it as a nested mapping key
+    func testParseDescriptionWithColons() throws {
+        let content = """
+        ---
+        name: ai-radar
+        description: Run daily AI news aggregation: fetch data -> analyze -> generate report
+        allowed-tools: Bash, Read, Write, Glob
+        ---
+
+        # AI-Radar
+        """
+
+        let result = try SkillMDParser.parse(content: content)
+        XCTAssertEqual(result.metadata.name, "ai-radar")
+        XCTAssertTrue(result.metadata.description.contains("aggregation"))
+        XCTAssertEqual(result.metadata.allowedTools, "Bash, Read, Write, Glob")
+    }
+
     // MARK: - 往返测试（Round-trip）
 
     /// 测试：解析 → 序列化 → 再解析，数据应该一致

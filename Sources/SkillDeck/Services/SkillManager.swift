@@ -37,6 +37,28 @@ final class SkillManager {
         }
     }
 
+    /// Error types for importing local skill directories
+    /// Each case represents a specific validation failure during the import flow
+    enum ImportError: Error, LocalizedError {
+        /// The specified directory does not exist on disk
+        case directoryNotFound(String)
+        /// No SKILL.md file found inside the directory
+        case skillMDNotFound(String)
+        /// SKILL.md exists but could not be parsed (invalid YAML frontmatter or format)
+        case parseFailed(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .directoryNotFound(let path):
+                "Directory not found: \(path)"
+            case .skillMDNotFound(let path):
+                "No SKILL.md found in: \(path)"
+            case .parseFailed(let message):
+                "Failed to parse SKILL.md: \(message)"
+            }
+        }
+    }
+
     // MARK: - Published State (UI-bound state)
 
     /// All discovered skills (deduplicated)
@@ -353,6 +375,95 @@ final class SkillManager {
         await refresh()
     }
 
+    // MARK: - Local Import
+
+    /// Import a skill from a local directory on the filesystem
+    ///
+    /// Flow:
+    /// 1. Validate the source directory exists and contains a parseable SKILL.md
+    /// 2. Copy the entire directory to canonical path (~/.agents/skills/<skillName>/)
+    /// 3. Create symlinks for selected Agents
+    /// 4. Update lock file with sourceType "local" and source = original directory path
+    /// 5. Refresh UI
+    ///
+    /// Unlike installSkill (GitHub-based), local imports have no git hash or remote URL.
+    /// The lock entry uses sourceType "local" so that checkAllUpdates() can skip them
+    /// (local directories have no remote to compare against).
+    ///
+    /// - Parameters:
+    ///   - sourceURL: Local directory URL containing SKILL.md
+    ///   - skillName: Name for the skill (typically the directory name)
+    ///   - targetAgents: Set of Agents to create symlinks for
+    func importLocalSkill(
+        from sourceURL: URL,
+        skillName: String,
+        targetAgents: Set<AgentType>
+    ) async throws {
+        let fm = FileManager.default
+
+        // 1. Validate source directory exists
+        var isDir: ObjCBool = false
+        guard fm.fileExists(atPath: sourceURL.path, isDirectory: &isDir), isDir.boolValue else {
+            throw ImportError.directoryNotFound(sourceURL.path)
+        }
+
+        // 2. Validate SKILL.md exists and is parseable
+        let skillMDURL = sourceURL.appendingPathComponent("SKILL.md")
+        guard fm.fileExists(atPath: skillMDURL.path) else {
+            throw ImportError.skillMDNotFound(sourceURL.path)
+        }
+
+        do {
+            // Attempt to parse SKILL.md to verify it's valid
+            // SkillMDParser.parse(fileURL:) reads the file and parses YAML frontmatter + markdown body
+            _ = try SkillMDParser.parse(fileURL: skillMDURL)
+        } catch {
+            throw ImportError.parseFailed(error.localizedDescription)
+        }
+
+        // 3. Copy directory to canonical path (~/.agents/skills/<skillName>/)
+        let canonicalDir = SkillScanner.sharedSkillsURL.appendingPathComponent(skillName)
+
+        // If already exists, delete first then copy (overwrite import)
+        if fm.fileExists(atPath: canonicalDir.path) {
+            try fm.removeItem(at: canonicalDir)
+        }
+
+        // Ensure parent directory (~/.agents/skills/) exists
+        if !fm.fileExists(atPath: SkillScanner.sharedSkillsURL.path) {
+            try fm.createDirectory(at: SkillScanner.sharedSkillsURL, withIntermediateDirectories: true)
+        }
+
+        // copyItem is like cp -r, recursively copies entire directory
+        try fm.copyItem(at: sourceURL, to: canonicalDir)
+
+        // 4. Create symlinks for selected Agents
+        for agent in targetAgents {
+            // Use try? to ignore existing symlink errors (idempotent operation)
+            try? SymlinkManager.createSymlink(from: canonicalDir, to: agent)
+        }
+
+        // 5. Update lock file with sourceType "local"
+        // Ensure lock file exists (may not exist on first import)
+        try await lockFileManager.createIfNotExists()
+
+        // ISO 8601 timestamp (consistent with npx skills CLI format)
+        let now = ISO8601DateFormatter().string(from: Date())
+        let entry = LockEntry(
+            source: sourceURL.path,
+            sourceType: "local",
+            sourceUrl: sourceURL.path,
+            skillPath: "\(skillName)/SKILL.md",
+            skillFolderHash: "",  // Local imports have no git hash
+            installedAt: now,
+            updatedAt: now
+        )
+        try await lockFileManager.updateEntry(skillName: skillName, entry: entry)
+
+        // 6. Refresh UI
+        await refresh()
+    }
+
     // MARK: - F12: Update Check
 
     /// Check for updates for a single skill
@@ -427,8 +538,10 @@ final class SkillManager {
         defer { isCheckingUpdates = false }
 
         // Collect all skills with lockEntry, group by sourceUrl
+        // Skip local imports: they have no remote repository to compare against,
+        // and trying to git-clone a local filesystem path would cause errors
         // Dictionary(grouping:by:) is similar to Java Stream's Collectors.groupingBy()
-        let skillsWithLock = skills.filter { $0.lockEntry != nil }
+        let skillsWithLock = skills.filter { $0.lockEntry != nil && $0.lockEntry?.sourceType != "local" }
 
         // Set all skills to be checked to .checking state
         // So UI list immediately shows spinner, user knows which skills are being checked

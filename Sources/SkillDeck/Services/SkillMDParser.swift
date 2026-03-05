@@ -78,12 +78,15 @@ enum SkillMDParser {
 
         // Parse YAML string into SkillMetadata using Yams library
         // YAMLDecoder is similar to Java's ObjectMapper or Go's json.Unmarshal
-        let decoder = YAMLDecoder()
         let metadata: SkillMetadata
         do {
+            let decoder = YAMLDecoder()
             metadata = try decoder.decode(SkillMetadata.self, from: yamlString)
         } catch {
-            throw ParseError.invalidYAML(error.localizedDescription)
+            // Fallback: when strict Codable decoding fails (e.g., description contains ": "
+            // which Yams misinterprets as a nested mapping key), try raw YAML parsing.
+            // Yams.load() returns an untyped dictionary, more lenient with ambiguous values.
+            metadata = try parseYAMLFallback(yamlString)
         }
 
         return ParseResult(metadata: metadata, markdownBody: body.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -113,6 +116,95 @@ enum SkillMDParser {
         let body = String(rest[bodyStart...])
 
         return (yamlString, body)
+    }
+
+    /// Fallback YAML parser: line-by-line extraction for SKILL.md frontmatter
+    ///
+    /// When YAMLDecoder.decode() fails (e.g., a colon ": " inside a description value
+    /// is misinterpreted as a YAML mapping key by the scanner), this method uses
+    /// simple line-by-line parsing to extract key-value pairs.
+    ///
+    /// SKILL.md frontmatter is typically flat (no deep nesting), so line-by-line parsing
+    /// is sufficient. The only nested structure is `metadata:` with `author:` and `version:`.
+    ///
+    /// Why not quote-preprocess + re-parse? Because Yams scanner rejects the raw YAML
+    /// before any decoding happens — Yams.load() also fails on ambiguous `: `.
+    private static func parseYAMLFallback(_ yamlString: String) throws -> SkillMetadata {
+        // Parse line by line, building a flat [String: String] and a nested metadata dict
+        var fields: [String: String] = [:]
+        var metadataExtra: [String: String] = [:]
+        // Track whether we're inside the `metadata:` block (indented sub-keys)
+        var inMetadataBlock = false
+
+        for line in yamlString.components(separatedBy: .newlines) {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+
+            // Skip empty lines and comments
+            if trimmedLine.isEmpty || trimmedLine.hasPrefix("#") { continue }
+
+            // Check if line is indented (part of a nested block like `metadata:`)
+            // In YAML, nested keys are indented with spaces relative to parent
+            let isIndented = line.hasPrefix("  ") || line.hasPrefix("\t")
+
+            if isIndented && inMetadataBlock {
+                // Parse indented key-value under `metadata:` block
+                if let colonIndex = trimmedLine.firstIndex(of: ":") {
+                    let key = String(trimmedLine[trimmedLine.startIndex..<colonIndex])
+                        .trimmingCharacters(in: .whitespaces)
+                    let value = String(trimmedLine[trimmedLine.index(after: colonIndex)...])
+                        .trimmingCharacters(in: .whitespaces)
+                        .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                    metadataExtra[key] = value
+                }
+                continue
+            }
+
+            // Non-indented line: exit metadata block
+            inMetadataBlock = false
+
+            // Parse top-level key: value
+            // Only split on the FIRST colon (so "desc: foo: bar" → key="desc", value="foo: bar")
+            guard let colonIndex = trimmedLine.firstIndex(of: ":") else { continue }
+            let key = String(trimmedLine[trimmedLine.startIndex..<colonIndex])
+                .trimmingCharacters(in: .whitespaces)
+            let value = String(trimmedLine[trimmedLine.index(after: colonIndex)...])
+                .trimmingCharacters(in: .whitespaces)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+
+            if key == "metadata" && value.isEmpty {
+                // Start of `metadata:` nested block
+                inMetadataBlock = true
+                continue
+            }
+
+            fields[key] = value
+        }
+
+        // Build SkillMetadata from extracted fields
+        guard let name = fields["name"], !name.isEmpty else {
+            throw ParseError.invalidYAML("Missing required field: name")
+        }
+        guard let description = fields["description"], !description.isEmpty else {
+            throw ParseError.invalidYAML("Missing required field: description")
+        }
+
+        // Handle YAML folded/literal scalar indicators (> or |) in description
+        // For simple fallback, the description is already extracted as-is
+        var metadataObj: SkillMetadata.MetadataExtra?
+        if !metadataExtra.isEmpty {
+            metadataObj = SkillMetadata.MetadataExtra(
+                author: metadataExtra["author"],
+                version: metadataExtra["version"]
+            )
+        }
+
+        return SkillMetadata(
+            name: name,
+            description: description,
+            license: fields["license"],
+            metadata: metadataObj,
+            allowedTools: fields["allowed-tools"] ?? fields["allowedTools"]
+        )
     }
 
     /// Serialize SkillMetadata back to SKILL.md format string
