@@ -56,10 +56,31 @@ final class SkillInstallViewModel: Identifiable {
         }
     }
 
+    /// Install source mode:
+    /// - remoteClone: current behavior (clone then install)
+    /// - localRepository: custom repository behavior (install from already-synced local repo)
+    private enum SourceMode {
+        case remoteClone
+        case localRepository
+    }
+
     // MARK: - State
 
     /// User input repository address (supports "owner/repo" or full URL)
     var repoURLInput = ""
+
+    /// Dynamic sheet title based on source mode.
+    var sheetTitle: String {
+        switch sourceMode {
+        case .remoteClone:
+            return "Install Skills from GitHub"
+        case .localRepository:
+            return "Install Skills from Custom Repository"
+        }
+    }
+
+    /// Whether current flow is local custom repository mode.
+    var isLocalSource: Bool { sourceMode == .localRepository }
 
     /// F09: Whether to auto-trigger fetch when the install sheet appears
     ///
@@ -113,10 +134,16 @@ final class SkillInstallViewModel: Identifiable {
 
     /// Cloned temporary directory URL (persisted between fetch and install, cleaned up when sheet closes)
     private var tempRepoDir: URL?
+    /// Whether tempRepoDir should be deleted on cleanup.
+    /// Local custom repository mode points to persistent local clone and must NOT be deleted.
+    private var ownsTempRepoDir = false
 
     /// Normalized repository URL and source identifier
     private var normalizedRepoURL: String = ""
     private var normalizedSource: String = ""
+    /// Source type written to lock entry (e.g. github/custom)
+    private var lockSourceType: String = "github"
+    private var sourceMode: SourceMode = .remoteClone
 
     // MARK: - Init
 
@@ -158,6 +185,8 @@ final class SkillInstallViewModel: Identifiable {
     /// 5. Mark already installed skills
     /// 6. Transition to selection phase
     func fetchRepository() async {
+        sourceMode = .remoteClone
+        lockSourceType = "github"
         phase = .fetching
         progressMessage = "Validating URL..."
 
@@ -179,6 +208,7 @@ final class SkillInstallViewModel: Identifiable {
             progressMessage = "Cloning repository..."
             let repoDir = try await gitService.shallowClone(repoURL: repoURL)
             tempRepoDir = repoDir
+            ownsTempRepoDir = true
 
             // 4. Scan skills
             progressMessage = "Scanning skills..."
@@ -241,6 +271,7 @@ final class SkillInstallViewModel: Identifiable {
                     skill: skill,
                     repoSource: normalizedSource,
                     repoURL: normalizedRepoURL,
+                    sourceType: lockSourceType,
                     targetAgents: selectedAgents
                 )
                 installedCount += 1
@@ -258,13 +289,16 @@ final class SkillInstallViewModel: Identifiable {
     ///
     /// Use Task to wrap actor method calls because cleanup is synchronous but needs to await actor methods
     func cleanup() {
-        if let tempRepoDir {
+        if let tempRepoDir, ownsTempRepoDir {
             let dir = tempRepoDir
             self.tempRepoDir = nil
             Task {
                 await gitService.cleanupTempDirectory(dir)
             }
+        } else {
+            tempRepoDir = nil
         }
+        ownsTempRepoDir = false
     }
 
     /// Toggle selection state of a skill
@@ -290,6 +324,7 @@ final class SkillInstallViewModel: Identifiable {
     /// Reset to initial state (start over)
     func reset() {
         cleanup()
+        sourceMode = .remoteClone
         phase = .inputURL
         repoURLInput = ""
         discoveredSkills = []
@@ -298,5 +333,54 @@ final class SkillInstallViewModel: Identifiable {
         alreadyInstalledNames = []
         progressMessage = ""
         installedCount = 0
+        normalizedRepoURL = ""
+        normalizedSource = ""
+        lockSourceType = "github"
+        targetSkillId = nil
+    }
+
+    /// Re-enter selection phase after a local install completes.
+    /// Keeps local repository context and refreshes installed badges.
+    func backToSelectionForLocalInstall() {
+        guard isLocalSource else {
+            reset()
+            return
+        }
+        alreadyInstalledNames = Set(skillManager.skills.map(\.id))
+        selectedSkillNames = Set(discoveredSkills.map(\.id).filter { !alreadyInstalledNames.contains($0) })
+        phase = .selectSkills
+    }
+
+    /// Prepare install flow for a custom repository that is already synced locally.
+    ///
+    /// This skips remote clone/scan and directly enters skill selection.
+    func prepareForLocalRepository(
+        repoDir: URL,
+        repoURL: String,
+        repoSource: String,
+        discoveredSkills: [GitService.DiscoveredSkill],
+        targetSkillId: String?
+    ) {
+        sourceMode = .localRepository
+        lockSourceType = "custom"
+        tempRepoDir = repoDir
+        ownsTempRepoDir = false
+        normalizedRepoURL = repoURL
+        normalizedSource = repoSource
+        repoURLInput = repoURL
+        self.targetSkillId = targetSkillId
+        self.discoveredSkills = discoveredSkills
+
+        alreadyInstalledNames = Set(skillManager.skills.map(\.id))
+        if let targetSkillId {
+            selectedSkillNames = Set(
+                discoveredSkills.map(\.id).filter { $0 == targetSkillId && !alreadyInstalledNames.contains($0) }
+            )
+        } else {
+            selectedSkillNames = Set(discoveredSkills.map(\.id).filter { !alreadyInstalledNames.contains($0) })
+        }
+
+        phase = .selectSkills
+        progressMessage = ""
     }
 }

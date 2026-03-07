@@ -81,6 +81,17 @@ final class SkillManager {
     /// Changed type from [String: Bool] to [String: SkillUpdateStatus] for richer UI feedback
     var updateStatuses: [String: SkillUpdateStatus] = [:]
 
+    // MARK: - Custom Repositories State
+
+    /// User-configured custom repositories (GitHub/GitLab via SSH).
+    /// Loaded from `~/.agents/.skilldeck-repos.json` on first refresh.
+    /// Views bind to this array to render the "Custom Repos" sidebar section.
+    var repositories: [SkillRepository] = []
+
+    /// Per-repository sync status (transient — not persisted to disk).
+    /// Keyed by repository UUID; used by SidebarView and RepositoryBrowserView to show spinner/error.
+    var repoSyncStatuses: [UUID: SkillRepository.SyncStatus] = [:]
+
     // MARK: - App Update State (application self-update status)
 
     /// Latest release info (nil means no update available or not yet checked)
@@ -113,6 +124,8 @@ final class SkillManager {
     /// F12: SkillDeck private commit hash cache, independent of .skill-lock.json
     /// Stored in ~/.agents/.skilldeck-cache.json, doesn't pollute npx skills' lock file format
     private let commitHashCache = CommitHashCache()
+    /// Custom repositories: manages user-configured GitHub/GitLab repos as Skills sources
+    let repositoryManager = RepositoryManager()
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
@@ -136,10 +149,21 @@ final class SkillManager {
 
     // MARK: - Core Operations
 
-    /// Refresh all data: re-detect Agents and scan skills
+    /// Refresh all data: re-detect Agents, scan skills, and load custom repositories.
+    ///
+    /// Also triggers a background sync of all enabled custom repositories (git pull).
+    /// The sync runs asynchronously so it does not block the UI from loading.
     func refresh() async {
         isLoading = true
         errorMessage = nil
+
+        // Load custom repositories config from disk (fast — JSON read only)
+        repositories = await repositoryManager.loadAll()
+
+        // Trigger background sync for all repos configured with "sync on launch" (clone/pull).
+        // `Task { }` creates a detached child task that runs concurrently,
+        // similar to Go's `go func(){}` — we don't await it here.
+        Task { await syncAllRepositories() }
 
         do {
             // Execute Agent detection and Skill scanning concurrently
@@ -311,12 +335,14 @@ final class SkillManager {
     ///   - skill: Skill info to install (from GitService.scanSkillsInRepo)
     ///   - repoSource: Repository source identifier (e.g. "vercel-labs/skills", for lock file)
     ///   - repoURL: Full repository URL (e.g. "https://github.com/vercel-labs/skills.git")
+    ///   - sourceType: Source type stored in lock entry (e.g. "github", "custom")
     ///   - targetAgents: Set of Agents to install to
     func installSkill(
         from repoDir: URL,
         skill: GitService.DiscoveredSkill,
         repoSource: String,
         repoURL: String,
+        sourceType: String = "github",
         targetAgents: Set<AgentType>
     ) async throws {
         let fm = FileManager.default
@@ -362,7 +388,7 @@ final class SkillManager {
         let now = ISO8601DateFormatter().string(from: Date())
         let entry = LockEntry(
             source: repoSource,
-            sourceType: "github",
+            sourceType: sourceType,
             sourceUrl: repoURL,
             skillPath: skill.skillMDPath,
             skillFolderHash: treeHash,
@@ -854,6 +880,81 @@ final class SkillManager {
 
         // 7. Refresh UI — refresh reads link info from cache and synthesizes LockEntry
         await refresh()
+    }
+
+    // MARK: - Custom Repository Management
+
+    /// Add a new custom repository and persist it to the config file.
+    ///
+    /// - Parameter repo: A fully constructed SkillRepository (id, repoURL, localSlug, etc.)
+    /// - Throws: RepositoryManager.RepositoryError if the repo already exists
+    func addRepository(_ repo: SkillRepository) async throws {
+        try await addRepository(repo, token: nil)
+    }
+
+    /// Add a new custom repository with optional HTTPS access token.
+    ///
+    /// Token is persisted in Keychain only; never written to JSON config.
+    func addRepository(_ repo: SkillRepository, token: String?) async throws {
+        try await repositoryManager.add(repo)
+        do {
+            if repo.authType == .httpsToken,
+               let key = repo.credentialKey,
+               let token,
+               !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                try RepositoryCredentialStore.saveToken(token, for: key)
+            }
+        } catch {
+            // Roll back repo config if keychain write fails.
+            await repositoryManager.remove(id: repo.id)
+            throw error
+        }
+        repositories = await repositoryManager.loadAll()
+    }
+
+    /// Remove a custom repository by ID from the config file.
+    ///
+    /// Does NOT delete the local clone from disk — leaves that to the user.
+    func removeRepository(id: UUID) async {
+        await repositoryManager.remove(id: id)
+        repositories = await repositoryManager.loadAll()
+        repoSyncStatuses.removeValue(forKey: id)
+    }
+
+    /// Update an existing custom repository configuration.
+    ///
+    /// Used for editable per-repository settings (for example: startup sync toggle).
+    func updateRepository(_ repo: SkillRepository) async {
+        await repositoryManager.update(repo)
+        repositories = await repositoryManager.loadAll()
+    }
+
+    /// Sync (clone or pull) a single repository and update its status in the UI.
+    ///
+    /// Updates `repoSyncStatuses[id]` to `.syncing` while in progress,
+    /// then to `.success(date)` or `.error(message)` when done.
+    func syncRepository(id: UUID) async {
+        guard let repo = repositories.first(where: { $0.id == id }) else { return }
+        repoSyncStatuses[id] = .syncing
+
+        do {
+            try await repositoryManager.sync(repo: repo)
+            // Reload so lastSyncedAt is updated
+            repositories = await repositoryManager.loadAll()
+            repoSyncStatuses[id] = .success(Date())
+        } catch {
+            repoSyncStatuses[id] = .error(error.localizedDescription)
+        }
+    }
+
+    /// Sync all repositories configured to "sync on launch" in the background.
+    ///
+    /// Called automatically on startup by `refresh()`.
+    /// Each repo's status is updated in `repoSyncStatuses` independently.
+    func syncAllRepositories() async {
+        for repo in repositories where repo.syncOnLaunch {
+            await syncRepository(id: repo.id)
+        }
     }
 
     // MARK: - App Update (application self-update)

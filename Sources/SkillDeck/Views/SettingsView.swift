@@ -12,13 +12,19 @@ struct SettingsView: View {
                     Label("General", systemImage: "gear")
                 }
 
+            // Custom repositories: GitHub/GitLab SSH sources for Skills
+            RepositoriesSettingsView()
+                .tabItem {
+                    Label("Repositories", systemImage: "archivebox")
+                }
+
             AboutSettingsView()
                 .tabItem {
                     Label("About", systemImage: "info.circle")
                 }
         }
-        // Increased height to accommodate update status UI (from 250 to 350)
-        .frame(width: 450, height: 350)
+        // Widened and taller to accommodate the Repositories list tab
+        .frame(width: 500, height: 420)
     }
 }
 

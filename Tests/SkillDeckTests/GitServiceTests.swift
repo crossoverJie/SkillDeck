@@ -197,4 +197,100 @@ final class GitServiceTests: XCTestCase {
         let skill = try XCTUnwrap(skills.first)
         XCTAssertEqual(skill.id, "my-real-skill")
     }
+
+    /// Test that hidden paths are ignored when includeHiddenPaths is disabled.
+    ///
+    /// Custom repository browsing uses this mode by default to avoid ambiguity.
+    func testScanSkillsInRepoSkipsHiddenPathsWhenDisabled() async throws {
+        let fm = FileManager.default
+        let repoDir = fm.temporaryDirectory.appendingPathComponent("SkillDeck-test-\(UUID().uuidString)")
+
+        let supportedHidden = repoDir
+            .appendingPathComponent(".claude")
+            .appendingPathComponent("skills")
+            .appendingPathComponent("supported-skill")
+        try fm.createDirectory(at: supportedHidden, withIntermediateDirectories: true)
+        try """
+        ---
+        name: supported-skill
+        description: valid hidden layout
+        ---
+        """.write(
+            to: supportedHidden.appendingPathComponent("SKILL.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let unsupportedHidden = repoDir
+            .appendingPathComponent(".claude")
+            .appendingPathComponent("unsupported-skill")
+        try fm.createDirectory(at: unsupportedHidden, withIntermediateDirectories: true)
+        try """
+        ---
+        name: unsupported-skill
+        description: should be ignored
+        ---
+        """.write(
+            to: unsupportedHidden.appendingPathComponent("SKILL.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        defer { try? fm.removeItem(at: repoDir) }
+
+        let gitService = GitService()
+        let skills = await gitService.scanSkillsInRepo(repoDir: repoDir, includeHiddenPaths: false)
+
+        XCTAssertEqual(skills.count, 0, "Hidden paths should be skipped when includeHiddenPaths=false")
+    }
+
+    /// Test de-duplication when both hidden and normal paths contain the same skill directory name.
+    ///
+    /// In this case we keep the non-hidden path because it is usually the user-facing source
+    /// and avoids duplicate rows + duplicated selection in SwiftUI List.
+    func testScanSkillsInRepoDeduplicatesSameIDPreferringNonHiddenPath() async throws {
+        let fm = FileManager.default
+        let repoDir = fm.temporaryDirectory.appendingPathComponent("SkillDeck-test-\(UUID().uuidString)")
+
+        let hiddenDir = repoDir
+            .appendingPathComponent(".claude")
+            .appendingPathComponent("skills")
+            .appendingPathComponent("create-skills")
+        try fm.createDirectory(at: hiddenDir, withIntermediateDirectories: true)
+        try """
+        ---
+        name: create-skills-hidden
+        description: hidden duplicate
+        ---
+        """.write(
+            to: hiddenDir.appendingPathComponent("SKILL.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let normalDir = repoDir
+            .appendingPathComponent("skills")
+            .appendingPathComponent("create-skills")
+        try fm.createDirectory(at: normalDir, withIntermediateDirectories: true)
+        try """
+        ---
+        name: create-skills-normal
+        description: normal duplicate
+        ---
+        """.write(
+            to: normalDir.appendingPathComponent("SKILL.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        defer { try? fm.removeItem(at: repoDir) }
+
+        let gitService = GitService()
+        let skills = await gitService.scanSkillsInRepo(repoDir: repoDir)
+
+        XCTAssertEqual(skills.count, 1, "Duplicate id entries should be collapsed")
+        let skill = try XCTUnwrap(skills.first)
+        XCTAssertEqual(skill.id, "create-skills")
+        XCTAssertEqual(skill.folderPath, "skills/create-skills")
+    }
 }
