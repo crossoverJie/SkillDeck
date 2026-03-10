@@ -59,7 +59,7 @@ struct SidebarView: View {
     var body: some View {
         List(selection: $selection) {
             // Section creates groups (shown as collapsible groups in macOS sidebar)
-            Section("Overview") {
+            Section {
                 sidebarRow(item: .dashboard) {
                     Label("Dashboard", systemImage: "square.grid.2x2")
                 }
@@ -81,9 +81,11 @@ struct SidebarView: View {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(rowBackground(for: .registry))
                 )
+            } header: {
+                Text("Overview").appFont(.headline)
             }
 
-            Section("Agents") {
+            Section {
                 ForEach(AgentType.allCases) { agentType in
                     let agent = skillManager.agents.first { $0.type == agentType }
 
@@ -109,6 +111,8 @@ struct SidebarView: View {
                             .fill(rowBackground(for: .agent(agentType)))
                     )
                 }
+            } header: {
+                Text("Agents").appFont(.headline)
             }
         }
         // macOS sidebar standard style
@@ -181,8 +185,7 @@ struct SidebarView: View {
                             let checked = skillManager.updateStatuses.values.filter {
                                 $0 != .checking && $0 != .notChecked
                             }.count
-                            Text("\(checked)/\(total)")
-                                .font(.caption)
+                            Text("\(checked)/\(total)").appFont(.caption)
                                 .monospacedDigit()  // Monospaced digit font, avoids width jumping when numbers change
                                 .foregroundStyle(.secondary)
                         }
@@ -240,7 +243,7 @@ struct SidebarView: View {
         @ViewBuilder label: () -> Label
     ) -> some View {
         // Button ensures clicking always updates selection (List native selection is unreliable in some macOS versions)
-        Button { selection = item } label: { label() }
+        Button { selection = item } label: { label().appFont(.body) }
             // .buttonStyle(.plain) removes button default styles (border, press effect, etc.)
             .buttonStyle(.plain)
             // .contentShape(Rectangle()) expands interaction area (click+hover) to entire row rectangle
