@@ -103,6 +103,7 @@ struct SidebarView: View {
                         Label {
                             Text(agentType.displayName)
                                 .foregroundStyle(selection == .agent(agentType) ? .primary : .secondary)
+                                .fontWeight(selection == .agent(agentType) ? .semibold : .regular)
                         } icon: {
                             Image(systemName: agentType.iconName)
                                 .foregroundStyle(Constants.AgentColors.color(for: agentType))
