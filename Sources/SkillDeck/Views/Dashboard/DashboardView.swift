@@ -87,8 +87,7 @@ struct DashboardView: View {
                     HStack(spacing: 2) {
                         Image(systemName: "line.3.horizontal.decrease")
                         Text(viewModel.sortOrder.rawValue)
-                        Image(systemName: viewModel.sortDirection.iconName)
-                            .font(.caption2)
+                        Image(systemName: viewModel.sortDirection.iconName).appFont(.caption2)
                             // imageScale controls SF Symbol size
                             .imageScale(.small)
                     }

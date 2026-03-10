@@ -15,8 +15,7 @@ struct SkillRowView: View {
         VStack(alignment: .leading, spacing: 6) {
             // First row: name + badges
             HStack {
-                Text(skill.displayName)
-                    .font(.headline)
+                Text(skill.displayName).appFont(.headline)
 
                 ScopeBadge(scope: skill.scope)
 
@@ -30,8 +29,7 @@ struct SkillRowView: View {
                 // Inherited installation icons have reduced opacity, hover tooltip shows source
                 HStack(spacing: 4) {
                     ForEach(skill.installations) { installation in
-                        Image(systemName: installation.agentType.iconName)
-                            .font(.caption)
+                        Image(systemName: installation.agentType.iconName).appFont(.caption)
                             .foregroundStyle(Constants.AgentColors.color(for: installation.agentType))
                             // Reduce opacity for inherited installation icons to visually distinguish from direct installations
                             .opacity(installation.isInherited ? 0.4 : 1.0)
@@ -45,8 +43,7 @@ struct SkillRowView: View {
 
             // Second row: description (max 2 lines)
             if !skill.metadata.description.isEmpty {
-                Text(skill.metadata.description)
-                    .font(.subheadline)
+                Text(skill.metadata.description).appFont(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
@@ -54,20 +51,17 @@ struct SkillRowView: View {
             // Third row: author + version + source
             HStack(spacing: 12) {
                 if let author = skill.metadata.author {
-                    Label(author, systemImage: "person")
-                        .font(.caption)
+                    Label(author, systemImage: "person").appFont(.caption)
                         .foregroundStyle(.tertiary)
                 }
 
                 if let version = skill.metadata.version {
-                    Label("v\(version)", systemImage: "tag")
-                        .font(.caption)
+                    Label("v\(version)", systemImage: "tag").appFont(.caption)
                         .foregroundStyle(.tertiary)
                 }
 
                 if let lockEntry = skill.lockEntry {
-                    Label(lockEntry.source, systemImage: "link")
-                        .font(.caption)
+                    Label(lockEntry.source, systemImage: "link").appFont(.caption)
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -97,21 +91,18 @@ struct SkillRowView: View {
         case .hasUpdate:
             // Update available: orange up arrow in filled circle icon
             Image(systemName: "arrow.up.circle.fill")
-                .foregroundStyle(.orange)
-                .font(.caption)
+                .foregroundStyle(.orange).appFont(.caption)
                 .help("Update available")
         case .upToDate:
             // Up to date: green checkmark in filled circle icon
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .font(.caption)
+                .foregroundStyle(.green).appFont(.caption)
                 .help("Up to date")
         case .error(let message):
             // Check failed: yellow warning triangle icon, hover shows error details
             // .help() sets mouse hover tooltip (native macOS feature)
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.yellow)
-                .font(.caption)
+                .foregroundStyle(.yellow).appFont(.caption)
                 .help("Check failed: \(message)")
         }
     }
