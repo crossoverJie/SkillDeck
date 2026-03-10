@@ -102,6 +102,7 @@ struct SidebarView: View {
                     sidebarRow(item: .agent(agentType)) {
                         Label {
                             Text(agentType.displayName)
+                                .foregroundStyle(selection == .agent(agentType) ? .primary : .secondary)
                         } icon: {
                             Image(systemName: agentType.iconName)
                                 .foregroundStyle(Constants.AgentColors.color(for: agentType))
@@ -258,6 +259,7 @@ struct SidebarView: View {
         Button { selection = item } label: { label().appFont(.body) }
             // .buttonStyle(.plain) removes button default styles (border, press effect, etc.)
             .buttonStyle(.plain)
+            .foregroundStyle(selection == item ? .primary : .secondary)
             // .contentShape(Rectangle()) expands interaction area (click+hover) to entire row rectangle
             // By default Button only responds to events in content (text/icon) area,
             // row's blank area doesn't trigger .onHover, causing hover effect to only appear above text
