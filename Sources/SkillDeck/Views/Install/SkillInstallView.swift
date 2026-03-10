@@ -54,8 +54,7 @@ struct SkillInstallView: View {
     /// Header bar (common to all phases)
     private var headerBar: some View {
         HStack {
-            Text("Install Skills from GitHub")
-                .font(.headline)
+            Text("Install Skills from GitHub").appFont(.headline)
             Spacer()
             // Close button
             Button {
@@ -83,8 +82,7 @@ struct SkillInstallView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
 
-            Text("Enter a GitHub repository to scan for skills")
-                .font(.subheadline)
+            Text("Enter a GitHub repository to scan for skills").appFont(.subheadline)
                 .foregroundStyle(.secondary)
 
             // URL input field
@@ -111,8 +109,7 @@ struct SkillInstallView: View {
             // Users can click a history item to auto-fill the URL and trigger Scan
             if !viewModel.repoHistory.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Recent Repositories")
-                        .font(.caption)
+                    Text("Recent Repositories").appFont(.caption)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 40)
 
@@ -135,10 +132,8 @@ struct SkillInstallView: View {
                                     HStack(spacing: 8) {
                                         // Clock arrow icon representing "history"
                                         Image(systemName: "clock.arrow.circlepath")
-                                            .foregroundStyle(.secondary)
-                                            .font(.caption)
-                                        Text(entry.source)
-                                            .font(.callout)
+                                            .foregroundStyle(.secondary).appFont(.caption)
+                                        Text(entry.source).appFont(.callout)
                                             .foregroundStyle(.primary)
                                         Spacer()
                                     }
@@ -213,8 +208,7 @@ struct SkillInstallView: View {
             VStack(spacing: 12) {
                 // Agent selection area (two-row layout to avoid horizontal squeezing)
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Install to:")
-                        .font(.subheadline)
+                    Text("Install to:").appFont(.subheadline)
                         .foregroundStyle(.secondary)
 
                     // LazyVGrid adapts column width, automatically wraps based on available space
@@ -228,8 +222,7 @@ struct SkillInstallView: View {
                                 get: { viewModel.selectedAgents.contains(agentType) },
                                 set: { _ in viewModel.toggleAgentSelection(agentType) }
                             )) {
-                                Label(agentType.displayName, systemImage: agentType.iconName)
-                                    .font(.caption)
+                                Label(agentType.displayName, systemImage: agentType.iconName).appFont(.caption)
                             }
                             .toggleStyle(.checkbox)
                             // Uninstalled Agents have reduced opacity but are still selectable
@@ -242,8 +235,7 @@ struct SkillInstallView: View {
                 HStack {
                     // Selected count hint
                     let selectedCount = viewModel.selectedSkillNames.count
-                    Text("\(selectedCount) skill\(selectedCount == 1 ? "" : "s") selected")
-                        .font(.caption)
+                    Text("\(selectedCount) skill\(selectedCount == 1 ? "" : "s") selected").appFont(.caption)
                         .foregroundStyle(.secondary)
 
                     Spacer()
@@ -281,8 +273,7 @@ struct SkillInstallView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.green)
 
-            Text("Installation Complete")
-                .font(.headline)
+            Text("Installation Complete").appFont(.headline)
 
             Text("\(viewModel.installedCount) skill\(viewModel.installedCount == 1 ? "" : "s") installed successfully")
                 .foregroundStyle(.secondary)
@@ -314,8 +305,7 @@ struct SkillInstallView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.orange)
 
-            Text("Something went wrong")
-                .font(.headline)
+            Text("Something went wrong").appFont(.headline)
 
             Text(message)
                 .foregroundStyle(.secondary)
@@ -352,14 +342,12 @@ struct SkillInstallView: View {
             // Skill info
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text(skill.metadata.name.isEmpty ? skill.id : skill.metadata.name)
-                        .font(.body)
+                    Text(skill.metadata.name.isEmpty ? skill.id : skill.metadata.name).appFont(.body)
                         .fontWeight(.medium)
 
                     // "Already installed" badge
                     if isAlreadyInstalled {
-                        Text("Installed")
-                            .font(.caption2)
+                        Text("Installed").appFont(.caption2)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Color.green.opacity(0.15))
@@ -370,8 +358,7 @@ struct SkillInstallView: View {
                 }
 
                 if !skill.metadata.description.isEmpty {
-                    Text(skill.metadata.description)
-                        .font(.caption)
+                    Text(skill.metadata.description).appFont(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }

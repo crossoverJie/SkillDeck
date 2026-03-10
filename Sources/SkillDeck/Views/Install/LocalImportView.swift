@@ -52,8 +52,7 @@ struct LocalImportView: View {
     /// Header bar with title and close button (common to all phases)
     private var headerBar: some View {
         HStack {
-            Text("Import Local Skill")
-                .font(.headline)
+            Text("Import Local Skill").appFont(.headline)
             Spacer()
             // Close button
             Button {
@@ -80,8 +79,7 @@ struct LocalImportView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
 
-            Text("Select a local directory containing SKILL.md")
-                .font(.subheadline)
+            Text("Select a local directory containing SKILL.md").appFont(.subheadline)
                 .foregroundStyle(.secondary)
 
             // "Select Folder..." button triggers NSOpenPanel
@@ -117,13 +115,11 @@ struct LocalImportView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     // Skill name and description preview
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.skillMetadata?.name ?? viewModel.skillName)
-                            .font(.title3)
+                        Text(viewModel.skillMetadata?.name ?? viewModel.skillName).appFont(.title3)
                             .fontWeight(.semibold)
 
                         if let desc = viewModel.skillMetadata?.description, !desc.isEmpty {
-                            Text(desc)
-                                .font(.subheadline)
+                            Text(desc).appFont(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(3)
                         }
@@ -132,11 +128,9 @@ struct LocalImportView: View {
                     // Source path display (shows where the skill is being imported from)
                     if let dirURL = viewModel.selectedDirectoryURL {
                         HStack(spacing: 4) {
-                            Image(systemName: "folder")
-                                .font(.caption)
+                            Image(systemName: "folder").appFont(.caption)
                                 .foregroundStyle(.secondary)
-                            Text(dirURL.path)
-                                .font(.caption)
+                            Text(dirURL.path).appFont(.caption)
                                 .foregroundStyle(.secondary)
                                 // lineLimit(1) + truncationMode(.middle) truncates long paths in the middle
                                 // e.g., "/Users/.../very-long-path/skill-dir" → shows start and end with ... in middle
@@ -150,8 +144,7 @@ struct LocalImportView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundStyle(.orange)
-                            Text("A skill named \"\(viewModel.skillName)\" already exists and will be overwritten.")
-                                .font(.caption)
+                            Text("A skill named \"\(viewModel.skillName)\" already exists and will be overwritten.").appFont(.caption)
                                 .foregroundStyle(.orange)
                         }
                         .padding(8)
@@ -169,8 +162,7 @@ struct LocalImportView: View {
             VStack(spacing: 12) {
                 // Agent selection grid (same layout as SkillInstallView)
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Install to:")
-                        .font(.subheadline)
+                    Text("Install to:").appFont(.subheadline)
                         .foregroundStyle(.secondary)
 
                     // LazyVGrid adapts column width, automatically wraps based on available space
@@ -183,8 +175,7 @@ struct LocalImportView: View {
                                 get: { viewModel.selectedAgents.contains(agentType) },
                                 set: { _ in viewModel.toggleAgentSelection(agentType) }
                             )) {
-                                Label(agentType.displayName, systemImage: agentType.iconName)
-                                    .font(.caption)
+                                Label(agentType.displayName, systemImage: agentType.iconName).appFont(.caption)
                             }
                             .toggleStyle(.checkbox)
                             // Uninstalled Agents have reduced opacity but are still selectable
@@ -229,8 +220,7 @@ struct LocalImportView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.green)
 
-            Text("Import Complete")
-                .font(.headline)
+            Text("Import Complete").appFont(.headline)
 
             Text("\"\(viewModel.skillName)\" has been imported successfully")
                 .foregroundStyle(.secondary)
@@ -261,8 +251,7 @@ struct LocalImportView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.orange)
 
-            Text("Something went wrong")
-                .font(.headline)
+            Text("Something went wrong").appFont(.headline)
 
             Text(message)
                 .foregroundStyle(.secondary)
