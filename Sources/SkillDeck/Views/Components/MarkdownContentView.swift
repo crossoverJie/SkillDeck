@@ -59,11 +59,15 @@ struct MarkdownNodeView: View {
     /// The Markdown AST node to render
     let node: any Markup
 
+    /// @Environment reads app-wide font preferences for consistent markdown rendering.
+    @Environment(\.appFontFamily) private var appFontFamily
+    @Environment(\.appFontBaseSize) private var appFontBaseSize
+
     var body: some View {
         // Create a visitor instance and dispatch the node to the appropriate visit* method.
         // `visit()` is the entry point that calls the specific `visitHeading()`, `visitParagraph()`, etc.
         // based on the runtime type of the node (dynamic dispatch via protocol).
-        var visitor = SwiftUIMarkdownVisitor()
+        var visitor = SwiftUIMarkdownVisitor(fontFamily: appFontFamily, baseSize: appFontBaseSize)
         let result = visitor.visit(node)
         result
     }
@@ -97,6 +101,14 @@ struct SwiftUIMarkdownVisitor: MarkupVisitor {
     // similar to Java's Object or Go's interface{} — it wraps any concrete View type.
     typealias Result = AnyView
 
+    let fontFamily: String
+    let baseSize: Double
+
+    init(fontFamily: String = FontSettings.systemFontFamily, baseSize: Double = FontSettings.defaultFontSize) {
+        self.fontFamily = fontFamily
+        self.baseSize = baseSize
+    }
+
     // MARK: - Block Elements
 
     /// Render a Heading node (# H1, ## H2, etc.) as a bold Text with sized font
@@ -105,7 +117,7 @@ struct SwiftUIMarkdownVisitor: MarkupVisitor {
     /// We map each level to a SwiftUI Font: .title for H1, .title2 for H2, etc.
     mutating func visitHeading(_ heading: Heading) -> AnyView {
         let text = buildInlineText(from: heading)
-        let font: Font = switch heading.level {
+        let textStyle: Font.TextStyle = switch heading.level {
         case 1: .title
         case 2: .title2
         case 3: .title3
@@ -116,7 +128,7 @@ struct SwiftUIMarkdownVisitor: MarkupVisitor {
 
         return AnyView(
             text
-                .font(font)
+                .appFont(textStyle)
                 .fontWeight(.bold)
                 // Add top padding for visual separation between sections
                 .padding(.top, heading.level <= 2 ? 8 : 4)
@@ -130,8 +142,7 @@ struct SwiftUIMarkdownVisitor: MarkupVisitor {
     mutating func visitParagraph(_ paragraph: Paragraph) -> AnyView {
         let text = buildInlineText(from: paragraph)
         return AnyView(
-            text
-                .font(.body)
+            text.appFont(.body)
                 // `fixedSize` prevents text from being truncated; it allows the text to grow
                 // vertically as needed. `horizontal: false` keeps horizontal wrapping behavior.
                 .fixedSize(horizontal: false, vertical: true)
@@ -149,8 +160,7 @@ struct SwiftUIMarkdownVisitor: MarkupVisitor {
             VStack(alignment: .leading, spacing: 4) {
                 // Optional language label (e.g., "swift", "bash")
                 if let language = codeBlock.language, !language.isEmpty {
-                    SwiftUI.Text(language)
-                        .font(.caption2)
+                    SwiftUI.Text(language).appFont(.caption2)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 8)
                 }
@@ -159,7 +169,7 @@ struct SwiftUIMarkdownVisitor: MarkupVisitor {
                 SwiftUI.Text(code)
                     // `.system(.body, design: .monospaced)` creates a system font with monospace design,
                     // similar to using "Courier New" in CSS but using the system monospace font
-                    .font(.system(.body, design: .monospaced))
+                    .appFont(.body, design: .monospaced)
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     // Use system text background color — adapts to dark/light mode automatically
@@ -247,8 +257,7 @@ struct SwiftUIMarkdownVisitor: MarkupVisitor {
     /// since SwiftUI has no built-in HTML renderer.
     mutating func visitHTMLBlock(_ html: HTMLBlock) -> AnyView {
         AnyView(
-            SwiftUI.Text(html.rawHTML.trimmingCharacters(in: .whitespacesAndNewlines))
-                .font(.body)
+            SwiftUI.Text(html.rawHTML.trimmingCharacters(in: .whitespacesAndNewlines)).appFont(.body)
                 .foregroundStyle(.secondary)
         )
     }
@@ -309,8 +318,7 @@ struct SwiftUIMarkdownVisitor: MarkupVisitor {
         // Leaf node with no specific handler — render its plain text content
         let plainText = markup.format()
         return AnyView(
-            SwiftUI.Text(plainText)
-                .font(.body)
+            SwiftUI.Text(plainText).appFont(.body)
         )
     }
 
@@ -371,9 +379,8 @@ struct SwiftUIMarkdownVisitor: MarkupVisitor {
 
         case let code as InlineCode:
             // Inline code (`code`) — monospaced font with subtle background
-            // `.font(.system(.body, design: .monospaced))` applies monospace design
             return SwiftUI.Text(code.code)
-                .font(.system(.body, design: .monospaced))
+                .font(FontSettings.font(family: fontFamily, baseSize: baseSize, textStyle: .body, design: .monospaced))
                 .foregroundColor(.orange)
 
         case let link as Markdown.Link:
@@ -491,6 +498,9 @@ struct MarkdownTableView: View {
     /// Converted column alignments (from `Table.ColumnAlignment?` to `HorizontalAlignment`)
     let columnAlignments: [HorizontalAlignment]
 
+    @Environment(\.appFontFamily) private var appFontFamily
+    @Environment(\.appFontBaseSize) private var appFontBaseSize
+
     var body: some View {
         // ScrollView(.horizontal) allows wide tables to scroll horizontally
         // instead of compressing columns or breaking the layout.
@@ -498,18 +508,17 @@ struct MarkdownTableView: View {
             Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
                 // Render header row
                 renderHeaderRow(table.head)
-
+            
                 // Thin separator line between header and body
                 // `Divider()` inside a Grid spans the full width
                 Divider()
-
+            
                 // Render body rows
                 let bodyRows = Array(table.body.rows)
                 ForEach(Array(bodyRows.enumerated()), id: \.offset) { index, row in
                     renderBodyRow(row, rowIndex: index)
                 }
-            }
-            .font(.subheadline)
+            }.appFont(.subheadline)
         }
         // Add a subtle border around the entire table
         .overlay(
@@ -611,7 +620,7 @@ struct MarkdownTableView: View {
 
         case let code as InlineCode:
             return SwiftUI.Text(code.code)
-                .font(.system(.body, design: .monospaced))
+                .font(FontSettings.font(family: appFontFamily, baseSize: appFontBaseSize, textStyle: .body, design: .monospaced))
                 .foregroundColor(.orange)
 
         case let link as Markdown.Link:
