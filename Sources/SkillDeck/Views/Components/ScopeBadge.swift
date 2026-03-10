@@ -12,10 +12,8 @@ struct ScopeBadge: View {
 
     var body: some View {
         HStack(spacing: 3) {
-            Image(systemName: iconName)
-                .font(.caption2)
-            Text(scope.displayName)
-                .font(.caption)
+            Image(systemName: iconName).appFont(.caption2)
+            Text(scope.displayName).appFont(.caption)
                 .fontWeight(.medium)
         }
         .padding(.horizontal, 6)

@@ -33,14 +33,12 @@ struct AgentToggleView: View {
                     // Inherited installation hint text: shows source path like "via ~/.claude/skills"
                     // Uses parentDirectoryDisplayPath derived from the actual installation path
                     if isInherited, let installation {
-                        Text("via \(installation.parentDirectoryDisplayPath)")
-                            .font(.caption)
+                        Text("via \(installation.parentDirectoryDisplayPath)").appFont(.caption)
                             .foregroundStyle(.secondary)
                     }
 
                     if !isAgentAvailable && !isInstalled {
-                        Text("Not installed")
-                            .font(.caption)
+                        Text("Not installed").appFont(.caption)
                             .foregroundStyle(.tertiary)
                     }
 

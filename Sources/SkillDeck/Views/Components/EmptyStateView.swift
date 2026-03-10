@@ -15,12 +15,10 @@ struct EmptyStateView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(.tertiary)
 
-            Text(title)
-                .font(.title3)
+            Text(title).appFont(.title3)
                 .fontWeight(.medium)
 
-            Text(subtitle)
-                .font(.subheadline)
+            Text(subtitle).appFont(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
