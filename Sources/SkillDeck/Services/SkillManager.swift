@@ -59,6 +59,16 @@ final class SkillManager {
         }
     }
 
+    /// Result for ClawHub installations.
+    ///
+    /// ClawHub normally provides a full zip bundle, but the API can occasionally rate-limit or fail.
+    /// In that case we still allow a markdown-only fallback so OpenClaw can at least load the main
+    /// `SKILL.md`, while the UI clearly tells the user that auxiliary files were not installed.
+    enum ClawHubInstallResult: Equatable {
+        case installedFromArchive
+        case installedSkillMarkdownOnly
+    }
+
     // MARK: - Published State (UI-bound state)
 
     /// All discovered skills (deduplicated)
@@ -319,8 +329,6 @@ final class SkillManager {
         repoURL: String,
         targetAgents: Set<AgentType>
     ) async throws {
-        let fm = FileManager.default
-
         // 1. Get tree hash (git rev-parse HEAD:<folderPath>)
         let treeHash = try await gitService.getTreeHash(for: skill.folderPath, in: repoDir)
 
@@ -330,33 +338,7 @@ final class SkillManager {
         await commitHashCache.setHash(for: skill.id, hash: commitHash)
         try await commitHashCache.save()
 
-        // 2. Copy to canonical directory
-        // canonical path: ~/.agents/skills/<skillName>/
-        let canonicalDir = SkillScanner.sharedSkillsURL.appendingPathComponent(skill.id)
         let sourceDir = repoDir.appendingPathComponent(skill.folderPath)
-
-        // If already exists, delete first then copy (overwrite installation)
-        if fm.fileExists(atPath: canonicalDir.path) {
-            try fm.removeItem(at: canonicalDir)
-        }
-
-        // Ensure parent directory exists
-        if !fm.fileExists(atPath: SkillScanner.sharedSkillsURL.path) {
-            try fm.createDirectory(at: SkillScanner.sharedSkillsURL, withIntermediateDirectories: true)
-        }
-
-        // copyItem is like cp -r, recursively copies entire directory
-        try fm.copyItem(at: sourceDir, to: canonicalDir)
-
-        // 3. Create symlinks for selected Agents
-        for agent in targetAgents {
-            // Use try? to ignore existing symlink errors (idempotent operation)
-            try? SymlinkManager.createSymlink(from: canonicalDir, to: agent)
-        }
-
-        // 4. Update lock file
-        // Ensure lock file exists (may not exist on first installation)
-        try await lockFileManager.createIfNotExists()
 
         // ISO 8601 timestamp (consistent with npx skills CLI format)
         let now = ISO8601DateFormatter().string(from: Date())
@@ -369,10 +351,12 @@ final class SkillManager {
             installedAt: now,
             updatedAt: now
         )
-        try await lockFileManager.updateEntry(skillName: skill.id, entry: entry)
-
-        // 5. Refresh UI
-        await refresh()
+        try await persistInstalledSkillDirectory(
+            from: sourceDir,
+            skillName: skill.id,
+            targetAgents: targetAgents,
+            lockEntry: entry
+        )
     }
 
     // MARK: - Local Import
@@ -421,32 +405,6 @@ final class SkillManager {
             throw ImportError.parseFailed(error.localizedDescription)
         }
 
-        // 3. Copy directory to canonical path (~/.agents/skills/<skillName>/)
-        let canonicalDir = SkillScanner.sharedSkillsURL.appendingPathComponent(skillName)
-
-        // If already exists, delete first then copy (overwrite import)
-        if fm.fileExists(atPath: canonicalDir.path) {
-            try fm.removeItem(at: canonicalDir)
-        }
-
-        // Ensure parent directory (~/.agents/skills/) exists
-        if !fm.fileExists(atPath: SkillScanner.sharedSkillsURL.path) {
-            try fm.createDirectory(at: SkillScanner.sharedSkillsURL, withIntermediateDirectories: true)
-        }
-
-        // copyItem is like cp -r, recursively copies entire directory
-        try fm.copyItem(at: sourceURL, to: canonicalDir)
-
-        // 4. Create symlinks for selected Agents
-        for agent in targetAgents {
-            // Use try? to ignore existing symlink errors (idempotent operation)
-            try? SymlinkManager.createSymlink(from: canonicalDir, to: agent)
-        }
-
-        // 5. Update lock file with sourceType "local"
-        // Ensure lock file exists (may not exist on first import)
-        try await lockFileManager.createIfNotExists()
-
         // ISO 8601 timestamp (consistent with npx skills CLI format)
         let now = ISO8601DateFormatter().string(from: Date())
         let entry = LockEntry(
@@ -458,10 +416,89 @@ final class SkillManager {
             installedAt: now,
             updatedAt: now
         )
-        try await lockFileManager.updateEntry(skillName: skillName, entry: entry)
+        try await persistInstalledSkillDirectory(
+            from: sourceURL,
+            skillName: skillName,
+            targetAgents: targetAgents,
+            lockEntry: entry
+        )
+    }
 
-        // 6. Refresh UI
-        await refresh()
+    /// Install a skill fetched from ClawHub into the canonical directory, then expose it to OpenClaw.
+    ///
+    /// We intentionally do not shell out to `clawhub install`. SkillDeck keeps its own canonical
+    /// storage model (`~/.agents/skills`) and only creates the OpenClaw symlink after the files are
+    /// safely persisted locally. This keeps installation behavior consistent with the rest of the app.
+    func installClawHubSkill(
+        slug: String,
+        version: String,
+        detailPageURL: String,
+        skillContent: String?,
+        archiveData: Data?,
+        targetAgents: Set<AgentType>
+    ) async throws -> ClawHubInstallResult {
+        let fm = FileManager.default
+        let tempRoot = fm.temporaryDirectory.appendingPathComponent("SkillDeck-ClawHub-\(UUID().uuidString)")
+        try fm.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: tempRoot) }
+
+        let now = ISO8601DateFormatter().string(from: Date())
+        let entry = LockEntry(
+            source: slug,
+            sourceType: "clawhub",
+            sourceUrl: detailPageURL,
+            skillPath: "\(slug)/SKILL.md",
+            skillFolderHash: "",
+            installedAt: now,
+            updatedAt: now
+        )
+
+        if let archiveData {
+            let archiveURL = tempRoot.appendingPathComponent("\(slug).zip")
+            let extractedRoot = tempRoot.appendingPathComponent("extracted")
+            try archiveData.write(to: archiveURL)
+            try fm.createDirectory(at: extractedRoot, withIntermediateDirectories: true)
+
+            do {
+                try extractZipArchive(at: archiveURL, to: extractedRoot)
+                if let extractedSkillDir = try locateSkillDirectory(in: extractedRoot) {
+                    try await persistInstalledSkillDirectory(
+                        from: extractedSkillDir,
+                        skillName: slug,
+                        targetAgents: targetAgents,
+                        lockEntry: entry
+                    )
+                    return .installedFromArchive
+                }
+            } catch {
+                if skillContent == nil {
+                    throw error
+                }
+            }
+        }
+
+        guard let skillContent else {
+            throw ImportError.skillMDNotFound("ClawHub skill bundle for \(slug)")
+        }
+
+        let markdownOnlyDir = tempRoot.appendingPathComponent(slug)
+        try fm.createDirectory(at: markdownOnlyDir, withIntermediateDirectories: true)
+        let skillMDURL = markdownOnlyDir.appendingPathComponent("SKILL.md")
+        try skillContent.write(to: skillMDURL, atomically: true, encoding: .utf8)
+
+        do {
+            _ = try SkillMDParser.parse(fileURL: skillMDURL)
+        } catch {
+            throw ImportError.parseFailed(error.localizedDescription)
+        }
+
+        try await persistInstalledSkillDirectory(
+            from: markdownOnlyDir,
+            skillName: slug,
+            targetAgents: targetAgents,
+            lockEntry: entry
+        )
+        return .installedSkillMarkdownOnly
     }
 
     // MARK: - F12: Update Check
@@ -481,6 +518,9 @@ final class SkillManager {
     /// - Returns: Tuple (has update, remote tree hash, remote commit hash)
     func checkForUpdate(skill: Skill) async throws -> (hasUpdate: Bool, remoteHash: String?, remoteCommitHash: String?) {
         guard let lockEntry = skill.lockEntry else {
+            return (false, nil, nil)
+        }
+        guard lockEntry.sourceType == "github" else {
             return (false, nil, nil)
         }
 
@@ -541,7 +581,10 @@ final class SkillManager {
         // Skip local imports: they have no remote repository to compare against,
         // and trying to git-clone a local filesystem path would cause errors
         // Dictionary(grouping:by:) is similar to Java Stream's Collectors.groupingBy()
-        let skillsWithLock = skills.filter { $0.lockEntry != nil && $0.lockEntry?.sourceType != "local" }
+        let skillsWithLock = skills.filter { skill in
+            guard let sourceType = skill.lockEntry?.sourceType else { return false }
+            return sourceType == "github"
+        }
 
         // Set all skills to be checked to .checking state
         // So UI list immediately shows spinner, user knows which skills are being checked
@@ -638,6 +681,7 @@ final class SkillManager {
     ///   - remoteHash: Remote latest tree hash
     func updateSkill(_ skill: Skill, remoteHash: String) async throws {
         guard let lockEntry = skill.lockEntry else { return }
+        guard lockEntry.sourceType == "github" else { return }
 
         // Derive folderPath
         let folderPath: String
@@ -743,6 +787,85 @@ final class SkillManager {
     func saveRepoHistory(source: String, sourceUrl: String) async {
         await commitHashCache.addRepoHistory(source: source, sourceUrl: sourceUrl)
         try? await commitHashCache.save()
+    }
+
+    /// Shared persistence helper used by GitHub installs, local imports, and ClawHub installs.
+    ///
+    /// The source directory is copied into SkillDeck's canonical storage first, then symlinks are
+    /// created for each selected Agent. Keeping that order matters because Agent directories should
+    /// always point at a fully materialized canonical directory rather than a temporary location.
+    private func persistInstalledSkillDirectory(
+        from sourceURL: URL,
+        skillName: String,
+        targetAgents: Set<AgentType>,
+        lockEntry: LockEntry
+    ) async throws {
+        let fm = FileManager.default
+        let canonicalDir = SkillScanner.sharedSkillsURL.appendingPathComponent(skillName)
+
+        if fm.fileExists(atPath: canonicalDir.path) {
+            try fm.removeItem(at: canonicalDir)
+        }
+
+        if !fm.fileExists(atPath: SkillScanner.sharedSkillsURL.path) {
+            try fm.createDirectory(at: SkillScanner.sharedSkillsURL, withIntermediateDirectories: true)
+        }
+
+        try fm.copyItem(at: sourceURL, to: canonicalDir)
+
+        for agent in targetAgents {
+            try? SymlinkManager.createSymlink(from: canonicalDir, to: agent)
+        }
+
+        try await lockFileManager.createIfNotExists()
+        try await lockFileManager.updateEntry(skillName: skillName, entry: lockEntry)
+        await refresh()
+    }
+
+    /// Extract a zip archive using macOS `ditto`.
+    ///
+    /// Using `Process` here mirrors the existing updater implementation and avoids adding a zip
+    /// dependency. `ditto -xk` is reliable on macOS for ordinary zip archives and preserves links.
+    private func extractZipArchive(at archiveURL: URL, to destinationURL: URL) throws {
+        let unzipProcess = Process()
+        unzipProcess.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+        unzipProcess.arguments = ["-xk", archiveURL.path, destinationURL.path]
+
+        try unzipProcess.run()
+        unzipProcess.waitUntilExit()
+
+        guard unzipProcess.terminationStatus == 0 else {
+            throw ImportError.parseFailed("Failed to extract ClawHub archive.")
+        }
+    }
+
+    /// Recursively search the extracted bundle for the first directory containing `SKILL.md`.
+    ///
+    /// ClawHub archives can wrap the skill in an extra top-level folder, so we cannot assume the
+    /// first extracted directory is the actual skill root. Walking the tree keeps this robust.
+    private func locateSkillDirectory(in rootURL: URL) throws -> URL? {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: rootURL.appendingPathComponent("SKILL.md").path) {
+            return rootURL
+        }
+
+        guard let enumerator = fm.enumerator(
+            at: rootURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return nil
+        }
+
+        for case let fileURL as URL in enumerator {
+            let resourceValues = try fileURL.resourceValues(forKeys: [.isDirectoryKey])
+            guard resourceValues.isDirectory == true else { continue }
+            if fm.fileExists(atPath: fileURL.appendingPathComponent("SKILL.md").path) {
+                return fileURL
+            }
+        }
+
+        return nil
     }
 
     /// Filter skills by Agent

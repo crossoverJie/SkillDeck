@@ -238,9 +238,10 @@ final class LocalImportTests: XCTestCase {
         XCTAssertEqual(readEntry?.skillFolderHash, "", "skillFolderHash should be empty for local imports")
     }
 
-    /// Test that local skills are filtered out in checkAllUpdates filter logic
-    /// This verifies the filtering condition: sourceType != "local"
-    func testLocalSkillsSkippedInUpdateCheck() {
+    /// Test that only GitHub-backed skills participate in the current update-check pipeline.
+    ///
+    /// This mirrors SkillManager.checkAllUpdates(), which now explicitly keeps only `sourceType == "github"`.
+    func testOnlyGitHubSkillsParticipateInUpdateCheck() {
         // Create lock entries for both types
         let githubEntry = LockEntry(
             source: "owner/repo",
@@ -262,15 +263,46 @@ final class LocalImportTests: XCTestCase {
             updatedAt: "2024-01-01T00:00:00Z"
         )
 
+        let clawHubEntry = LockEntry(
+            source: "browser-use",
+            sourceType: "clawhub",
+            sourceUrl: "https://clawhub.ai/skills/browser-use",
+            skillPath: "browser-use/SKILL.md",
+            skillFolderHash: "",
+            installedAt: "2024-01-01T00:00:00Z",
+            updatedAt: "2024-01-01T00:00:00Z"
+        )
+
         // Simulate the filter logic from checkAllUpdates()
-        // This is the exact condition used in SkillManager.checkAllUpdates():
-        // skills.filter { $0.lockEntry != nil && $0.lockEntry?.sourceType != "local" }
-        let entries: [LockEntry?] = [githubEntry, localEntry, nil]
-        let filtered = entries.filter { $0 != nil && $0?.sourceType != "local" }
+        let entries: [LockEntry?] = [githubEntry, localEntry, clawHubEntry, nil]
+        let filtered = entries.compactMap { $0 }.filter { $0.sourceType == "github" }
 
         // Only the GitHub entry should pass the filter
-        XCTAssertEqual(filtered.count, 1, "Only non-local entries should pass the filter")
-        XCTAssertEqual(filtered.first??.sourceType, "github")
+        XCTAssertEqual(filtered.count, 1, "Only GitHub entries should pass the filter")
+        XCTAssertEqual(filtered.first?.sourceType, "github")
+    }
+
+    /// Test that lock entry fields for ClawHub installs preserve marketplace-specific metadata.
+    func testLockEntryFieldsForClawHubInstall() async throws {
+        let now = ISO8601DateFormatter().string(from: Date())
+        let entry = LockEntry(
+            source: "browser-use",
+            sourceType: "clawhub",
+            sourceUrl: "https://clawhub.ai/skills/browser-use",
+            skillPath: "browser-use/SKILL.md",
+            skillFolderHash: "",
+            installedAt: now,
+            updatedAt: now
+        )
+        try await lockFileManager.updateEntry(skillName: "browser-use", entry: entry)
+
+        let readEntry = try await lockFileManager.getEntry(skillName: "browser-use")
+        XCTAssertNotNil(readEntry)
+        XCTAssertEqual(readEntry?.source, "browser-use")
+        XCTAssertEqual(readEntry?.sourceType, "clawhub")
+        XCTAssertEqual(readEntry?.sourceUrl, "https://clawhub.ai/skills/browser-use")
+        XCTAssertEqual(readEntry?.skillPath, "browser-use/SKILL.md")
+        XCTAssertEqual(readEntry?.skillFolderHash, "")
     }
 
     // MARK: - ImportError Tests

@@ -32,6 +32,10 @@ struct ContentView: View {
     /// Created alongside other VMs in .task; manages leaderboard browsing and search
     @State private var registryVM: RegistryBrowserViewModel?
 
+    /// Dedicated ClawHub browser ViewModel
+    /// Kept separate from the skills.sh registry VM because ClawHub has its own API contract and install flow.
+    @State private var clawHubVM: ClawHubBrowserViewModel?
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             // Left column: sidebar navigation
@@ -47,6 +51,11 @@ struct ContentView: View {
                 if let vm = registryVM {
                     RegistryBrowserView(viewModel: vm)
                         // Registry needs wider column for skill info + install buttons
+                        .navigationSplitViewColumnWidth(min: 300, ideal: 400, max: 600)
+                }
+            } else if selectedSidebarItem == .clawHub {
+                if let vm = clawHubVM {
+                    ClawHubBrowserView(viewModel: vm)
                         .navigationSplitViewColumnWidth(min: 300, ideal: 400, max: 600)
                 }
             } else {
@@ -76,6 +85,22 @@ struct ContentView: View {
                         subtitle: "Choose a skill from the registry to view its details"
                     )
                 }
+            } else if selectedSidebarItem == .clawHub {
+                if let vm = clawHubVM, let skill = vm.selectedSkill {
+                    ClawHubSkillDetailView(
+                        skill: skill,
+                        isInstalled: vm.isInstalled(skill),
+                        isInstalling: vm.isInstalling(skill),
+                        onInstall: { vm.installSkill(skill) },
+                        viewModel: vm
+                    )
+                } else {
+                    EmptyStateView(
+                        icon: "shippingbox",
+                        title: "Select a Skill",
+                        subtitle: "Choose a skill from ClawHub to view its details"
+                    )
+                }
             } else if let skillID = selectedSkillID, let vm = detailVM {
                 SkillDetailView(skillID: skillID, viewModel: vm)
             } else {
@@ -92,6 +117,7 @@ struct ContentView: View {
             detailVM = SkillDetailViewModel(skillManager: skillManager)
             // F09: Initialize registry browser ViewModel
             registryVM = RegistryBrowserViewModel(skillManager: skillManager)
+            clawHubVM = ClawHubBrowserViewModel(skillManager: skillManager)
             await skillManager.refresh()
             // Auto-check for updates on app launch (subject to 4-hour interval limit, not every launch requests GitHub API)
             await skillManager.checkForAppUpdate()

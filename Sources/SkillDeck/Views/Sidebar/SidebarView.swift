@@ -8,6 +8,8 @@ enum SidebarItem: Hashable {
     case dashboard
     /// F09: Browse skills.sh catalog (leaderboard + search)
     case registry
+    /// Browse the ClawHub marketplace for OpenClaw-compatible skills
+    case clawHub
     case agent(AgentType)
     case settings
 
@@ -19,7 +21,7 @@ enum SidebarItem: Hashable {
         switch self {
         case .agent(let agentType):
             return agentType
-        case .dashboard, .settings, .registry:
+        case .dashboard, .settings, .registry, .clawHub:
             return nil
         }
     }
@@ -80,6 +82,14 @@ struct SidebarView: View {
                 .listRowBackground(
                     RoundedRectangle(cornerRadius: 6)
                         .fill(rowBackground(for: .registry))
+                )
+
+                sidebarRow(item: .clawHub) {
+                    Label("ClawHub", systemImage: "shippingbox")
+                }
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(rowBackground(for: .clawHub))
                 )
             }
 
@@ -175,7 +185,10 @@ struct SidebarView: View {
                                 .controlSize(.small)
                             // Progress count: counts number of skills that have completed checking / total pending check count
                             // Skills in .checking state are still being checked, others (.hasUpdate/.upToDate/.error) indicate completed
-                            let total = skillManager.skills.filter { $0.lockEntry != nil }.count
+                            let total = skillManager.skills.filter { skill in
+                                guard let sourceType = skill.lockEntry?.sourceType else { return false }
+                                return sourceType != "local" && sourceType != "clawhub"
+                            }.count
                             // compactMap is similar to Java Stream's filter+map combination:
                             // first get value from dictionary (may be nil), then filter out .checking state
                             let checked = skillManager.updateStatuses.values.filter {

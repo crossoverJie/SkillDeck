@@ -285,10 +285,12 @@ struct SkillDetailView: View {
                 Text("Package Info")
                     .font(.headline)
 
-                Spacer()
+                if supportsGitUpdates(lockEntry) {
+                    Spacer()
 
-                // F12: 更新状态指示和操作按钮
-                updateStatusView(skill)
+                    // F12: 更新状态指示和操作按钮
+                    updateStatusView(skill)
+                }
             }
 
             // Grid is macOS 14+ grid layout (similar to HTML CSS Grid)
@@ -298,7 +300,7 @@ struct SkillDetailView: View {
                     Text(lockEntry.source).textSelection(.enabled)
                 }
                 GridRow {
-                    Text("Repository").foregroundStyle(.secondary)
+                    Text(repositoryLabel(for: lockEntry)).foregroundStyle(.secondary)
                     // If sourceUrl is valid URL, show as clickable link, opens in system default browser when clicked
                     if let url = URL(string: lockEntry.sourceUrl),
                        url.scheme != nil {
@@ -311,16 +313,19 @@ struct SkillDetailView: View {
                 // Prefer displaying commit hash (can be viewed directly on GitHub),
                 // fallback to tree hash if not present (old skill not backfilled)
                 GridRow {
-                    if let commitHash = skill.localCommitHash {
+                    if supportsGitUpdates(lockEntry), let commitHash = skill.localCommitHash {
                         Text("Commit").foregroundStyle(.secondary)
                         Text(commitHash)
                             .font(.system(.body, design: .monospaced))
                             .textSelection(.enabled)
-                    } else {
+                    } else if supportsGitUpdates(lockEntry) {
                         Text("Tree Hash").foregroundStyle(.secondary)
                         Text(lockEntry.skillFolderHash)
                             .font(.system(.body, design: .monospaced))
                             .textSelection(.enabled)
+                    } else {
+                        Text("Source Type").foregroundStyle(.secondary)
+                        Text(lockEntry.sourceType.capitalized)
                     }
                 }
                 GridRow {
@@ -478,5 +483,18 @@ struct SkillDetailView: View {
 
         // No local commit hash (backfill not successful), only link to remote commit page
         return URL(string: "\(baseURL)/commit/\(remoteHash)")
+    }
+
+    /// Only GitHub-backed skills participate in the current update pipeline.
+    ///
+    /// ClawHub installs intentionally skip git-based update checks, because their `sourceUrl` points
+    /// to a marketplace page rather than a cloneable repository.
+    private func supportsGitUpdates(_ lockEntry: LockEntry) -> Bool {
+        lockEntry.sourceType == "github"
+    }
+
+    /// Adjust the UI label so marketplace installs are not described as a Git repository.
+    private func repositoryLabel(for lockEntry: LockEntry) -> String {
+        lockEntry.sourceType == "clawhub" ? "Marketplace Page" : "Repository"
     }
 }
