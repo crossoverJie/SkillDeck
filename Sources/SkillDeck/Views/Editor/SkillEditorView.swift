@@ -34,12 +34,10 @@ struct SkillEditorView: View {
                 // Right: Markdown preview
                 ScrollView {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Preview")
-                            .font(.headline)
+                        Text("Preview").appFont(.headline)
                             .foregroundStyle(.secondary)
 
-                        Text(viewModel.markdownBody)
-                            .font(.system(.body, design: .monospaced))
+                        Text(viewModel.markdownBody).appFont(.body, design: .monospaced)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .textSelection(.enabled)
                     }
@@ -55,22 +53,19 @@ struct SkillEditorView: View {
 
     private var editorToolbar: some View {
         HStack {
-            Text("Edit SKILL.md")
-                .font(.headline)
+            Text("Edit SKILL.md").appFont(.headline)
 
             Spacer()
 
             // Save status indicator
             if viewModel.saveSuccess {
                 Label("Saved", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                    .font(.subheadline)
+                    .foregroundStyle(.green).appFont(.subheadline)
             }
 
             if let error = viewModel.saveError {
                 Label(error, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.red)
-                    .font(.caption)
+                    .foregroundStyle(.red).appFont(.caption)
             }
 
             // Cancel button
@@ -104,7 +99,7 @@ struct SkillEditorView: View {
                 LabeledContent("Description") {
                     // TextEditor is a multi-line text editor (similar to HTML textarea)
                     TextEditor(text: $viewModel.description)
-                        .font(.body)
+                        .appFont(.body)
                         .frame(height: 60)
                         .border(Color(nsColor: .separatorColor))
                 }
@@ -140,8 +135,7 @@ struct SkillEditorView: View {
     /// Markdown body editor
     private var markdownEditorSection: some View {
         GroupBox("Markdown Content") {
-            TextEditor(text: $viewModel.markdownBody)
-                .font(.system(.body, design: .monospaced))
+            TextEditor(text: $viewModel.markdownBody).appFont(.body, design: .monospaced)
                 .frame(minHeight: 200)
         }
     }
