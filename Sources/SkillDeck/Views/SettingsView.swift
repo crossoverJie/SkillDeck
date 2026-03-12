@@ -16,6 +16,11 @@ struct SettingsView: View {
                     Label("General", systemImage: "gear")
                 }
 
+            ProxySettingsView()
+                .tabItem {
+                    Label("Proxy", systemImage: "network")
+                }
+
             AboutSettingsView()
                 .tabItem {
                     Label("About", systemImage: "info.circle")

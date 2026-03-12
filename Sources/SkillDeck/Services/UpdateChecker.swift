@@ -76,6 +76,12 @@ struct AppUpdateInfo: Codable, Sendable {
 /// actor is used here because network requests and file operations are asynchronous and require thread safety.
 actor UpdateChecker {
 
+    private let sessionProvider: NetworkSessionProvider
+
+    init(sessionProvider: NetworkSessionProvider = .shared) {
+        self.sessionProvider = sessionProvider
+    }
+
     /// GitHub API endpoint: get latest Release
     /// Fixed to SkillDeck repository's releases/latest endpoint
     private let apiURL = "https://api.github.com/repos/crossoverJie/SkillDeck/releases/latest"
@@ -107,9 +113,8 @@ actor UpdateChecker {
         // GitHub API requires Accept header to specify JSON format
         request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
 
-        // URLSession.shared is the globally shared network session (similar to Java's HttpClient or Python's requests.Session)
-        // data(for:) sends request and returns (Data, URLResponse) tuple
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let session = await sessionProvider.dataSession()
+        let (data, response) = try await session.data(for: request)
 
         // Check HTTP status code (URLResponse needs downcasting to HTTPURLResponse to access statusCode)
         // as? is Swift's conditional type casting (similar to Java's instanceof + cast)
@@ -187,10 +192,10 @@ actor UpdateChecker {
         // Defined inside actor to maintain encapsulation (similar to Java's inner class)
         let delegate = DownloadDelegate(progressHandler: progressHandler)
 
-        // URLSession(configuration:delegate:delegateQueue:) creates session with delegate
-        // .default uses default configuration (similar to OkHttp's default Builder)
-        // delegateQueue: nil lets system choose queue automatically
-        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        // URLSession(configuration:delegate:delegateQueue:) creates a session with a delegate.
+        // We use a configuration from NetworkSessionProvider so proxy settings can be applied.
+        let configuration = await sessionProvider.sessionConfiguration()
+        let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
 
         // download(from:) starts download task, returns temporary file path and response when complete
         let (tempURL, _) = try await session.download(from: downloadURL)

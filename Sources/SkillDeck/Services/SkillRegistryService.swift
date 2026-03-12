@@ -13,6 +13,12 @@ import Foundation
 /// but enforced at compile time. All property accesses from outside require `await`.
 actor SkillRegistryService {
 
+    private let sessionProvider: NetworkSessionProvider
+
+    init(sessionProvider: NetworkSessionProvider = .shared) {
+        self.sessionProvider = sessionProvider
+    }
+
     // MARK: - Error Types
 
     /// Errors that can occur during registry operations
@@ -141,12 +147,13 @@ actor SkillRegistryService {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         // Execute async network request
-        // URLSession.shared is the singleton HTTP client (similar to Go's http.DefaultClient)
+        // We use a URLSession from NetworkSessionProvider so proxy settings can be applied.
         // `try await` suspends until the response arrives — similar to Go's blocking I/O but non-blocking under the hood
+        let session = await sessionProvider.dataSession()
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await session.data(for: request)
         } catch {
             throw RegistryError.networkError(error.localizedDescription)
         }
@@ -208,10 +215,11 @@ actor SkillRegistryService {
             forHTTPHeaderField: "User-Agent"
         )
 
+        let session = await sessionProvider.dataSession()
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await session.data(for: request)
         } catch {
             throw RegistryError.networkError(error.localizedDescription)
         }
