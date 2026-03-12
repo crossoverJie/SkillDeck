@@ -39,14 +39,16 @@ struct ProxySettingsView: View {
                         .lineLimit(1)
                         .frame(width: 170, alignment: .leading)
 
-                        Picker("Type", selection: $proxyTypeRaw) {
-                            ForEach(ProxySettings.ProxyType.allCases) { type in
-                                Text(type.displayName).tag(type.rawValue)
+                        HStack {
+                            Spacer(minLength: 0)
+                            Picker("", selection: $proxyTypeRaw) {
+                                ForEach(ProxySettings.ProxyType.allCases) { type in
+                                    Text(type.displayName).tag(type.rawValue)
+                                }
                             }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
                         }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     GridRow {
@@ -59,9 +61,12 @@ struct ProxySettingsView: View {
                         .lineLimit(1)
                         .frame(width: 170, alignment: .leading)
 
-                        TextField("Host", text: $proxyHost)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 220, alignment: .leading)
+                        HStack {
+                            Spacer(minLength: 0)
+                            TextField("", text: $proxyHost)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 220)
+                        }
                     }
 
                     GridRow {
@@ -74,9 +79,12 @@ struct ProxySettingsView: View {
                         .lineLimit(1)
                         .frame(width: 170, alignment: .leading)
 
-                        TextField("Port", value: $proxyPort, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 120, alignment: .leading)
+                        HStack {
+                            Spacer(minLength: 0)
+                            TextField("", value: $proxyPort, format: .number)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 120)
+                        }
                     }
 
                     GridRow {
@@ -89,9 +97,12 @@ struct ProxySettingsView: View {
                         .lineLimit(1)
                         .frame(width: 170, alignment: .leading)
 
-                        TextField("Username", text: $proxyUsername)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 220, alignment: .leading)
+                        HStack {
+                            Spacer(minLength: 0)
+                            TextField("", text: $proxyUsername)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 220)
+                        }
                     }
 
                     GridRow {
@@ -104,9 +115,12 @@ struct ProxySettingsView: View {
                         .lineLimit(1)
                         .frame(width: 170, alignment: .leading)
 
-                        SecureField("Password", text: $proxyPassword)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 220, alignment: .leading)
+                        HStack {
+                            Spacer(minLength: 0)
+                            SecureField("", text: $proxyPassword)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 220)
+                        }
                     }
                 }
 
