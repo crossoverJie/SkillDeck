@@ -26,6 +26,11 @@ final class ProxyConfigurationBuilderTests: XCTestCase {
         XCTAssertEqual(dict[kCFNetworkProxiesHTTPEnable as String] as? Int, 1)
         XCTAssertEqual(dict[kCFNetworkProxiesHTTPProxy as String] as? String, "127.0.0.1")
         XCTAssertEqual(dict[kCFNetworkProxiesHTTPPort as String] as? Int, 8080)
+
+        // HTTP proxies commonly also handle HTTPS tunneling.
+        XCTAssertEqual(dict[kCFNetworkProxiesHTTPSEnable as String] as? Int, 1)
+        XCTAssertEqual(dict[kCFNetworkProxiesHTTPSProxy as String] as? String, "127.0.0.1")
+        XCTAssertEqual(dict[kCFNetworkProxiesHTTPSPort as String] as? Int, 8080)
         XCTAssertEqual(dict[kCFProxyUsernameKey as String] as? String, "user")
     }
 

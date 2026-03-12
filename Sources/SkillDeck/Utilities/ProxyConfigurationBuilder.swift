@@ -25,6 +25,12 @@ enum ProxyConfigurationBuilder {
             proxyDict[kCFNetworkProxiesHTTPProxy as String] = settings.host
             proxyDict[kCFNetworkProxiesHTTPPort as String] = settings.port
 
+            // Most real-world HTTP proxies also tunnel HTTPS via CONNECT.
+            // Setting both HTTP and HTTPS proxy keys ensures all app traffic can be routed.
+            proxyDict[kCFNetworkProxiesHTTPSEnable as String] = enabledFlag
+            proxyDict[kCFNetworkProxiesHTTPSProxy as String] = settings.host
+            proxyDict[kCFNetworkProxiesHTTPSPort as String] = settings.port
+
         case .https:
             proxyDict[kCFNetworkProxiesHTTPSEnable as String] = enabledFlag
             proxyDict[kCFNetworkProxiesHTTPSProxy as String] = settings.host
