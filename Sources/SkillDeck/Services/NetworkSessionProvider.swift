@@ -28,10 +28,21 @@ actor NetworkSessionProvider {
     private var cachedSession: URLSession?
 
     init(
-        defaults: UserDefaults = .standard,
+        defaultsSuiteName: String? = nil,
         keychain: KeychainService = KeychainService(service: "SkillDeck")
     ) {
-        self.defaults = defaults
+        // We store the suite name (a Sendable String) in the initializer boundary and
+        // create the concrete UserDefaults instance inside the actor. This avoids passing
+        // Foundation.UserDefaults (which is not Sendable) across actor isolation, which
+        // becomes a Swift 6 error even though the actor itself safely serializes access.
+        if let defaultsSuiteName {
+            guard let defaults = UserDefaults(suiteName: defaultsSuiteName) else {
+                fatalError("Failed to create UserDefaults suite named \(defaultsSuiteName)")
+            }
+            self.defaults = defaults
+        } else {
+            self.defaults = .standard
+        }
         self.keychain = keychain
     }
 
