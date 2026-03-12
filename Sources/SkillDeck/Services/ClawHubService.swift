@@ -111,15 +111,15 @@ actor ClawHubService {
     }
 
     private let baseURL = URL(string: "https://clawhub.ai")!
-    private let session: URLSession
+    private let sessionProvider: NetworkSessionProvider
 
     /// Small response caches reduce repeated requests when a user clicks the same skill multiple
     /// times, which also helps avoid ClawHub's fairly aggressive rate limits.
     private var detailCache: [String: ClawHubSkillDetail] = [:]
     private var contentCache: [String: String] = [:]
 
-    init(session: URLSession = .shared) {
-        self.session = session
+    init(sessionProvider: NetworkSessionProvider = .shared) {
+        self.sessionProvider = sessionProvider
     }
 
     // MARK: - Public API
@@ -218,6 +218,7 @@ actor ClawHubService {
         queryItems: [URLQueryItem] = []
     ) async throws -> Data {
         let request = try makeRequest(path: path, queryItems: queryItems)
+        let session = await sessionProvider.dataSession()
         let (data, response) = try await session.data(for: request)
         try validate(response: response, data: data)
         return data

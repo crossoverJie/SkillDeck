@@ -28,6 +28,12 @@ import Foundation
 /// similar to Go's goroutine + mutex pattern, but enforced at compile time.
 actor SkillContentFetcher {
 
+    private let sessionProvider: NetworkSessionProvider
+
+    init(sessionProvider: NetworkSessionProvider = .shared) {
+        self.sessionProvider = sessionProvider
+    }
+
     // MARK: - Error Types
 
     /// Errors that can occur when fetching skill content
@@ -319,7 +325,8 @@ actor SkillContentFetcher {
 
         // Execute request — use `try?` to silently handle network errors
         // (we don't want a network error here to propagate as a FetchError)
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
+        let session = await sessionProvider.dataSession()
+        guard let (data, response) = try? await session.data(for: request),
               let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
             return nil
@@ -407,12 +414,13 @@ actor SkillContentFetcher {
         request.setValue("text/plain", forHTTPHeaderField: "Accept")
 
         // Execute async network request
-        // URLSession.shared is the singleton HTTP client (similar to Go's http.DefaultClient)
+        // We use a URLSession from NetworkSessionProvider so proxy settings can be applied.
         // `try await` suspends until the response arrives — non-blocking under the hood
         let data: Data
         let response: URLResponse
+        let session = await sessionProvider.dataSession()
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await session.data(for: request)
         } catch {
             throw FetchError.networkError(error.localizedDescription)
         }
