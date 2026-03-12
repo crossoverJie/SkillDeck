@@ -78,4 +78,19 @@ final class ProxyConfigurationBuilderTests: XCTestCase {
         let exceptions = dict[kCFNetworkProxiesExceptionsList as String] as? [String]
         XCTAssertEqual(exceptions, ["localhost", "127.0.0.1", "*.internal"])
     }
+
+    func testBuildWithPasswordSetsProxyPasswordKey() {
+        let settings = ProxySettings(
+            isEnabled: true,
+            type: .http,
+            host: "127.0.0.1",
+            port: 8080,
+            username: "user",
+            bypassList: []
+        )
+
+        let dict = ProxyConfigurationBuilder.build(from: settings, password: "pass")
+
+        XCTAssertEqual(dict[kCFProxyPasswordKey as String] as? String, "pass")
+    }
 }

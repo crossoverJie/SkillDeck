@@ -8,6 +8,10 @@ import Foundation
 enum ProxyConfigurationBuilder {
 
     static func build(from settings: ProxySettings) -> [AnyHashable: Any] {
+        build(from: settings, password: nil)
+    }
+
+    static func build(from settings: ProxySettings, password: String?) -> [AnyHashable: Any] {
         guard settings.isEnabled else { return [:] }
 
         // CFNetwork expects numeric flags (0/1) for enable keys.
@@ -34,6 +38,10 @@ enum ProxyConfigurationBuilder {
 
         if let username = settings.username, !username.isEmpty {
             proxyDict[kCFProxyUsernameKey as String] = username
+        }
+
+        if let password, !password.isEmpty {
+            proxyDict[kCFProxyPasswordKey as String] = password
         }
 
         if !settings.bypassList.isEmpty {
