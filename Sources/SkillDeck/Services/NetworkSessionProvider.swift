@@ -83,8 +83,8 @@ actor NetworkSessionProvider {
 
     private func loadProxySettings() async -> (ProxySettings, String?) {
         let isEnabled = defaults.bool(forKey: NetworkSessionProvider.proxyEnabledKey)
-        let typeRaw = defaults.string(forKey: NetworkSessionProvider.proxyTypeKey) ?? ProxySettings.ProxyType.http.rawValue
-        let type = ProxySettings.ProxyType(rawValue: typeRaw) ?? .http
+        let typeRaw = defaults.string(forKey: NetworkSessionProvider.proxyTypeKey) ?? ProxySettings.ProxyType.https.rawValue
+        let type = ProxySettings.ProxyType(rawValue: typeRaw) ?? .https
 
         let host = defaults.string(forKey: NetworkSessionProvider.proxyHostKey) ?? ""
         let port = defaults.integer(forKey: NetworkSessionProvider.proxyPortKey)

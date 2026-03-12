@@ -7,7 +7,6 @@ import Foundation
 struct ProxySettings: Codable, Equatable, Sendable {
 
     enum ProxyType: String, Codable, CaseIterable, Identifiable, Sendable {
-        case http
         case https
         case socks5
 
@@ -15,7 +14,6 @@ struct ProxySettings: Codable, Equatable, Sendable {
 
         var displayName: String {
             switch self {
-            case .http: "HTTP"
             case .https: "HTTPS"
             case .socks5: "SOCKS5"
             }
@@ -38,7 +36,7 @@ struct ProxySettings: Codable, Equatable, Sendable {
 
     static let disabled = ProxySettings(
         isEnabled: false,
-        type: .http,
+        type: .https,
         host: "",
         port: 0,
         username: nil,

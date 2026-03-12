@@ -11,10 +11,10 @@ final class ProxyConfigurationBuilderTests: XCTestCase {
         XCTAssertTrue(dict.isEmpty)
     }
 
-    func testBuildHTTPProxySetsHTTPKeys() {
+    func testBuildHTTPSProxySetsHTTPAndHTTPSKeys() {
         let settings = ProxySettings(
             isEnabled: true,
-            type: .http,
+            type: .https,
             host: "127.0.0.1",
             port: 8080,
             username: "user",
@@ -26,29 +26,10 @@ final class ProxyConfigurationBuilderTests: XCTestCase {
         XCTAssertEqual(dict[kCFNetworkProxiesHTTPEnable as String] as? Int, 1)
         XCTAssertEqual(dict[kCFNetworkProxiesHTTPProxy as String] as? String, "127.0.0.1")
         XCTAssertEqual(dict[kCFNetworkProxiesHTTPPort as String] as? Int, 8080)
-
-        // HTTP proxies commonly also handle HTTPS tunneling.
         XCTAssertEqual(dict[kCFNetworkProxiesHTTPSEnable as String] as? Int, 1)
         XCTAssertEqual(dict[kCFNetworkProxiesHTTPSProxy as String] as? String, "127.0.0.1")
         XCTAssertEqual(dict[kCFNetworkProxiesHTTPSPort as String] as? Int, 8080)
         XCTAssertEqual(dict[kCFProxyUsernameKey as String] as? String, "user")
-    }
-
-    func testBuildHTTPSProxySetsHTTPSKeys() {
-        let settings = ProxySettings(
-            isEnabled: true,
-            type: .https,
-            host: "proxy.example.com",
-            port: 8443,
-            username: nil,
-            bypassList: []
-        )
-
-        let dict = ProxyConfigurationBuilder.build(from: settings)
-
-        XCTAssertEqual(dict[kCFNetworkProxiesHTTPSEnable as String] as? Int, 1)
-        XCTAssertEqual(dict[kCFNetworkProxiesHTTPSProxy as String] as? String, "proxy.example.com")
-        XCTAssertEqual(dict[kCFNetworkProxiesHTTPSPort as String] as? Int, 8443)
     }
 
     func testBuildSOCKS5ProxySetsSOCKSKeys() {
@@ -71,7 +52,7 @@ final class ProxyConfigurationBuilderTests: XCTestCase {
     func testBuildBypassListSetsExceptionsList() {
         let settings = ProxySettings(
             isEnabled: true,
-            type: .http,
+            type: .https,
             host: "127.0.0.1",
             port: 8080,
             username: nil,
@@ -87,7 +68,7 @@ final class ProxyConfigurationBuilderTests: XCTestCase {
     func testBuildWithPasswordSetsProxyPasswordKey() {
         let settings = ProxySettings(
             isEnabled: true,
-            type: .http,
+            type: .https,
             host: "127.0.0.1",
             port: 8080,
             username: "user",

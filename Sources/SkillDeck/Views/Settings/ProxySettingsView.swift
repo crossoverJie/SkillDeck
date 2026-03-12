@@ -7,7 +7,7 @@ import SwiftUI
 struct ProxySettingsView: View {
 
     @AppStorage(NetworkSessionProvider.proxyEnabledKey) private var proxyEnabled = false
-    @AppStorage(NetworkSessionProvider.proxyTypeKey) private var proxyTypeRaw = ProxySettings.ProxyType.http.rawValue
+    @AppStorage(NetworkSessionProvider.proxyTypeKey) private var proxyTypeRaw = ProxySettings.ProxyType.https.rawValue
     @AppStorage(NetworkSessionProvider.proxyHostKey) private var proxyHost = ""
     @AppStorage(NetworkSessionProvider.proxyPortKey) private var proxyPort = 0
     @AppStorage(NetworkSessionProvider.proxyUsernameKey) private var proxyUsername = ""
@@ -17,10 +17,6 @@ struct ProxySettingsView: View {
     @State private var passwordStatusMessage: String?
 
     private let keychain = KeychainService(service: "SkillDeck")
-
-    private var proxyType: ProxySettings.ProxyType {
-        ProxySettings.ProxyType(rawValue: proxyTypeRaw) ?? .http
-    }
 
     private var isValid: Bool {
         guard proxyEnabled else { return true }
