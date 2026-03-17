@@ -51,6 +51,8 @@ struct SkillDeckApp: App {
     @AppStorage(FontSettings.familyKey) private var uiFontFamily = FontSettings.systemFontFamily
     @AppStorage(FontSettings.sizeKey) private var uiFontSize = FontSettings.defaultFontSize
 
+     @AppStorage(LanguageSettings.appLanguageKey) private var uiLanguageRaw = LanguageSettings.defaultLanguage.rawValue
+
     /// NSApplicationDelegateAdaptor bridges SwiftUI with traditional AppKit lifecycle
     /// Through AppDelegate we can perform AppKit-level operations at app launch
     /// Used here to solve the issue of windows not auto-activating when launched from command line
@@ -59,6 +61,11 @@ struct SkillDeckApp: App {
     private var appFont: Font {
         FontSettings.font(family: uiFontFamily, size: uiFontSize)
     }
+
+     private var localizationResolution: LocalizationResolver.Resolution {
+         let language = AppLanguage(storedRawValue: uiLanguageRaw)
+         return LocalizationResolver.resolve(language: language)
+     }
 
     var body: some Scene {
         // WindowGroup creates the main window
@@ -71,6 +78,9 @@ struct SkillDeckApp: App {
                 .environment(\.font, appFont)
                 .environment(\.appFontFamily, uiFontFamily)
                 .environment(\.appFontBaseSize, uiFontSize)
+                .environment(\.locale, localizationResolution.locale)
+                .environment(\.localizationBundle, localizationResolution.bundle)
+                .id(uiLanguageRaw)
         }
         // Set the window's default size
         .defaultSize(width: 1000, height: 700)
@@ -86,6 +96,9 @@ struct SkillDeckApp: App {
                 .environment(\.font, appFont)
                 .environment(\.appFontFamily, uiFontFamily)
                 .environment(\.appFontBaseSize, uiFontSize)
+                .environment(\.locale, localizationResolution.locale)
+                .environment(\.localizationBundle, localizationResolution.bundle)
+                .id(uiLanguageRaw)
         }
     }
 }
