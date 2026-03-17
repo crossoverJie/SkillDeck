@@ -11,6 +11,11 @@ struct DashboardView: View {
     @Binding var selectedSkillID: String?
     @Environment(SkillManager.self) private var skillManager
 
+    @AppStorage(LanguageSettings.appLanguageKey) private var appLanguageRaw: String = LanguageSettings.defaultLanguage.rawValue
+
+    @Environment(\.localizationBundle) private var localizationBundle
+    @Environment(\.locale) private var locale
+
     var body: some View {
         Group {
             if skillManager.isLoading && skillManager.skills.isEmpty {
@@ -53,6 +58,36 @@ struct DashboardView: View {
         .searchable(text: $viewModel.searchText, prompt: "Search skills...")
         // Toolbar: sorting and filtering
         .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    Button {
+                        appLanguageRaw = AppLanguage.system.rawValue
+                    } label: {
+                        LText(key: L10nKeys.settingsLanguageSystemDefault)
+                    }
+
+                    Button {
+                        appLanguageRaw = AppLanguage.english.rawValue
+                    } label: {
+                        LText(key: L10nKeys.settingsLanguageEnglish)
+                    }
+
+                    Button {
+                        appLanguageRaw = AppLanguage.simplifiedChinese.rawValue
+                    } label: {
+                        LText(key: L10nKeys.settingsLanguageChineseHans)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "globe")
+                        Text(languageBadge)
+                            .appFont(.caption2)
+                            .monospaced()
+                    }
+                }
+                .help(L10n.string(L10nKeys.dashboardLanguageMenuHelp, bundle: localizationBundle, locale: locale))
+            }
+
             // placement: .navigation places toolbar items on the left (navigation area), default .automatic places on right
             ToolbarItemGroup(placement: .navigation) {
                 Menu {
@@ -133,5 +168,16 @@ struct DashboardView: View {
             return agent.displayName
         }
         return "All Skills"
+    }
+
+    private var languageBadge: String {
+        switch AppLanguage(storedRawValue: appLanguageRaw) {
+        case .system:
+            return "Auto"
+        case .english:
+            return "EN"
+        case .simplifiedChinese:
+            return "中"
+        }
     }
 }
