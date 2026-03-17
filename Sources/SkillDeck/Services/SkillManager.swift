@@ -91,6 +91,17 @@ final class SkillManager {
     /// Changed type from [String: Bool] to [String: SkillUpdateStatus] for richer UI feedback
     var updateStatuses: [String: SkillUpdateStatus] = [:]
 
+    /// F12: Cached remote tree hashes (indexed by skill id, persists across refreshes)
+    /// When refresh() replaces the skills array, remoteTreeHash on each Skill struct is lost.
+    /// This dictionary preserves the values so they can be restored, ensuring the "Update" button
+    /// still works after a file-system-watcher-triggered refresh.
+    private var cachedRemoteTreeHashes: [String: String] = [:]
+
+    /// F12: Cached remote commit hashes (indexed by skill id, persists across refreshes)
+    /// Same purpose as cachedRemoteTreeHashes — preserves remoteCommitHash across refresh cycles
+    /// so the UI can still generate GitHub compare URLs after a refresh.
+    private var cachedRemoteCommitHashes: [String: String] = [:]
+
     // MARK: - App Update State (application self-update status)
 
     /// Latest release info (nil means no update available or not yet checked)
@@ -195,15 +206,21 @@ final class SkillManager {
             skills = allSkills
 
             // F12: Restore previous update status (refresh should not clear update check results)
-            // Also load local commit hash from CommitHashCache
-            // Restore hasUpdate boolean from SkillUpdateStatus enum: only .hasUpdate counts as having an update
+            // Also restore remote hashes and local commit hash.
+            // When refresh() replaces the skills array, all transient Skill struct fields are lost.
+            // We restore them from cached dictionaries so the "Update" button continues to work.
             for i in skills.indices {
-                if let status = updateStatuses[skills[i].id] {
+                let skillID = skills[i].id
+                if let status = updateStatuses[skillID] {
                     skills[i].hasUpdate = (status == .hasUpdate)
                 }
+                // Restore remote tree hash (needed by updateSkill to know which version to update to)
+                skills[i].remoteTreeHash = cachedRemoteTreeHashes[skillID]
+                // Restore remote commit hash (needed for GitHub compare URL in UI)
+                skills[i].remoteCommitHash = cachedRemoteCommitHashes[skillID]
                 // Read local commit hash from CommitHashCache
                 // Used for displaying hash comparison in UI and generating GitHub compare URL
-                skills[i].localCommitHash = await commitHashCache.getHash(for: skills[i].id)
+                skills[i].localCommitHash = await commitHashCache.getHash(for: skillID)
             }
 
             // Start file system monitoring
@@ -649,6 +666,15 @@ final class SkillManager {
                             skills[index].remoteTreeHash = hasUpdate ? remoteHash : nil
                             // Store remote commit hash for generating GitHub compare URL
                             skills[index].remoteCommitHash = hasUpdate ? remoteCommitHash : nil
+
+                            // Cache remote hashes so they survive refresh() replacing the skills array
+                            if hasUpdate {
+                                cachedRemoteTreeHashes[skill.id] = remoteHash
+                                cachedRemoteCommitHashes[skill.id] = remoteCommitHash
+                            } else {
+                                cachedRemoteTreeHashes.removeValue(forKey: skill.id)
+                                cachedRemoteCommitHashes.removeValue(forKey: skill.id)
+                            }
                             // Update local commit hash (may have just been obtained via backfill)
                             skills[index].localCommitHash = currentLocalHash
                         }
@@ -720,8 +746,10 @@ final class SkillManager {
         // 5. Clean up temporary directory
         await gitService.cleanupTempDirectory(repoDir)
 
-        // 6. Clear update status (restore to unchecked state after update completes)
+        // 6. Clear update status and cached remote hashes (no longer needed after update)
         updateStatuses[skill.id] = .notChecked
+        cachedRemoteTreeHashes.removeValue(forKey: skill.id)
+        cachedRemoteCommitHashes.removeValue(forKey: skill.id)
 
         // 7. Refresh UI
         await refresh()
@@ -735,6 +763,30 @@ final class SkillManager {
     /// Call after checkForUpdate to get the commit hash that may have been newly obtained via backfill.
     func getCachedCommitHash(for skillName: String) async -> String? {
         await commitHashCache.getHash(for: skillName)
+    }
+
+    /// Cache remote hashes so they survive refresh() replacing the skills array
+    ///
+    /// Called by SkillDetailViewModel after individual checkForUpdate to persist
+    /// remoteTreeHash and remoteCommitHash. Without this, a FileSystemWatcher-triggered
+    /// refresh() between checking and clicking "Update" would lose the remote hashes,
+    /// causing the update button to silently do nothing.
+    ///
+    /// - Parameters:
+    ///   - skillID: The skill identifier (directory name)
+    ///   - remoteTreeHash: Remote tree hash (nil to clear)
+    ///   - remoteCommitHash: Remote commit hash (nil to clear)
+    func cacheRemoteHashes(for skillID: String, remoteTreeHash: String?, remoteCommitHash: String?) {
+        if let hash = remoteTreeHash {
+            cachedRemoteTreeHashes[skillID] = hash
+        } else {
+            cachedRemoteTreeHashes.removeValue(forKey: skillID)
+        }
+        if let hash = remoteCommitHash {
+            cachedRemoteCommitHashes[skillID] = hash
+        } else {
+            cachedRemoteCommitHashes.removeValue(forKey: skillID)
+        }
     }
 
     /// Get a merged, deduplicated repo history list (lock file installed sources + scan history)
