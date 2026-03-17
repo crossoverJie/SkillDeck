@@ -15,8 +15,8 @@ struct ProxySettingsView: View {
     @AppStorage(NetworkSessionProvider.proxyBypassKey) private var proxyBypassRaw = ""
 
     @State private var proxyPassword = ""
-    @State private var passwordStatusMessage: String?
-    @State private var importStatusMessage: String?
+    @State private var passwordStatusKey: String?
+    @State private var importStatusKey: String?
 
     private let keychain = KeychainService(service: "SkillDeck")
 
@@ -28,19 +28,25 @@ struct ProxySettingsView: View {
 
     var body: some View {
         Form {
-            Section("Enable") {
-                Toggle("Enable Proxy", isOn: $proxyEnabled)
+            Section {
+                Toggle(isOn: $proxyEnabled) {
+                    LText(key: L10nKeys.settingsProxyEnableProxy)
+                }
+            } header: {
+                LText(key: L10nKeys.settingsProxySectionEnable)
             }
 
-            Section("Server") {
-                Button("Import from Environment") {
+            Section {
+                Button {
                     Task {
                         await importFromEnvironment()
                     }
+                } label: {
+                    LText(key: L10nKeys.settingsProxyImportFromEnvironment)
                 }
 
-                if let importStatusMessage {
-                    Text(importStatusMessage)
+                if let importStatusKey {
+                    LText(key: importStatusKey)
                         .foregroundStyle(.secondary)
                         .appFont(.caption)
                 }
@@ -48,8 +54,8 @@ struct ProxySettingsView: View {
                 Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
                     GridRow {
                         HStack(spacing: 6) {
-                            Text("Type")
-                            Text("HTTPS / SOCKS5")
+                            LText(key: L10nKeys.settingsProxyFieldTypeLabel)
+                            LText(key: L10nKeys.settingsProxyFieldTypeHint)
                                 .appFont(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -70,8 +76,8 @@ struct ProxySettingsView: View {
 
                     GridRow {
                         HStack(spacing: 6) {
-                            Text("Host")
-                            Text("e.g. 127.0.0.1")
+                            LText(key: L10nKeys.settingsProxyFieldHostLabel)
+                            LText(key: L10nKeys.settingsProxyFieldHostHint)
                                 .appFont(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -88,8 +94,8 @@ struct ProxySettingsView: View {
 
                     GridRow {
                         HStack(spacing: 6) {
-                            Text("Port")
-                            Text("1–65535")
+                            LText(key: L10nKeys.settingsProxyFieldPortLabel)
+                            LText(key: L10nKeys.settingsProxyFieldPortHint)
                                 .appFont(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -106,22 +112,26 @@ struct ProxySettingsView: View {
                 }
 
                 if proxyEnabled, !isValid {
-                    Text("Host must be non-empty and port must be between 1 and 65535.")
+                    LText(key: L10nKeys.settingsProxyValidationInvalidHostPort)
                         .foregroundStyle(.red)
                         .appFont(.caption)
                 }
+            } header: {
+                LText(key: L10nKeys.settingsProxySectionServer)
             }
             .disabled(!proxyEnabled)
 
-            Section("Authentication") {
-                Toggle("Enable Authentication", isOn: $proxyAuthEnabled)
+            Section {
+                Toggle(isOn: $proxyAuthEnabled) {
+                    LText(key: L10nKeys.settingsProxyEnableAuthentication)
+                }
 
                 Group {
                     Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
                         GridRow {
                             HStack(spacing: 6) {
-                                Text("Username")
-                                Text("optional")
+                                LText(key: L10nKeys.settingsProxyFieldUsernameLabel)
+                                LText(key: L10nKeys.settingsProxyFieldUsernameHint)
                                     .appFont(.caption2)
                                     .foregroundStyle(.secondary)
                             }
@@ -138,8 +148,8 @@ struct ProxySettingsView: View {
 
                         GridRow {
                             HStack(spacing: 6) {
-                                Text("Password")
-                                Text("Keychain")
+                                LText(key: L10nKeys.settingsProxyFieldPasswordLabel)
+                                LText(key: L10nKeys.settingsProxyFieldPasswordHint)
                                     .appFont(.caption2)
                                     .foregroundStyle(.secondary)
                             }
@@ -156,40 +166,48 @@ struct ProxySettingsView: View {
                     }
 
                     HStack(spacing: 12) {
-                        Button("Save Password") {
+                        Button {
                             Task {
                                 await savePassword()
                             }
+                        } label: {
+                            LText(key: L10nKeys.settingsProxySavePassword)
                         }
 
-                        Button("Clear Password") {
+                        Button {
                             Task {
                                 await clearPassword()
                             }
+                        } label: {
+                            LText(key: L10nKeys.settingsProxyClearPassword)
                         }
 
-                        if let passwordStatusMessage {
-                            Text(passwordStatusMessage)
+                        if let passwordStatusKey {
+                            LText(key: passwordStatusKey)
                                 .foregroundStyle(.secondary)
                                 .appFont(.caption)
                         }
                     }
                 }
                 .disabled(!proxyAuthEnabled)
+            } header: {
+                LText(key: L10nKeys.settingsProxySectionAuthentication)
             }
             .disabled(!proxyEnabled)
 
-            Section("Bypass") {
-                Text("Requests matching these hosts will NOT use the proxy. Separate items with commas or new lines.")
+            Section {
+                LText(key: L10nKeys.settingsProxyBypassDescription)
                     .foregroundStyle(.secondary)
 
                 TextEditor(text: $proxyBypassRaw)
                     .frame(height: 90)
                     .border(Color(nsColor: .separatorColor))
 
-                Text("Examples: localhost, 127.0.0.1, *.internal")
+                LText(key: L10nKeys.settingsProxyBypassExamples)
                     .foregroundStyle(.secondary)
                     .appFont(.caption)
+            } header: {
+                LText(key: L10nKeys.settingsProxySectionBypass)
             }
             .disabled(!proxyEnabled)
         }
@@ -201,11 +219,11 @@ struct ProxySettingsView: View {
     }
 
     private func importFromEnvironment() async {
-        importStatusMessage = nil
+        importStatusKey = nil
 
         let env = ProcessInfo.processInfo.environment
         guard let imported = ProxyEnvironmentImporter.importFromEnvironment(env) else {
-            importStatusMessage = "No proxy environment variables found."
+            importStatusKey = L10nKeys.settingsProxyStatusImportNoneFound
             return
         }
 
@@ -222,12 +240,12 @@ struct ProxySettingsView: View {
             do {
                 try await keychain.setPassword(password, forKey: NetworkSessionProvider.proxyPasswordKeychainKey)
             } catch {
-                importStatusMessage = "Imported (password save failed)"
+                importStatusKey = L10nKeys.settingsProxyStatusImportImportedPasswordSaveFailed
                 return
             }
         }
 
-        importStatusMessage = "Imported"
+        importStatusKey = L10nKeys.settingsProxyStatusImportImported
     }
 
     private func loadPassword() async {
@@ -235,27 +253,27 @@ struct ProxySettingsView: View {
     }
 
     private func savePassword() async {
-        passwordStatusMessage = nil
+        passwordStatusKey = nil
         do {
             if proxyPassword.isEmpty {
                 try await keychain.deletePassword(forKey: NetworkSessionProvider.proxyPasswordKeychainKey)
             } else {
                 try await keychain.setPassword(proxyPassword, forKey: NetworkSessionProvider.proxyPasswordKeychainKey)
             }
-            passwordStatusMessage = "Saved"
+            passwordStatusKey = L10nKeys.settingsProxyStatusPasswordSaved
         } catch {
-            passwordStatusMessage = "Save failed"
+            passwordStatusKey = L10nKeys.settingsProxyStatusPasswordSaveFailed
         }
     }
 
     private func clearPassword() async {
         proxyPassword = ""
-        passwordStatusMessage = nil
+        passwordStatusKey = nil
         do {
             try await keychain.deletePassword(forKey: NetworkSessionProvider.proxyPasswordKeychainKey)
-            passwordStatusMessage = "Cleared"
+            passwordStatusKey = L10nKeys.settingsProxyStatusPasswordCleared
         } catch {
-            passwordStatusMessage = "Clear failed"
+            passwordStatusKey = L10nKeys.settingsProxyStatusPasswordClearFailed
         }
     }
 }

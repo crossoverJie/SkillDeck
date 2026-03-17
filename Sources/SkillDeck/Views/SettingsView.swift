@@ -8,23 +8,44 @@ struct SettingsView: View {
     /// @AppStorage is a SwiftUI property wrapper that syncs values with UserDefaults.
     @AppStorage(FontSettings.sizeKey) private var uiFontSize = FontSettings.defaultFontSize
 
+    @AppStorage(LanguageSettings.appLanguageKey) private var appLanguageRaw: String = LanguageSettings.defaultLanguage.rawValue
+    @State private var tabViewReloadToken = UUID()
+    @State private var lastRenderedLanguageRaw: String = ""
+
+    @Environment(\.localizationBundle) private var localizationBundle
+    @Environment(\.locale) private var locale
+
     var body: some View {
         let minSize = SettingsWindowSizing.minSize(forFontSize: uiFontSize)
         TabView {
             GeneralSettingsView()
                 .tabItem {
-                    Label("General", systemImage: "gear")
+                    Image(systemName: "gear")
+                    Text(L10n.string(L10nKeys.settingsTabGeneral, bundle: localizationBundle, locale: locale))
                 }
 
             ProxySettingsView()
                 .tabItem {
-                    Label("Proxy", systemImage: "network")
+                    Image(systemName: "network")
+                    Text(L10n.string(L10nKeys.settingsTabProxy, bundle: localizationBundle, locale: locale))
                 }
 
             AboutSettingsView()
                 .tabItem {
-                    Label("About", systemImage: "info.circle")
+                    Image(systemName: "info.circle")
+                    Text(L10n.string(L10nKeys.settingsTabAbout, bundle: localizationBundle, locale: locale))
                 }
+        }
+        .id(tabViewReloadToken)
+        .onAppear {
+            if lastRenderedLanguageRaw != appLanguageRaw {
+                lastRenderedLanguageRaw = appLanguageRaw
+                tabViewReloadToken = UUID()
+            }
+        }
+        .onChange(of: appLanguageRaw) { _, newValue in
+            lastRenderedLanguageRaw = newValue
+            tabViewReloadToken = UUID()
         }
         // Increased height to accommodate update status UI (from 250 to 350).
         .frame(minWidth: minSize.width, minHeight: minSize.height)
@@ -38,43 +59,74 @@ struct GeneralSettingsView: View {
     @AppStorage(FontSettings.familyKey) private var uiFontFamily = FontSettings.systemFontFamily
     @AppStorage(FontSettings.sizeKey) private var uiFontSize = FontSettings.defaultFontSize
 
+    @AppStorage(LanguageSettings.appLanguageKey) private var appLanguageRaw: String = LanguageSettings.defaultLanguage.rawValue
+
     var body: some View {
         Form {
-            Section("Paths") {
-                LabeledContent("Shared Skills") {
+            Section {
+                LabeledContent {
                     Text(Constants.sharedSkillsPath)
                         .textSelection(.enabled)  // Allow users to select and copy
                         .foregroundStyle(.secondary)
+                } label: {
+                    LText(key: L10nKeys.settingsSectionPathsSharedSkills)
                 }
-                LabeledContent("Lock File") {
+
+                LabeledContent {
                     Text(Constants.lockFilePath)
                         .textSelection(.enabled)
                         .foregroundStyle(.secondary)
+                } label: {
+                    LText(key: L10nKeys.settingsSectionPathsLockFile)
                 }
+            } header: {
+                LText(key: L10nKeys.settingsSectionPaths)
             }
 
-            Section("Font") {
-                LabeledContent("Family") {
-                    Picker("Family", selection: $uiFontFamily) {
+            Section {
+                LabeledContent {
+                    Picker(selection: $appLanguageRaw, label: EmptyView()) {
+                        LText(key: L10nKeys.settingsLanguageSystemDefault).tag("system")
+                        LText(key: L10nKeys.settingsLanguageEnglish).tag("en")
+                        LText(key: L10nKeys.settingsLanguageChineseHans).tag("zh-Hans")
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                } label: {
+                    LText(key: L10nKeys.settingsLanguageAppLanguage)
+                }
+            } header: {
+                LText(key: L10nKeys.settingsSectionLanguage)
+            }
+
+            Section {
+                LabeledContent {
+                    Picker(selection: $uiFontFamily, label: EmptyView()) {
                         ForEach(FontSettings.availableFontFamilies, id: \.self) { family in
                             Text(family)
                         }
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
+                } label: {
+                    LText(key: L10nKeys.settingsFontFamily)
                 }
 
-                LabeledContent("Size") {
+                LabeledContent {
                     Stepper(value: $uiFontSize, in: FontSettings.minFontSize...FontSettings.maxFontSize, step: 1) {
                         Text("\(Int(uiFontSize)) pt")
                             .monospacedDigit()
                     }
+                } label: {
+                    LText(key: L10nKeys.settingsFontSize)
                 }
 
-                Text("Preview: The quick brown fox jumps over the lazy dog")
+                LText(key: L10nKeys.settingsFontPreviewSentence)
                     .font(FontSettings.font(family: uiFontFamily, size: uiFontSize))
                     .foregroundStyle(.secondary)
                     .padding(.top, 4)
+            } header: {
+                LText(key: L10nKeys.settingsSectionFont)
             }
         }
         .formStyle(.grouped)
@@ -92,16 +144,19 @@ struct AboutSettingsView: View {
     /// @Environment is similar to React's useContext or Android's dependency injection
     @Environment(SkillManager.self) private var skillManager
 
+    @Environment(\.localizationBundle) private var localizationBundle
+    @Environment(\.locale) private var locale
+
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "square.stack.3d.up")
                 .font(.system(size: 48))
                 .foregroundStyle(.blue)
 
-            Text("SkillDeck").appFont(.title)
+            LText(key: L10nKeys.settingsAboutAppName).appFont(.title)
                 .fontWeight(.bold)
 
-            Text("Native macOS Agent Skills Manager")
+            LText(key: L10nKeys.settingsAboutTagline)
                 .foregroundStyle(.secondary)
 
             // Read version number from Info.plist, Bundle.main contains Info.plist when running as .app bundle
@@ -112,7 +167,11 @@ struct AboutSettingsView: View {
 
             // Link is SwiftUI built-in hyperlink component, calls system default browser to open URL when clicked
             // Renders as blue clickable text on macOS, similar to HTML's <a> tag
-            Link("GitHub", destination: URL(string: "https://github.com/crossoverjie/SkillDeck")!).appFont(.caption)
+            Link(
+                L10n.string(L10nKeys.settingsAboutGitHub, bundle: localizationBundle, locale: locale),
+                destination: URL(string: "https://github.com/crossoverjie/SkillDeck")!
+            )
+            .appFont(.caption)
 
             // Divider is horizontal separator line (similar to HTML's <hr>), used to visually separate app info and update status area
             Divider()
@@ -142,7 +201,7 @@ struct AboutSettingsView: View {
                 // controlSize(.small) controls size to small
                 ProgressView()
                     .controlSize(.small)
-                Text("Checking for updates...").appFont(.caption)
+                LText(key: L10nKeys.settingsUpdateChecking).appFont(.caption)
                     .foregroundStyle(.secondary)
             }
         } else if skillManager.isDownloadingUpdate {
@@ -156,7 +215,13 @@ struct AboutSettingsView: View {
 
                 // Show percentage (multiply by 100 and keep integer)
                 // Int() truncates Double to integer (similar to Java's (int) cast)
-                Text("Downloading... \(Int(skillManager.downloadProgress * 100))%").appFont(.caption)
+                Text(
+                    String(
+                        format: L10n.string(L10nKeys.settingsUpdateDownloading, bundle: localizationBundle, locale: locale),
+                        Int(skillManager.downloadProgress * 100)
+                    )
+                )
+                .appFont(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()  // Monospaced digit font, avoids text jitter when percentage changes
             }
@@ -171,7 +236,7 @@ struct AboutSettingsView: View {
                         .lineLimit(2)  // Limit error message to max 2 lines
                 }
 
-                Button("Retry") {
+                Button(L10n.string(L10nKeys.settingsUpdateRetry, bundle: localizationBundle, locale: locale)) {
                     Task { await skillManager.checkForAppUpdate(force: true) }
                 }
                 .buttonStyle(.bordered)
@@ -184,14 +249,20 @@ struct AboutSettingsView: View {
                     // Use orange arrow icon to indicate update is available
                     Image(systemName: "arrow.up.circle.fill")
                         .foregroundStyle(.orange)
-                    Text("Update available: v\(updateInfo.version)").appFont(.caption)
+                    Text(
+                        String(
+                            format: L10n.string(L10nKeys.settingsUpdateAvailablePrefix, bundle: localizationBundle, locale: locale),
+                            updateInfo.version
+                        )
+                    )
+                    .appFont(.caption)
                         .fontWeight(.medium)
                 }
 
                 HStack(spacing: 12) {
                     // "Update Now" button triggers download and install update
                     // .borderedProminent is filled prominent button style (similar to Material Design's Filled Button)
-                    Button("Update Now") {
+                    Button(L10n.string(L10nKeys.settingsUpdateNow, bundle: localizationBundle, locale: locale)) {
                         Task { await skillManager.performUpdate() }
                     }
                     .buttonStyle(.borderedProminent)
@@ -200,14 +271,18 @@ struct AboutSettingsView: View {
                     // "View on GitHub" link opens Release page in browser
                     // Uses Link component instead of Button because it's external navigation (opens browser)
                     if let url = URL(string: updateInfo.htmlUrl) {
-                        Link("View on GitHub", destination: url).appFont(.caption)
+                        Link(
+                            L10n.string(L10nKeys.settingsUpdateViewOnGitHub, bundle: localizationBundle, locale: locale),
+                            destination: url
+                        )
+                        .appFont(.caption)
                     }
                 }
             }
         } else {
             // No update/not checked state: show manual check button
             // force: true ignores 4-hour interval limit, executes check immediately
-            Button("Check for Updates") {
+            Button(L10n.string(L10nKeys.settingsUpdateCheckForUpdates, bundle: localizationBundle, locale: locale)) {
                 Task { await skillManager.checkForAppUpdate(force: true) }
             }
             .buttonStyle(.bordered)
