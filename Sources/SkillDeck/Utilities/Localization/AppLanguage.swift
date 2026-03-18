@@ -47,4 +47,15 @@ enum AppLanguage: String, CaseIterable, Codable {
         }
         self = AppLanguage(rawValue: storedRawValue) ?? .system
     }
+
+    func shouldTranslateSkillContent(locale: Locale) -> Bool {
+        switch self {
+        case .english:
+            return true
+        case .simplifiedChinese:
+            return true
+        case .system:
+            return locale.language.languageCode?.identifier == "en"
+        }
+    }
 }

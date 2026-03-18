@@ -13,6 +13,9 @@ struct SkillDetailView: View {
     let skillID: String
     @Bindable var viewModel: SkillDetailViewModel
     @Environment(SkillManager.self) private var skillManager
+    @Environment(\.locale) private var locale
+
+    @AppStorage(LanguageSettings.appLanguageKey) private var appLanguageRaw: String = LanguageSettings.defaultLanguage.rawValue
 
     /// Editor ViewModel (created only during editing)
     @State private var editorVM: SkillEditorViewModel?
@@ -194,7 +197,10 @@ struct SkillDetailView: View {
                     .foregroundStyle(.tertiary)
                     .italic()
             } else {
-                MarkdownContentView(markdownText: skill.markdownBody, showsChineseTranslation: true)
+                MarkdownContentView(
+                    markdownText: skill.markdownBody,
+                    showsChineseTranslation: AppLanguage(storedRawValue: appLanguageRaw).shouldTranslateSkillContent(locale: locale)
+                )
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(Color(nsColor: .textBackgroundColor))
