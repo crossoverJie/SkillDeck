@@ -1,5 +1,8 @@
 import Foundation
+
+#if canImport(Translation)
 import Translation
+#endif
 
 struct TranslationPackAvailabilityChecker {
     enum Availability: Equatable {
@@ -9,6 +12,7 @@ struct TranslationPackAvailabilityChecker {
     }
 
     func englishToSimplifiedChinese() async -> Availability {
+        #if canImport(Translation) && compiler(>=6.2)
         if #available(macOS 26.0, *) {
             let availability = LanguageAvailability()
             let status = await availability.status(
@@ -27,6 +31,7 @@ struct TranslationPackAvailabilityChecker {
                 return .unavailable
             }
         }
+        #endif
 
         return .unavailable
     }
