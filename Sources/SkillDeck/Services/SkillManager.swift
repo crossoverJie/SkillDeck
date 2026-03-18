@@ -124,8 +124,19 @@ final class SkillManager {
     /// Stored in ~/.agents/.skilldeck-cache.json, doesn't pollute npx skills' lock file format
     private let commitHashCache = CommitHashCache()
 
-    /// Online translation service used by the detail renderer to show inline zh-CN translations.
     private let translationService = TranslationService()
+
+    private static let dontShowTranslationPackPromptKey = "translationPackPromptDontShowAgain"
+    private let translationPackAvailabilityChecker = TranslationPackAvailabilityChecker()
+    private var hasShownTranslationPackPromptThisLaunch = false
+
+    struct TranslationPackPrompt: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+    }
+
+    var translationPackPrompt: TranslationPackPrompt?
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
@@ -140,6 +151,34 @@ final class SkillManager {
     /// `@Environment(SkillManager.self)` without directly depending on network services.
     func translateEnglishParagraphToChinese(_ text: String) async throws -> String {
         try await translationService.translateEnglishToChinese(text)
+    }
+
+    func maybeShowTranslationPackPromptIfNeeded(translationEnabledOnThisScreen: Bool) async {
+        let dontShowAgain = UserDefaults.standard.bool(forKey: Self.dontShowTranslationPackPromptKey)
+        let shouldShow = TranslationPackPromptPolicy.shouldShowPrompt(
+            translationEnabledOnThisScreen: translationEnabledOnThisScreen,
+            dontShowAgain: dontShowAgain,
+            hasShownThisLaunch: hasShownTranslationPackPromptThisLaunch
+        )
+        guard shouldShow else { return }
+
+        let availability = await translationPackAvailabilityChecker.englishToSimplifiedChinese()
+        guard availability == .supportedButNotInstalled else { return }
+
+        hasShownTranslationPackPromptThisLaunch = true
+        translationPackPrompt = TranslationPackPrompt(
+            title: "需要安装本地翻译包",
+            message: "使用段落翻译功能前，请先在系统里安装离线翻译语言包（英文 ⇄ 中文）。安装后即可在详情页看到中文译文。"
+        )
+    }
+
+    func dismissTranslationPackPrompt() {
+        translationPackPrompt = nil
+    }
+
+    func dontShowTranslationPackPromptAgain() {
+        UserDefaults.standard.set(true, forKey: Self.dontShowTranslationPackPromptKey)
+        translationPackPrompt = nil
     }
 
     /// Set up file system monitoring
