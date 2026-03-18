@@ -14,6 +14,7 @@ struct ClawHubSkillDetailView: View {
 
     @AppStorage(LanguageSettings.appLanguageKey) private var appLanguageRaw: String = LanguageSettings.defaultLanguage.rawValue
     @Environment(\.locale) private var locale
+    @Environment(SkillManager.self) private var skillManager
 
     var body: some View {
         ScrollView {
@@ -35,6 +36,15 @@ struct ClawHubSkillDetailView: View {
         .task(id: skill.id) {
             await viewModel.loadSelection(for: skill)
         }
+        .task(id: skill.id) {
+            await skillManager.maybeShowTranslationPackPromptIfNeeded(
+                translationEnabledOnThisScreen: showsChineseTranslation
+            )
+        }
+    }
+
+    private var showsChineseTranslation: Bool {
+        AppLanguage(storedRawValue: appLanguageRaw).shouldTranslateSkillContent(locale: locale)
     }
 
     // MARK: - Sections

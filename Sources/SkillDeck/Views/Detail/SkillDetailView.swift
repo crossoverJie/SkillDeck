@@ -53,6 +53,11 @@ struct SkillDetailView: View {
                 .padding()
             }
             .navigationTitle(skill.displayName)
+            .task(id: skillID) {
+                await skillManager.maybeShowTranslationPackPromptIfNeeded(
+                    translationEnabledOnThisScreen: showsChineseTranslation
+                )
+            }
             .toolbar {
                 ToolbarItemGroup {
                     // Reveal in Finder
@@ -100,6 +105,10 @@ struct SkillDetailView: View {
                 subtitle: "The selected skill may have been deleted"
             )
         }
+    }
+
+    private var showsChineseTranslation: Bool {
+        AppLanguage(storedRawValue: appLanguageRaw).shouldTranslateSkillContent(locale: locale)
     }
 
     // MARK: - Sections
