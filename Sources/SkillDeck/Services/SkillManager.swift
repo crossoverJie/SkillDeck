@@ -123,12 +123,23 @@ final class SkillManager {
     /// F12: SkillDeck private commit hash cache, independent of .skill-lock.json
     /// Stored in ~/.agents/.skilldeck-cache.json, doesn't pollute npx skills' lock file format
     private let commitHashCache = CommitHashCache()
+
+    /// Online translation service used by the detail renderer to show inline zh-CN translations.
+    private let translationService = TranslationService()
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
     init() {
         setupFileWatcher()
+    }
+
+    /// Translate a short English paragraph into Simplified Chinese (zh-CN).
+    ///
+    /// This is intentionally exposed on SkillManager so views can access it via
+    /// `@Environment(SkillManager.self)` without directly depending on network services.
+    func translateEnglishParagraphToChinese(_ text: String) async throws -> String {
+        try await translationService.translateEnglishToChinese(text)
     }
 
     /// Set up file system monitoring
