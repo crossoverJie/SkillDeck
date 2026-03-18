@@ -194,10 +194,7 @@ struct SkillDetailView: View {
                     .foregroundStyle(.tertiary)
                     .italic()
             } else {
-                // Display markdown source in monospace font
-                // Can be replaced with rendered markdown in the future
-                Text(skill.markdownBody).appFont(.body, design: .monospaced)
-                    .textSelection(.enabled)
+                MarkdownContentView(markdownText: skill.markdownBody, showsChineseTranslation: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(Color(nsColor: .textBackgroundColor))
