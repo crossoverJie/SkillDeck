@@ -90,6 +90,13 @@ enum L10n {
         candidates.append(identifier)
         candidates.append(identifier.replacingOccurrences(of: "_", with: "-"))
 
+        let normalizedIdentifier = identifier.replacingOccurrences(of: "_", with: "-")
+        let parts = normalizedIdentifier.split(separator: "-").map(String.init)
+        if parts.count >= 2 {
+            candidates.append("\(parts[0])\u{002D}\(parts[1])")
+            candidates.append("\(parts[0])_\(parts[1])")
+        }
+
         if let languageCode = locale.language.languageCode?.identifier,
            let scriptCode = locale.language.script?.identifier {
             candidates.append("\(languageCode)-\(scriptCode)")
