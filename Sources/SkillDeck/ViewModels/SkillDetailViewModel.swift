@@ -102,6 +102,15 @@ final class SkillDetailViewModel {
                 skillManager.skills[index].remoteCommitHash = hasUpdate ? remoteCommitHash : nil
                 skillManager.updateStatuses[skill.id] = hasUpdate ? .hasUpdate : .upToDate
 
+                // Cache remote hashes so they survive FileSystemWatcher-triggered refresh()
+                // Without this, refresh() replaces the skills array and loses remoteTreeHash,
+                // causing the "Update" button to silently do nothing (guard fails on nil hash)
+                skillManager.cacheRemoteHashes(
+                    for: skill.id,
+                    remoteTreeHash: hasUpdate ? remoteHash : nil,
+                    remoteCommitHash: hasUpdate ? remoteCommitHash : nil
+                )
+
                 // Update local commit hash (backfill may have been executed in checkForUpdate)
                 let cachedLocalHash = await skillManager.getCachedCommitHash(for: skill.id)
                 skillManager.skills[index].localCommitHash = cachedLocalHash
