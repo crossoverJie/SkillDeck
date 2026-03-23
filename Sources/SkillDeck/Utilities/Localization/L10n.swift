@@ -89,13 +89,38 @@ enum L10n {
         let identifier = locale.identifier
         candidates.append(identifier)
         candidates.append(identifier.replacingOccurrences(of: "_", with: "-"))
+        candidates.append(identifier.lowercased())
+        candidates.append(identifier.replacingOccurrences(of: "_", with: "-").lowercased())
+
+        let normalizedIdentifier = identifier.replacingOccurrences(of: "_", with: "-")
+        let parts = normalizedIdentifier.split(separator: "-").map(String.init)
+        if parts.count >= 2 {
+            candidates.append("\(parts[0])\u{002D}\(parts[1])")
+            candidates.append("\(parts[0])_\(parts[1])")
+            candidates.append("\(parts[0])\u{002D}\(parts[1])".lowercased())
+            candidates.append("\(parts[0])_\(parts[1])".lowercased())
+        }
+
+        if let languageCode = locale.language.languageCode?.identifier,
+           let scriptCode = locale.language.script?.identifier {
+            candidates.append("\(languageCode)-\(scriptCode)")
+            candidates.append("\(languageCode)_\(scriptCode)")
+            candidates.append("\(languageCode)-\(scriptCode)".lowercased())
+            candidates.append("\(languageCode)_\(scriptCode)".lowercased())
+        }
 
         // `Locale.languageCode` was deprecated; the modern API is `locale.language.languageCode?.identifier`.
         if let languageCode = locale.language.languageCode?.identifier {
             candidates.append(languageCode)
+            candidates.append(languageCode.lowercased())
         }
 
-        for name in candidates {
+        var deduplicated: [String] = []
+        for candidate in candidates where !deduplicated.contains(candidate) {
+            deduplicated.append(candidate)
+        }
+
+        for name in deduplicated {
             if let path = bundle.path(forResource: name, ofType: "lproj"), let lprojBundle = Bundle(path: path) {
                 return lprojBundle
             }

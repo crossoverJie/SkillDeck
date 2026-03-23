@@ -51,9 +51,12 @@ enum LocalizationResolver {
             //   <bundle>/<lang>.lproj/...
             // If the `.lproj` exists we create a sub-bundle rooted at that directory.
             // Otherwise we must safely fall back to the base bundle.
-            if let lprojPath = baseBundle.path(forResource: language.rawValue, ofType: "lproj"),
-               let languageBundle = Bundle(path: lprojPath) {
-                return Resolution(locale: locale, bundle: languageBundle)
+            let candidates = [language.rawValue, language.rawValue.lowercased()]
+            for candidate in candidates {
+                if let lprojPath = baseBundle.path(forResource: candidate, ofType: "lproj"),
+                   let languageBundle = Bundle(path: lprojPath) {
+                    return Resolution(locale: locale, bundle: languageBundle)
+                }
             }
 
             return Resolution(locale: locale, bundle: baseBundle)

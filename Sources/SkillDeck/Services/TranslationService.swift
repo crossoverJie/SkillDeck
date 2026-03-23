@@ -1,5 +1,8 @@
 import Foundation
+
+#if canImport(Translation)
 import Translation
+#endif
 
 protocol LocalTranslationClient: Sendable {
     func translateEnglishToChinese(_ text: String) async throws -> String
@@ -32,13 +35,18 @@ actor TranslationService {
 private struct DefaultLocalTranslationClient: LocalTranslationClient {
     func translateEnglishToChinese(_ text: String) async throws -> String {
         if #available(macOS 26.0, *) {
+            #if canImport(Translation) && compiler(>=6.2)
             return try await TranslationFrameworkClient().translateEnglishToChinese(text)
+            #else
+            throw TranslationService.TranslationError.unavailable
+            #endif
         }
 
         throw TranslationService.TranslationError.unavailable
     }
 }
 
+#if canImport(Translation) && compiler(>=6.2)
 @available(macOS 26.0, *)
 private struct TranslationFrameworkClient: LocalTranslationClient {
     func translateEnglishToChinese(_ text: String) async throws -> String {
@@ -46,8 +54,8 @@ private struct TranslationFrameworkClient: LocalTranslationClient {
             installedSource: Locale.Language(identifier: "en"),
             target: Locale.Language(identifier: "zh-Hans")
         )
-
         let response = try await session.translate(text)
         return response.targetText
     }
 }
+#endif

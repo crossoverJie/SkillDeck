@@ -51,11 +51,11 @@ enum AppLanguage: String, CaseIterable, Codable {
     func shouldTranslateSkillContent(locale: Locale) -> Bool {
         switch self {
         case .english:
-            return true
+            return false
         case .simplifiedChinese:
             return true
         case .system:
-            return locale.language.languageCode?.identifier == "en"
+            return locale.language.languageCode?.identifier != "en"
         }
     }
 }

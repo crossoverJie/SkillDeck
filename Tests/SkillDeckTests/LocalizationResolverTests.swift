@@ -93,12 +93,17 @@ final class LocalizationResolverTests: XCTestCase {
             Locale(identifier: AppLanguage.simplifiedChinese.rawValue).identifier
         )
 
-        let lprojPath = baseBundle.path(forResource: AppLanguage.simplifiedChinese.rawValue, ofType: "lproj")
-        if lprojPath == nil {
+        let candidatePaths = [
+            baseBundle.path(forResource: AppLanguage.simplifiedChinese.rawValue, ofType: "lproj"),
+            baseBundle.path(forResource: AppLanguage.simplifiedChinese.rawValue.lowercased(), ofType: "lproj")
+        ]
+
+        if candidatePaths.allSatisfy({ $0 == nil }) {
             XCTAssertEqual(resolution.bundle.bundleURL, baseBundle.bundleURL)
         } else {
             XCTAssertNotEqual(resolution.bundle.bundleURL, baseBundle.bundleURL)
-            XCTAssertTrue(resolution.bundle.bundleURL.path.hasSuffix("\(AppLanguage.simplifiedChinese.rawValue).lproj"))
+            let path = resolution.bundle.bundleURL.path.lowercased()
+            XCTAssertTrue(path.hasSuffix("zh-hans.lproj") || path.hasSuffix("zh_hans.lproj"))
         }
     }
 }

@@ -17,4 +17,11 @@ final class LocalizationLookupTests: XCTestCase {
 
         XCTAssertEqual(result, "通用")
     }
+
+    func testSettingsTabGeneral_isLocalizedInSimplifiedChineseRegionLocale() {
+        let key = L10nKeys.settingsTabGeneral
+        let result = L10n.string(key, bundle: SkillDeckResources.bundle, locale: Locale(identifier: "zh_CN"))
+
+        XCTAssertEqual(result, "通用")
+    }
 }
