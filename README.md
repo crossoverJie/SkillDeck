@@ -48,6 +48,8 @@
 - **SKILL.md Editor** — Split-pane form + markdown editor with live preview
 - **Agent Assignment** — Toggle which agents a skill is installed to via symlink management
 - **App Settings** — Configure global app fonts and proxy networking (HTTPS / SOCKS5, Keychain-backed credentials, bypass list)
+- **Localization** — Full English and Simplified Chinese interface support with in-app language switching
+- **Inline Translation** — Automatic Chinese translation of skill documentation paragraphs when UI language is set to Chinese (requires macOS 26+)
 - **Auto-Refresh** — File system monitoring picks up CLI-side changes instantly
 
 > See the full feature list and roadmap in [docs/FEATURES.md](docs/FEATURES.md).
