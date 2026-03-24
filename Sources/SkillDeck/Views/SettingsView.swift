@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit  // Required for NSOpenPanel file picker
 
 /// SettingsView is the app settings page (opened via Cmd+,)
 ///
@@ -60,6 +61,14 @@ struct GeneralSettingsView: View {
     @AppStorage(FontSettings.sizeKey) private var uiFontSize = FontSettings.defaultFontSize
 
     @AppStorage(LanguageSettings.appLanguageKey) private var appLanguageRaw: String = LanguageSettings.defaultLanguage.rawValue
+
+    /// Get SkillManager from View environment to trigger refresh after path change
+    @Environment(SkillManager.self) private var skillManager
+
+    // MARK: - OpenClaw Custom Path State
+    /// State for OpenClaw custom skills directory path (for Docker/volume mount scenarios)
+    @State private var openClawCustomPath: String = ""
+    @State private var isUsingCustomOpenClawPath: Bool = false
 
     var body: some View {
         Form {
@@ -128,9 +137,94 @@ struct GeneralSettingsView: View {
             } header: {
                 LText(key: L10nKeys.settingsSectionFont)
             }
+
+            // MARK: - OpenClaw Custom Path Configuration
+            Section {
+                Toggle("Use custom OpenClaw skills directory", isOn: $isUsingCustomOpenClawPath)
+                    .onChange(of: isUsingCustomOpenClawPath) { _, newValue in
+                        if !newValue {
+                            // User turned off custom path: clear setting and reset to default
+                            AgentPathSettings.setCustomPath(nil, for: .openClaw)
+                            openClawCustomPath = ""
+                            // Trigger refresh to update skills from default path
+                            Task { await skillManager.refresh() }
+                        }
+                        // Note: When toggle is turned on, user must use Browse button to select path
+                    }
+
+                if isUsingCustomOpenClawPath {
+                    LabeledContent {
+                        HStack(spacing: 8) {
+                            // Display path as read-only text (consistent with Shared Skills Path style)
+                            Text(openClawCustomPath.isEmpty ? "Not configured" : openClawCustomPath)
+                                .foregroundStyle(openClawCustomPath.isEmpty ? .secondary : .primary)
+                                .textSelection(.enabled)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+
+                            Button("Browse...") {
+                                selectOpenClawDirectory()
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    } label: {
+                        Text("Skills Directory")
+                    }
+
+                    Text("Default: ~/.openclaw/skills")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("OpenClaw Configuration")
+            } footer: {
+                Text("Configure custom path when OpenClaw runs in Docker with volume mounts")
+                    .font(.caption)
+            }
         }
         .formStyle(.grouped)
         .padding()
+        .onAppear {
+            loadOpenClawCustomPath()
+        }
+    }
+
+    // MARK: - OpenClaw Path Helpers
+
+    /// Load existing custom path configuration on view appear
+    private func loadOpenClawCustomPath() {
+        if let customPath = AgentPathSettings.customPath(for: .openClaw) {
+            openClawCustomPath = customPath
+            isUsingCustomOpenClawPath = true
+        }
+    }
+
+    /// Show NSOpenPanel to select custom OpenClaw skills directory
+    private func selectOpenClawDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.showsHiddenFiles = true  // Allow viewing hidden directories (e.g., ~/.openclaw)
+        panel.message = "Select OpenClaw skills directory"
+        panel.prompt = "Select"
+
+        // Set initial directory if path exists
+        if !openClawCustomPath.isEmpty {
+            let url = URL(fileURLWithPath: openClawCustomPath)
+            if FileManager.default.fileExists(atPath: url.path) {
+                panel.directoryURL = url
+            }
+        }
+
+        // Run modal on main thread
+        if panel.runModal() == .OK, let url = panel.url {
+            openClawCustomPath = url.path
+            AgentPathSettings.setCustomPath(url.path, for: .openClaw)
+            // Trigger refresh to update skills from newly selected path
+            Task { await skillManager.refresh() }
+        }
     }
 }
 
