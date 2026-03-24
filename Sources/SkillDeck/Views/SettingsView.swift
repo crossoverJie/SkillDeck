@@ -62,6 +62,9 @@ struct GeneralSettingsView: View {
 
     @AppStorage(LanguageSettings.appLanguageKey) private var appLanguageRaw: String = LanguageSettings.defaultLanguage.rawValue
 
+    /// Get SkillManager from View environment to trigger refresh after path change
+    @Environment(SkillManager.self) private var skillManager
+
     // MARK: - OpenClaw Custom Path State
     /// State for OpenClaw custom skills directory path (for Docker/volume mount scenarios)
     @State private var openClawCustomPath: String = ""
@@ -143,6 +146,12 @@ struct GeneralSettingsView: View {
                             // User turned off custom path: clear setting and reset to default
                             AgentPathSettings.setCustomPath(nil, for: .openClaw)
                             openClawCustomPath = ""
+                            // Trigger refresh to update skills from default path
+                            Task { await skillManager.refresh() }
+                        } else if !openClawCustomPath.isEmpty {
+                            // User turned on custom path and path exists: save and refresh
+                            AgentPathSettings.setCustomPath(openClawCustomPath, for: .openClaw)
+                            Task { await skillManager.refresh() }
                         }
                     }
 
@@ -153,6 +162,8 @@ struct GeneralSettingsView: View {
                             .onChange(of: openClawCustomPath) { _, newValue in
                                 if isUsingCustomOpenClawPath && !newValue.isEmpty {
                                     AgentPathSettings.setCustomPath(newValue, for: .openClaw)
+                                    // Trigger refresh to update skills from new path
+                                    Task { await skillManager.refresh() }
                                 }
                             }
 
@@ -213,6 +224,8 @@ struct GeneralSettingsView: View {
         if panel.runModal() == .OK, let url = panel.url {
             openClawCustomPath = url.path
             AgentPathSettings.setCustomPath(url.path, for: .openClaw)
+            // Trigger refresh to update skills from newly selected path
+            Task { await skillManager.refresh() }
         }
     }
 }
