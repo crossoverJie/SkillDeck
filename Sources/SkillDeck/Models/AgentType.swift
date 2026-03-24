@@ -74,17 +74,33 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     /// ~ represents user home directory, e.g., /Users/chenjie
     var skillsDirectoryPath: String {
         switch self {
-        case .claudeCode: "~/.claude/skills"
-        case .codex: "~/.codex/skills"        // Codex-specific skills directory (also reads ~/.agents/skills/)
-        case .geminiCLI: "~/.gemini/skills"
-        case .copilotCLI: "~/.copilot/skills"
-        case .openCode: "~/.config/opencode/skills"  // OpenCode uses XDG-style configuration path
-        case .antigravity: "~/.gemini/antigravity/skills"  // Antigravity stores skills under Gemini's config directory
-        case .cursor: "~/.cursor/skills"                    // Cursor IDE skills directory
-        case .kiro: "~/.kiro/skills"                       // Kiro IDE skills directory
-        case .codeBuddy: "~/.codebuddy/skills"             // CodeBuddy AI assistant skills directory
-        case .openClaw: "~/.openclaw/skills"               // OpenClaw AI assistant skills directory
-        case .trae: "~/.trae/skills"                         // Trae AI IDE skills directory
+        case .claudeCode:
+            return "~/.claude/skills"
+        case .codex:
+            return "~/.codex/skills"        // Codex-specific skills directory (also reads ~/.agents/skills/)
+        case .geminiCLI:
+            return "~/.gemini/skills"
+        case .copilotCLI:
+            return "~/.copilot/skills"
+        case .openCode:
+            return "~/.config/opencode/skills"  // OpenCode uses XDG-style configuration path
+        case .antigravity:
+            return "~/.gemini/antigravity/skills"  // Antigravity stores skills under Gemini's config directory
+        case .cursor:
+            return "~/.cursor/skills"                    // Cursor IDE skills directory
+        case .kiro:
+            return "~/.kiro/skills"                       // Kiro IDE skills directory
+        case .codeBuddy:
+            return "~/.codebuddy/skills"             // CodeBuddy AI assistant skills directory
+        case .openClaw:
+            // Support custom path for Docker/volume mount scenarios
+            // Custom path is configured in Settings > General
+            if let customPath = AgentPathSettings.customPath(for: self) {
+                return customPath
+            }
+            return "~/.openclaw/skills"                      // OpenClaw AI assistant skills directory
+        case .trae:
+            return "~/.trae/skills"                         // Trae AI IDE skills directory
         }
     }
 
