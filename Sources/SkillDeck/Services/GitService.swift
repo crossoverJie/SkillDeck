@@ -217,12 +217,14 @@ actor GitService {
 
     /// Scan cloned repository directory, discover all skills containing SKILL.md
     ///
-    /// - Parameter repoDir: Local directory of cloned repository
+    /// - Parameters:
+    ///   - repoDir: Local directory of cloned repository
+    ///   - repoURL: Optional repository URL used to extract repo name for root-level skills
     /// - Returns: Array of all discovered skills
     ///
     /// Recursively traverse repository directory tree, find directories containing SKILL.md,
     /// and parse metadata with SkillMDParser. Similar to Go's filepath.Walk.
-    func scanSkillsInRepo(repoDir: URL) -> [DiscoveredSkill] {
+    func scanSkillsInRepo(repoDir: URL, repoURL: String? = nil) -> [DiscoveredSkill] {
         let fm = FileManager.default
         var discovered: [DiscoveredSkill] = []
 
@@ -258,7 +260,7 @@ actor GitService {
         // Parse each SKILL.md
         for skillMDURL in skillMDURLs {
             let skillDir = skillMDURL.deletingLastPathComponent()
-            let skillName = skillDir.lastPathComponent
+            let directoryName = skillDir.lastPathComponent
 
             // Calculate path relative to repository root
             // e.g. repoDir = /tmp/xxx/, skillDir = /tmp/xxx/skills/find-skills/
@@ -266,6 +268,7 @@ actor GitService {
             let repoDirPath = repoDir.standardizedFileURL.path
             let skillDirPath = skillDir.standardizedFileURL.path
             let folderPath: String
+            let isRootLevel: Bool
             if skillDirPath.hasPrefix(repoDirPath) {
                 // dropFirst removes prefix path and leading "/"
                 var relative = String(skillDirPath.dropFirst(repoDirPath.count))
@@ -278,8 +281,11 @@ actor GitService {
                     relative = String(relative.dropLast())
                 }
                 folderPath = relative
+                // Skill is at root level if relative path is empty (SKILL.md directly in repo root)
+                isRootLevel = relative.isEmpty
             } else {
-                folderPath = skillName
+                folderPath = directoryName
+                isRootLevel = false
             }
 
             let skillMDPath = folderPath.isEmpty
@@ -289,8 +295,24 @@ actor GitService {
             // Parse SKILL.md content with SkillMDParser
             do {
                 let result = try SkillMDParser.parse(fileURL: skillMDURL)
+                // For root-level skills, use metadata.name if available, otherwise fallback to directory name
+                let skillId: String
+                if isRootLevel {
+                    // Priority: metadata.name (if not empty) > repo name from URL > directory name
+                    let metadataName = result.metadata.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !metadataName.isEmpty {
+                        skillId = metadataName
+                    } else if let repoURL = repoURL,
+                              let repoName = Self.extractRepoName(from: repoURL) {
+                        skillId = repoName
+                    } else {
+                        skillId = directoryName
+                    }
+                } else {
+                    skillId = directoryName
+                }
                 discovered.append(DiscoveredSkill(
-                    id: skillName,
+                    id: skillId,
                     folderPath: folderPath,
                     skillMDPath: skillMDPath,
                     metadata: result.metadata,
@@ -298,11 +320,12 @@ actor GitService {
                 ))
             } catch {
                 // Use directory name as fallback on parse failure, don't block entire scan
+                let fallbackId = isRootLevel ? (Self.extractRepoName(from: repoURL ?? "") ?? directoryName) : directoryName
                 discovered.append(DiscoveredSkill(
-                    id: skillName,
+                    id: fallbackId,
                     folderPath: folderPath,
                     skillMDPath: skillMDPath,
-                    metadata: SkillMetadata(name: skillName, description: ""),
+                    metadata: SkillMetadata(name: fallbackId, description: ""),
                     markdownBody: ""
                 ))
             }
@@ -413,6 +436,44 @@ actor GitService {
         let source = "\(components[0])/\(repoName)"
         let repoURL = "https://github.com/\(source).git"
         return (repoURL: repoURL, source: source)
+    }
+
+    /// Extract repository name from GitHub URL
+    ///
+    /// - Parameter url: Repository URL (e.g. "https://github.com/owner/repo.git" or "owner/repo")
+    /// - Returns: Repository name (e.g. "repo"), returns nil if cannot extract
+    ///
+    /// Used for root-level skills where SKILL.md is directly in repo root,
+    /// to generate a stable skill ID based on repo name rather than temp directory name.
+    nonisolated static func extractRepoName(from url: String) -> String? {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        var source = trimmed
+
+        // Remove protocol prefix if present
+        if let range = source.range(of: "https://github.com/", options: .caseInsensitive) {
+            source = String(source[range.upperBound...])
+        }
+
+        // Remove .git suffix
+        if source.hasSuffix(".git") {
+            source = String(source.dropLast(4))
+        }
+
+        // Remove trailing /
+        if source.hasSuffix("/") {
+            source = String(source.dropLast())
+        }
+
+        // Extract repo name (part after last /)
+        let components = source.split(separator: "/")
+        guard components.count >= 2,
+              !components.last!.isEmpty else {
+            return nil
+        }
+
+        return String(components.last!)
     }
 
     // MARK: - Private Methods
