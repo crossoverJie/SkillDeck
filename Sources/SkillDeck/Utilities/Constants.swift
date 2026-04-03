@@ -21,6 +21,7 @@ enum Constants {
             case .codeBuddy:   Color(red: 0.91, green: 0.30, blue: 0.60)  // Pink #E84D99
             case .openClaw:    Color(red: 0.85, green: 0.18, blue: 0.15)  // Red #D92E26 (lobster/crayfish theme)
             case .trae:        Color(red: 0.20, green: 0.94, blue: 0.55)  // Bright Green #32F08C
+            case .qoder:       Color(red: 0.96, green: 0.52, blue: 0.15)  // Orange #F58426
             }
         }
     }

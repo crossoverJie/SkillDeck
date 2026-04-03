@@ -14,6 +14,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     case codeBuddy = "codebuddy"           // CodeBuddy: Tencent Cloud AI coding assistant (https://www.codebuddy.ai)
     case openClaw = "openclaw"             // OpenClaw: AI coding assistant with ClawHub registry (https://openclaw.ai)
     case trae = "trae"                       // Trae: ByteDance's AI IDE (https://trae.ai)
+    case qoder = "qoder"                     // Qoder: AI coding agent
 
     // Identifiable protocol requirement (similar to Java's Comparable), needed for SwiftUI list rendering
     var id: String { rawValue }
@@ -31,6 +32,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codeBuddy: "CodeBuddy"
         case .openClaw: "OpenClaw"
         case .trae: "Trae"
+        case .qoder: "Qoder"
         }
     }
 
@@ -49,6 +51,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codeBuddy: "pink"
         case .openClaw: "red"
         case .trae: "brightGreen"
+        case .qoder: "orange"
         }
     }
 
@@ -67,6 +70,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codeBuddy: "c.circle"               // Letter C icon for CodeBuddy
         case .openClaw: "o.circle"               // Letter O icon for OpenClaw
         case .trae: "t.circle"                     // Letter T icon for Trae
+        case .qoder: "q.circle"                     // Letter Q icon for Qoder
         }
     }
 
@@ -101,6 +105,8 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
             return "~/.openclaw/skills"                      // OpenClaw AI assistant skills directory
         case .trae:
             return "~/.trae/skills"                         // Trae AI IDE skills directory
+        case .qoder:
+            return "~/.qoder/skills"                        // Qoder AI coding agent skills directory
         }
     }
 
@@ -124,6 +130,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codeBuddy: "~/.codebuddy"
         case .openClaw: "~/.openclaw"
         case .trae: "~/.trae"
+        case .qoder: "~/.qoder"
         }
     }
 
@@ -141,6 +148,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codeBuddy: "codebuddy"
         case .openClaw: "openclaw"
         case .trae: "trae"
+        case .qoder: "qoder"
         }
     }
 
