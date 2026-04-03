@@ -77,6 +77,7 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 | CodeBuddy | `~/.codebuddy/skills/` | `codebuddy` binary | Own directory only |
 | OpenClaw | `~/.openclaw/skills/` | `openclaw` binary | Own directory only |
 | Trae | `~/.trae/skills/` | `trae` binary | Own directory only |
+| Qoder | `~/.qoder/skills/` | `qoder` binary | Own directory only |
 
 ## Testing
 

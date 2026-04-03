@@ -22,7 +22,7 @@
 
 ---
 
-**SkillDeck** is the first desktop GUI for managing skills across multiple AI code agents — [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line), [OpenCode](https://opencode.ai), [Antigravity](https://antigravity.google), [Cursor](https://cursor.com), [Kiro](https://kiro.dev), [CodeBuddy](https://www.codebuddy.ai), [OpenClaw](https://openclaw.ai), and [Trae](https://www.trae.ai). No more manual file editing, symlink juggling, or YAML parsing by hand.
+**SkillDeck** is the first desktop GUI for managing skills across multiple AI code agents — [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line), [OpenCode](https://opencode.ai), [Antigravity](https://antigravity.google), [Cursor](https://cursor.com), [Kiro](https://kiro.dev), [CodeBuddy](https://www.codebuddy.ai), [OpenClaw](https://openclaw.ai), [Trae](https://www.trae.ai), and [Qoder](https://qoder.ai). No more manual file editing, symlink juggling, or YAML parsing by hand.
 
 ## Screenshots
 
@@ -40,7 +40,7 @@
 
 ## Features
 
-- **Multi-Agent Support** — Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor, Kiro, CodeBuddy, OpenClaw, Trae
+- **Multi-Agent Support** — Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor, Kiro, CodeBuddy, OpenClaw, Trae, Qoder
 - **Registry & Marketplace Browser** — Browse [skills.sh](https://skills.sh) leaderboard plus the ClawHub catalog for OpenClaw with search, sorting, and filters
 - **Unified Dashboard** — All skills in one three-pane macOS-native view
 - **Flexible Imports** — Install from GitHub or import from a local folder, then auto-create symlinks and update the lock file
@@ -108,6 +108,7 @@ swift test
 | [CodeBuddy](https://www.codebuddy.ai) | `~/.codebuddy/skills/` | `codebuddy` binary | Own directory only |
 | [OpenClaw](https://openclaw.ai) | `~/.openclaw/skills/` | `openclaw` binary | Own directory only |
 | [Trae](https://www.trae.ai) | `~/.trae/skills/` | `trae` binary | Own directory only |
+| [Qoder](https://qoder.ai) | `~/.qoder/skills/` | `qoder` binary | Own directory only |
 
 ## Architecture
 

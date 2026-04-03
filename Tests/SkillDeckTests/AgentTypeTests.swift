@@ -147,12 +147,32 @@ final class AgentTypeTests: XCTestCase {
         XCTAssertTrue(agent.additionalReadableSkillsDirectories.isEmpty)
     }
 
+    // MARK: - Qoder Agent Properties
+
+    /// Verify all computed properties of the Qoder agent type
+    /// Qoder is an AI coding agent with standalone directory structure
+    func testQoderProperties() {
+        let agent = AgentType.qoder
+
+        // rawValue is used as the Codable key in lock file JSON
+        XCTAssertEqual(agent.rawValue, "qoder")
+        XCTAssertEqual(agent.displayName, "Qoder")
+        XCTAssertEqual(agent.detectCommand, "qoder")
+        XCTAssertEqual(agent.skillsDirectoryPath, "~/.qoder/skills")
+        XCTAssertEqual(agent.configDirectoryPath, "~/.qoder")
+        XCTAssertEqual(agent.iconName, "q.circle")
+        XCTAssertEqual(agent.brandColor, "orange")
+
+        // Qoder does not read other agents' directories (standalone agent)
+        XCTAssertTrue(agent.additionalReadableSkillsDirectories.isEmpty)
+    }
+
     // MARK: - CaseIterable Count
 
     /// Verify the total number of supported agents
     /// This test catches accidental removal of agent cases
     func testAllCasesCount() {
-        // 11 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor, kiro, codeBuddy, openClaw, trae
-        XCTAssertEqual(AgentType.allCases.count, 11)
+        // 12 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor, kiro, codeBuddy, openClaw, trae, qoder
+        XCTAssertEqual(AgentType.allCases.count, 12)
     }
 }
