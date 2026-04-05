@@ -26,6 +26,23 @@
             --shadow-hover: 6px 6px 0px #1a1a2e;
         }
 
+        /* Dark mode theme */
+        [data-theme="dark"] {
+            --bg: #1a1a2e;
+            --text: #f8f8f8;
+            --card-bg: #2d2d44;
+            --border: #404060;
+            --shadow: 4px 4px 0px #404060;
+            --shadow-hover: 6px 6px 0px #404060;
+        }
+
+        [data-theme="dark"] .feature-card:nth-child(2) { background: #3d3650; }
+        [data-theme="dark"] .feature-card:nth-child(3) { background: #2a3a50; }
+        [data-theme="dark"] .feature-card:nth-child(4) { background: #3d3040; }
+        [data-theme="dark"] .feature-card:nth-child(5) { background: #3d3050; }
+        [data-theme="dark"] .feature-card:nth-child(6) { background: #2a3a50; }
+        [data-theme="dark"] .agents-tag { background: #2a3a50; color: #74c0fc; }
+
         * {
             margin: 0;
             padding: 0;
@@ -106,6 +123,31 @@
 
         nav a:hover {
             color: var(--accent);
+        }
+
+        .theme-toggle {
+            background: var(--card-bg);
+            border: 3px solid var(--border);
+            border-radius: 8px;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: all 0.2s;
+            color: var(--text);
+        }
+
+        .theme-toggle:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .theme-toggle svg {
+            width: 22px;
+            height: 22px;
         }
 
         .nav-cta {
@@ -387,46 +429,114 @@
         /* Agents */
         .agents {
             padding: 100px 0;
-            background: var(--bg-dark);
-            color: var(--text-light);
+            background: var(--bg);
+            overflow: hidden;
         }
 
-        .section-header-light h2 {
-            background: var(--tertiary) !important;
-            color: var(--text) !important;
-        }
-
-        .agents-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            margin-top: 50px;
-        }
-
-        .agent-card {
-            padding: 28px;
-            border: 3px solid var(--text-light);
-            border-radius: 14px;
-            background: transparent;
+        .agents-header {
             text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .agents-tag {
+            display: inline-block;
+            background: #e7f5ff;
+            color: #228be6;
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 8px 20px;
+            border-radius: 50px;
+            margin-bottom: 20px;
+        }
+
+        .agents-header h2 {
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        /* Marquee */
+        .marquee-container {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .marquee-container::before,
+        .marquee-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            width: 150px;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .marquee-container::before {
+            left: 0;
+            background: linear-gradient(to right, var(--bg) 0%, transparent 100%);
+        }
+
+        .marquee-container::after {
+            right: 0;
+            background: linear-gradient(to left, var(--bg) 0%, transparent 100%);
+        }
+
+        .marquee-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            width: max-content;
+        }
+
+        .marquee-row-reverse {
+            animation: marquee-reverse 40s linear infinite;
+        }
+
+        .marquee-row-forward {
+            animation: marquee-forward 40s linear infinite;
+        }
+
+        @keyframes marquee-forward {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        @keyframes marquee-reverse {
+            0% { transform: translateX(-50%); }
+            100% { transform: translateX(0); }
+        }
+
+        .agent-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            background: var(--card-bg);
+            border: 2px solid var(--border);
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            box-shadow: 2px 2px 0px var(--border);
             transition: all 0.2s;
         }
 
-        .agent-card:hover {
-            background: var(--text-light);
-            color: var(--text);
-            transform: translate(-4px, -4px);
+        .agent-badge:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0px var(--border);
         }
 
-        .agent-emoji {
-            font-size: 3.5rem;
-            display: block;
-            margin-bottom: 14px;
-        }
-
-        .agent-card h3 {
-            font-size: 1.1rem;
-            font-weight: 700;
+        .agent-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
         }
 
         /* CTA */
@@ -539,6 +649,14 @@
                 <a href="#features">Features</a>
                 <a href="#agents">Agents</a>
                 <a href="https://github.com/crossoverJie/SkillDeck" target="_blank">GitHub</a>
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+                    <svg id="sunIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <svg id="moonIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display: none;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </button>
                 <a href="https://github.com/crossoverJie/SkillDeck/releases" class="nav-cta">Download</a>
             </nav>
         </div>
@@ -549,7 +667,7 @@
             <div class="container">
                 <div class="hero-content">
                     <h1>MANAGE AI AGENT SKILLS LIKE A BOSS</h1>
-                    <p>The first desktop GUI for managing skills across Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor, Kiro, CodeBuddy, and OpenClaw. No more manual file editing or symlink juggling.</p>
+                    <p>The first desktop GUI for managing skills across 12 AI agents. No more manual file editing or symlink juggling.</p>
                     <div class="hero-cta">
                         <a href="https://github.com/crossoverJie/SkillDeck/releases" class="btn btn-primary">
                             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -567,7 +685,7 @@
             <div class="container">
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <span class="stat-number">10</span>
+                        <span class="stat-number">12</span>
                         <span class="stat-label">Supported Agents</span>
                     </div>
                     <div class="stat-card">
@@ -614,7 +732,7 @@
                             </svg>
                         </div>
                         <h3>Multi-Agent Support</h3>
-                        <p>Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor, Kiro, CodeBuddy, OpenClaw — all in one place.</p>
+                        <p>Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor, Kiro, CodeBuddy, OpenClaw, Trae, and Qoder — all in one place.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon" style="background: var(--secondary);">
@@ -667,49 +785,211 @@
 
         <section class="agents" id="agents">
             <div class="container">
-                <div class="section-header section-header-light">
+                <div class="agents-header">
                     <h2>SUPPORTED AGENTS</h2>
                 </div>
-                <div class="agents-grid">
-                    <div class="agent-card">
-                        <span class="agent-emoji">🤖</span>
-                        <h3>Claude Code</h3>
+            </div>
+            <div class="marquee-container">
+                <!-- Row 1: scrolling left -->
+                <div class="marquee-row marquee-row-reverse">
+                    <!-- First set -->
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757"></path></svg>
+                        Claude Code
                     </div>
-                    <div class="agent-card">
-                        <span class="agent-emoji">📝</span>
-                        <h3>Codex</h3>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.896zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" fill="#10A37F"></path></svg>
+                        Codex
                     </div>
-                    <div class="agent-card">
-                        <span class="agent-emoji">✨</span>
-                        <h3>Gemini CLI</h3>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" fill="#4285F4"></path><path d="M12 4c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8-8-3.59-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z" fill="#EA4335"></path><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3z" fill="#FBBC05"></path><path d="M12 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z" fill="#34A853"></path></svg>
+                        Gemini CLI
                     </div>
-                    <div class="agent-card">
-                        <span class="agent-emoji">🦑</span>
-                        <h3>Copilot CLI</h3>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill="#24292F"></path></svg>
+                        Copilot CLI
                     </div>
-                    <div class="agent-card">
-                        <span class="agent-emoji">💻</span>
-                        <h3>OpenCode</h3>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" fill="#5B8DEF"></rect><path d="M7 12h10M12 7v10" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                        OpenCode
                     </div>
-                    <div class="agent-card">
-                        <span class="agent-emoji">🚀</span>
-                        <h3>Antigravity</h3>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#FF6B35"></circle><path d="M12 6v6l4 4" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"></path></svg>
+                        Antigravity
                     </div>
-                    <div class="agent-card">
-                        <span class="agent-emoji">🖱️</span>
-                        <h3>Cursor</h3>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="2" fill="#1A1A1A"></rect><path d="M8 8h8M8 12h8M8 16h5" stroke="white" stroke-width="1.5" stroke-linecap="round"></path></svg>
+                        Cursor
                     </div>
-                    <div class="agent-card">
-                        <span class="agent-emoji">🪁</span>
-                        <h3>Kiro</h3>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 8l10 6 10-6-10-6z" fill="#6366F1"></path><path d="M2 16l10 6 10-6" fill="#6366F1" opacity="0.6"></path></svg>
+                        Kiro
                     </div>
-                    <div class="agent-card">
-                        <span class="agent-emoji">🐧</span>
-                        <h3>CodeBuddy</h3>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#0EA5E9"></circle><path d="M8 10c0-1 .5-2 2-2s2 1 2 2-1 2-2 2" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"></path><path d="M12 16v-2" stroke="white" stroke-width="1.5" stroke-linecap="round"></path></svg>
+                        CodeBuddy
                     </div>
-                    <div class="agent-card">
-                        <span class="agent-emoji">🦞</span>
-                        <h3>OpenClaw</h3>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L4 6v12c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V6l-8-4z" fill="#F97316"></path><path d="M12 6v8" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                        OpenClaw
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="3" fill="#000000"></rect><path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                        Trae
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="11" r="8" fill="#8B5CF6"></circle><path d="M21 21l-4.35-4.35" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                        Qoder
+                    </div>
+                    <!-- Duplicate set for seamless loop -->
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757"></path></svg>
+                        Claude Code
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.896zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" fill="#10A37F"></path></svg>
+                        Codex
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" fill="#4285F4"></path><path d="M12 4c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8-8-3.59-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z" fill="#EA4335"></path><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3z" fill="#FBBC05"></path><path d="M12 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z" fill="#34A853"></path></svg>
+                        Gemini CLI
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill="#24292F"></path></svg>
+                        Copilot CLI
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" fill="#5B8DEF"></rect><path d="M7 12h10M12 7v10" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                        OpenCode
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#FF6B35"></circle><path d="M12 6v6l4 4" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"></path></svg>
+                        Antigravity
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="2" fill="#1A1A1A"></rect><path d="M8 8h8M8 12h8M8 16h5" stroke="white" stroke-width="1.5" stroke-linecap="round"></path></svg>
+                        Cursor
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 8l10 6 10-6-10-6z" fill="#6366F1"></path><path d="M2 16l10 6 10-6" fill="#6366F1" opacity="0.6"></path></svg>
+                        Kiro
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#0EA5E9"></circle><path d="M8 10c0-1 .5-2 2-2s2 1 2 2-1 2-2 2" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"></path><path d="M12 16v-2" stroke="white" stroke-width="1.5" stroke-linecap="round"></path></svg>
+                        CodeBuddy
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L4 6v12c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V6l-8-4z" fill="#F97316"></path><path d="M12 6v8" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                        OpenClaw
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="3" fill="#000000"></rect><path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                        Trae
+                    </div>
+                    <div class="agent-badge">
+                        <svg height="20" width="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="11" r="8" fill="#8B5CF6"></circle><path d="M21 21l-4.35-4.35" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                        Qoder
+                    </div>
+                </div>
+                <!-- Row 2: scrolling right -->
+                <div class="marquee-row marquee-row-forward">
+                    <!-- First set (shuffled) -->
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #1A1A1A; color: white;">◼</span>
+                        Cursor
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #000000; color: white;">⚡</span>
+                        Trae
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #5B8DEF; color: white;">◆</span>
+                        OpenCode
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #D97757; color: white;">●</span>
+                        Claude Code
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #0EA5E9; color: white;">🐧</span>
+                        CodeBuddy
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: linear-gradient(135deg, #4285F4, #34A853, #FBBC05, #EA4335); color: white;">✦</span>
+                        Gemini CLI
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #FF6B35; color: white;">▲</span>
+                        Antigravity
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #10A37F; color: white;">❖</span>
+                        Codex
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #8B5CF6; color: white;">🔍</span>
+                        Qoder
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #F97316; color: white;">🦞</span>
+                        OpenClaw
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #6366F1; color: white;">🪁</span>
+                        Kiro
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #24292F; color: white;"><svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg></span>
+                        Copilot CLI
+                    </div>
+                    <!-- Duplicate set for seamless loop -->
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #1A1A1A; color: white;">◼</span>
+                        Cursor
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #000000; color: white;">⚡</span>
+                        Trae
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #5B8DEF; color: white;">◆</span>
+                        OpenCode
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #D97757; color: white;">●</span>
+                        Claude Code
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #0EA5E9; color: white;">🐧</span>
+                        CodeBuddy
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: linear-gradient(135deg, #4285F4, #34A853, #FBBC05, #EA4335); color: white;">✦</span>
+                        Gemini CLI
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #FF6B35; color: white;">▲</span>
+                        Antigravity
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #10A37F; color: white;">❖</span>
+                        Codex
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #8B5CF6; color: white;">🔍</span>
+                        Qoder
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #F97316; color: white;">🦞</span>
+                        OpenClaw
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #6366F1; color: white;">🪁</span>
+                        Kiro
+                    </div>
+                    <div class="agent-badge">
+                        <span class="agent-icon" style="background: #24292F; color: white;"><svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg></span>
+                        Copilot CLI
                     </div>
                 </div>
             </div>
@@ -752,5 +1032,37 @@
             </div>
         </div>
     </footer>
+
+    <script>
+        // Theme toggle functionality
+        const themeToggle = document.getElementById('themeToggle');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+        const html = document.documentElement;
+
+        // Check for saved theme preference or default to light mode
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        html.setAttribute('data-theme', currentTheme);
+        updateIcons(currentTheme);
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateIcons(newTheme);
+        });
+
+        function updateIcons(theme) {
+            if (theme === 'dark') {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            } else {
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>

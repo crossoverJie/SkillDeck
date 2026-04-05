@@ -182,7 +182,7 @@ final class SkillInstallViewModel: Identifiable {
 
             // 4. Scan skills
             progressMessage = "Scanning skills..."
-            let discovered = await gitService.scanSkillsInRepo(repoDir: repoDir)
+            let discovered = await gitService.scanSkillsInRepo(repoDir: repoDir, repoURL: normalizedRepoURL)
 
             guard !discovered.isEmpty else {
                 phase = .error("No skills found in this repository.")
@@ -230,6 +230,7 @@ final class SkillInstallViewModel: Identifiable {
 
         phase = .installing
         installedCount = 0
+        var failedSkills: [(name: String, error: String)] = []
         let total = selectedSkillNames.count
 
         for skill in discoveredSkills where selectedSkillNames.contains(skill.id) {
@@ -245,13 +246,19 @@ final class SkillInstallViewModel: Identifiable {
                 )
                 installedCount += 1
             } catch {
-                // Single skill installation failure doesn't block other skills
-                // Error info is recorded (can be extended to show detailed error list in the future)
+                // Record failed skill with error message for display
+                failedSkills.append((name: skill.id, error: error.localizedDescription))
                 continue
             }
         }
 
-        phase = .completed
+        // Show error if some skills failed to install
+        if !failedSkills.isEmpty && installedCount == 0 {
+            let errorMessages = failedSkills.map { "\($0.name): \($0.error)" }.joined(separator: "\n")
+            phase = .error("Failed to install skills:\n\(errorMessages)")
+        } else {
+            phase = .completed
+        }
     }
 
     /// Clean up temporary directory (called when sheet closes)

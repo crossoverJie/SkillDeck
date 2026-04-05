@@ -22,7 +22,7 @@
 
 ---
 
-**SkillDeck** 是首个用于管理多个 AI 代码代理技能的桌面 GUI 工具，支持 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)、[Codex](https://github.com/openai/codex)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line)、[OpenCode](https://opencode.ai)、[Antigravity](https://antigravity.google)、[Cursor](https://cursor.com)、[Kiro](https://kiro.dev)、[CodeBuddy](https://www.codebuddy.ai)、[OpenClaw](https://openclaw.ai) 和 [Trae](https://www.trae.ai)。告别手动编辑文件、管理符号链接和手工解析 YAML。
+**SkillDeck** 是首个用于管理多个 AI 代码代理技能的桌面 GUI 工具，支持 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)、[Codex](https://github.com/openai/codex)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line)、[OpenCode](https://opencode.ai)、[Antigravity](https://antigravity.google)、[Cursor](https://cursor.com)、[Kiro](https://kiro.dev)、[CodeBuddy](https://www.codebuddy.ai)、[OpenClaw](https://openclaw.ai)、[Trae](https://www.trae.ai) 和 [Qoder](https://qoder.ai)。告别手动编辑文件、管理符号链接和手工解析 YAML。
 
 ## 截图
 
@@ -38,7 +38,7 @@
 
 ## 功能特性
 
-- **多代理支持** — Claude Code、Codex、Gemini CLI、Copilot CLI、OpenCode、Antigravity、Cursor、Kiro、CodeBuddy、OpenClaw、Trae
+- **多代理支持** — Claude Code、Codex、Gemini CLI、Copilot CLI、OpenCode、Antigravity、Cursor、Kiro、CodeBuddy、OpenClaw、Trae、Qoder
 - **技能市场浏览** — 浏览 [skills.sh](https://skills.sh) 排行榜，并针对 OpenClaw 浏览 ClawHub 市场，支持搜索、排序和筛选
 - **统一仪表盘** — 所有技能集中在一个 macOS 原生三栏视图中
 - **灵活导入** — 支持从 GitHub 安装或从本地文件夹导入，并自动创建符号链接、更新锁文件
@@ -46,6 +46,8 @@
 - **SKILL.md 编辑器** — 分栏式表单 + Markdown 编辑器，支持实时预览
 - **代理分配** — 通过符号链接管理，切换技能安装到指定代理
 - **应用设置** — 支持全局字体设置和代理网络配置（HTTPS / SOCKS5、Keychain 凭证、绕过列表）
+- **国际化** — 完整支持英文和简体中文界面，可在应用内切换语言
+- **中文翻译** — 界面语言设为中文时，技能文档段落自动翻译为中文（需要 macOS 26+）
 - **自动刷新** — 文件系统监控，即时响应 CLI 端的变更
 
 > 完整功能列表和路线图请参阅 [docs/FEATURES.md](docs/FEATURES.md)。
@@ -104,6 +106,7 @@ swift test
 | [CodeBuddy](https://www.codebuddy.ai) | `~/.codebuddy/skills/` | `codebuddy` 二进制文件 | 仅自身目录 |
 | [OpenClaw](https://openclaw.ai) | `~/.openclaw/skills/` | `openclaw` 二进制文件 | 仅自身目录 |
 | [Trae](https://www.trae.ai) | `~/.trae/skills/` | `trae` 二进制文件 | 仅自身目录 |
+| [Qoder](https://qoder.ai) | `~/.qoder/skills/` | `qoder` 二进制文件 | 仅自身目录 |
 
 ## 架构
 

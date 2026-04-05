@@ -197,4 +197,175 @@ final class GitServiceTests: XCTestCase {
         let skill = try XCTUnwrap(skills.first)
         XCTAssertEqual(skill.id, "my-real-skill")
     }
+
+    /// Test that scanSkillsInRepo correctly identifies root-level skills using metadata.name
+    ///
+    /// When SKILL.md is directly in repo root (not in a subdirectory), the skill ID should
+    /// be derived from metadata.name or repo URL, not the temp directory name (e.g., "SkillDeck-xxx").
+    /// This fixes the issue where single-skill repos like eze-is/web-access would get random UUID IDs.
+    func testScanSkillsInRepoRootLevelUsesMetadataName() async throws {
+        let fm = FileManager.default
+        let repoDir = fm.temporaryDirectory.appendingPathComponent("SkillDeck-test-\(UUID().uuidString)")
+
+        // Create the repo directory first
+        try fm.createDirectory(at: repoDir, withIntermediateDirectories: true)
+
+        // Create SKILL.md directly in repo root (simulating eze-is/web-access structure)
+        let skillMDContent = """
+        ---
+        name: web-access
+        license: MIT
+        github: https://github.com/eze-is/web-access
+        description: A test skill at repo root
+        ---
+        # Web Access Skill
+        """
+        try skillMDContent.write(
+            to: repoDir.appendingPathComponent("SKILL.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        defer { try? fm.removeItem(at: repoDir) }
+
+        let gitService = GitService()
+        // Pass repoURL so root-level skill can extract repo name as fallback
+        let skills = await gitService.scanSkillsInRepo(
+            repoDir: repoDir,
+            repoURL: "https://github.com/eze-is/web-access.git"
+        )
+
+        // Should find 1 skill
+        XCTAssertEqual(skills.count, 1, "Expected 1 root-level skill, found \(skills.count)")
+        let skill = try XCTUnwrap(skills.first)
+        // Skill ID should be from metadata.name, not the temp directory name
+        XCTAssertEqual(skill.id, "web-access", "Root-level skill should use metadata.name as ID")
+        XCTAssertEqual(skill.folderPath, "", "Root-level skill should have empty folderPath")
+        XCTAssertEqual(skill.skillMDPath, "SKILL.md")
+    }
+
+    /// Test that root-level skills fallback to repo name when metadata.name is empty
+    func testScanSkillsInRepoRootLevelFallbackToRepoName() async throws {
+        let fm = FileManager.default
+        let repoDir = fm.temporaryDirectory.appendingPathComponent("SkillDeck-test-\(UUID().uuidString)")
+
+        // Create the repo directory first
+        try fm.createDirectory(at: repoDir, withIntermediateDirectories: true)
+
+        // Create SKILL.md with empty name in metadata
+        let skillMDContent = """
+        ---
+        name: ""
+        description: Skill with empty name
+        ---
+        # Root Skill
+        """
+        try skillMDContent.write(
+            to: repoDir.appendingPathComponent("SKILL.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        defer { try? fm.removeItem(at: repoDir) }
+
+        let gitService = GitService()
+        let skills = await gitService.scanSkillsInRepo(
+            repoDir: repoDir,
+            repoURL: "https://github.com/owner/my-awesome-skill.git"
+        )
+
+        XCTAssertEqual(skills.count, 1)
+        let skill = try XCTUnwrap(skills.first)
+        // Should fallback to repo name
+        XCTAssertEqual(skill.id, "my-awesome-skill", "Should fallback to repo name when metadata.name is empty")
+    }
+
+    // MARK: - extractRepoName Tests
+
+    func testExtractRepoNameFromHTTPS() {
+        XCTAssertEqual(
+            GitService.extractRepoName(from: "https://github.com/eze-is/web-access.git"),
+            "web-access"
+        )
+        XCTAssertEqual(
+            GitService.extractRepoName(from: "https://github.com/vercel-labs/skills"),
+            "skills"
+        )
+        XCTAssertEqual(
+            GitService.extractRepoName(from: "https://github.com/owner/repo/"),
+            "repo"
+        )
+    }
+
+    func testExtractRepoNameFromOwnerRepo() {
+        XCTAssertEqual(
+            GitService.extractRepoName(from: "eze-is/web-access"),
+            "web-access"
+        )
+        XCTAssertEqual(
+            GitService.extractRepoName(from: "vercel-labs/skills.git"),
+            "skills"
+        )
+    }
+
+    func testExtractRepoNameInvalid() {
+        XCTAssertNil(GitService.extractRepoName(from: ""))
+        XCTAssertNil(GitService.extractRepoName(from: "just-a-name"))
+    }
+
+    /// Test that getTreeHash works correctly for root-level skills (empty folderPath)
+    func testGetTreeHashForRootLevelSkill() async throws {
+        let fm = FileManager.default
+        let repoDir = fm.temporaryDirectory.appendingPathComponent("SkillDeck-test-\(UUID().uuidString)")
+        try fm.createDirectory(at: repoDir, withIntermediateDirectories: true)
+
+        // Initialize a git repo
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["init"]
+        process.currentDirectoryURL = repoDir
+        try process.run()
+        process.waitUntilExit()
+
+        // Create SKILL.md and commit
+        let skillMDContent = """
+        ---
+        name: root-skill
+        ---
+        # Root Skill
+        """
+        try skillMDContent.write(
+            to: repoDir.appendingPathComponent("SKILL.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let addProcess = Process()
+        addProcess.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        addProcess.arguments = ["add", "."]
+        addProcess.currentDirectoryURL = repoDir
+        try addProcess.run()
+        addProcess.waitUntilExit()
+
+        let commitProcess = Process()
+        commitProcess.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        commitProcess.arguments = ["commit", "-m", "Initial commit"]
+        commitProcess.currentDirectoryURL = repoDir
+        try commitProcess.run()
+        commitProcess.waitUntilExit()
+
+        defer { try? fm.removeItem(at: repoDir) }
+
+        let gitService = GitService()
+        // Test getTreeHash with empty path (root level)
+        let treeHash = try await gitService.getTreeHash(for: "", in: repoDir)
+
+        // Verify we got a valid hash (40 character hex string)
+        XCTAssertEqual(treeHash.count, 40, "Tree hash should be 40 characters")
+        XCTAssertTrue(treeHash.allSatisfy { $0.isHexDigit }, "Tree hash should be hexadecimal")
+
+        // Test getTreeHash with specific file path
+        let fileHash = try await gitService.getTreeHash(for: "SKILL.md", in: repoDir)
+        XCTAssertEqual(fileHash.count, 40, "File hash should be 40 characters")
+    }
 }

@@ -64,20 +64,35 @@ final class SkillDetailViewModel {
     }
 
     /// Open skill directory in Terminal
+    /// Uses the first available terminal app: Warp > iTerm2 > Terminal
     func openInTerminal(skill: Skill) {
         let url = skill.canonicalURL
-        // AppleScript is macOS's automation scripting language, used here to open Terminal
-        let script = """
-        tell application "Terminal"
-            do script "cd '\(url.path)'"
-            activate
-        end tell
-        """
-        // NSAppleScript executes AppleScript code
-        if let appleScript = NSAppleScript(source: script) {
-            var error: NSDictionary?
-            appleScript.executeAndReturnError(&error)
+        // Common terminal bundle IDs in priority order (user's preferred terminals first)
+        let terminalBundleIDs = [
+            "dev.warp.Warp-Stable",     // Warp
+            "dev.warp.Warp",            // Warp (alternative bundle ID)
+            "com.googlecode.iterm2",    // iTerm2
+            "com.apple.Terminal"        // macOS built-in Terminal
+        ]
+        // Find the first installed terminal app
+        for bundleID in terminalBundleIDs {
+            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+                let config = NSWorkspace.OpenConfiguration()
+                // open with completionHandler to handle potential errors
+                NSWorkspace.shared.open(
+                    [url],
+                    withApplicationAt: appURL,
+                    configuration: config
+                ) { _, error in
+                    if error != nil {
+                        self.feedbackMessage = "Failed to open terminal"
+                    }
+                }
+                return
+            }
         }
+        // No supported terminal found
+        feedbackMessage = "No supported terminal app found"
     }
 
     // MARK: - F12: Update Check

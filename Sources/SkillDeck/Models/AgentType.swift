@@ -14,6 +14,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     case codeBuddy = "codebuddy"           // CodeBuddy: Tencent Cloud AI coding assistant (https://www.codebuddy.ai)
     case openClaw = "openclaw"             // OpenClaw: AI coding assistant with ClawHub registry (https://openclaw.ai)
     case trae = "trae"                       // Trae: ByteDance's AI IDE (https://trae.ai)
+    case qoder = "qoder"                     // Qoder: AI coding agent (https://qoder.ai)
 
     // Identifiable protocol requirement (similar to Java's Comparable), needed for SwiftUI list rendering
     var id: String { rawValue }
@@ -31,6 +32,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codeBuddy: "CodeBuddy"
         case .openClaw: "OpenClaw"
         case .trae: "Trae"
+        case .qoder: "Qoder"
         }
     }
 
@@ -49,6 +51,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codeBuddy: "pink"
         case .openClaw: "red"
         case .trae: "brightGreen"
+        case .qoder: "orange"
         }
     }
 
@@ -67,6 +70,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codeBuddy: "c.circle"               // Letter C icon for CodeBuddy
         case .openClaw: "o.circle"               // Letter O icon for OpenClaw
         case .trae: "t.circle"                     // Letter T icon for Trae
+        case .qoder: "q.circle"                     // Letter Q icon for Qoder
         }
     }
 
@@ -74,17 +78,35 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     /// ~ represents user home directory, e.g., /Users/chenjie
     var skillsDirectoryPath: String {
         switch self {
-        case .claudeCode: "~/.claude/skills"
-        case .codex: "~/.codex/skills"        // Codex-specific skills directory (also reads ~/.agents/skills/)
-        case .geminiCLI: "~/.gemini/skills"
-        case .copilotCLI: "~/.copilot/skills"
-        case .openCode: "~/.config/opencode/skills"  // OpenCode uses XDG-style configuration path
-        case .antigravity: "~/.gemini/antigravity/skills"  // Antigravity stores skills under Gemini's config directory
-        case .cursor: "~/.cursor/skills"                    // Cursor IDE skills directory
-        case .kiro: "~/.kiro/skills"                       // Kiro IDE skills directory
-        case .codeBuddy: "~/.codebuddy/skills"             // CodeBuddy AI assistant skills directory
-        case .openClaw: "~/.openclaw/skills"               // OpenClaw AI assistant skills directory
-        case .trae: "~/.trae/skills"                         // Trae AI IDE skills directory
+        case .claudeCode:
+            return "~/.claude/skills"
+        case .codex:
+            return "~/.codex/skills"        // Codex-specific skills directory (also reads ~/.agents/skills/)
+        case .geminiCLI:
+            return "~/.gemini/skills"
+        case .copilotCLI:
+            return "~/.copilot/skills"
+        case .openCode:
+            return "~/.config/opencode/skills"  // OpenCode uses XDG-style configuration path
+        case .antigravity:
+            return "~/.gemini/antigravity/skills"  // Antigravity stores skills under Gemini's config directory
+        case .cursor:
+            return "~/.cursor/skills"                    // Cursor IDE skills directory
+        case .kiro:
+            return "~/.kiro/skills"                       // Kiro IDE skills directory
+        case .codeBuddy:
+            return "~/.codebuddy/skills"             // CodeBuddy AI assistant skills directory
+        case .openClaw:
+            // Support custom path for Docker/volume mount scenarios
+            // Custom path is configured in Settings > General
+            if let customPath = AgentPathSettings.customPath(for: self) {
+                return customPath
+            }
+            return "~/.openclaw/skills"                      // OpenClaw AI assistant skills directory
+        case .trae:
+            return "~/.trae/skills"                         // Trae AI IDE skills directory
+        case .qoder:
+            return "~/.qoder/skills"                        // Qoder AI coding agent skills directory
         }
     }
 
@@ -108,6 +130,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codeBuddy: "~/.codebuddy"
         case .openClaw: "~/.openclaw"
         case .trae: "~/.trae"
+        case .qoder: "~/.qoder"
         }
     }
 
@@ -125,6 +148,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .codeBuddy: "codebuddy"
         case .openClaw: "openclaw"
         case .trae: "trae"
+        case .qoder: "qoder"
         }
     }
 

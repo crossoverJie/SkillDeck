@@ -418,7 +418,15 @@ final class SkillManager {
         await commitHashCache.setHash(for: skill.id, hash: commitHash)
         try await commitHashCache.save()
 
-        let sourceDir = repoDir.appendingPathComponent(skill.folderPath)
+        // Handle root-level skills (folderPath is empty)
+        // When folderPath is empty, appendingPathComponent("") adds trailing slash,
+        // which causes copyItem to flatten contents instead of copying the directory
+        let sourceDir: URL
+        if skill.folderPath.isEmpty {
+            sourceDir = repoDir
+        } else {
+            sourceDir = repoDir.appendingPathComponent(skill.folderPath)
+        }
 
         // ISO 8601 timestamp (consistent with npx skills CLI format)
         let now = ISO8601DateFormatter().string(from: Date())
@@ -790,7 +798,13 @@ final class SkillManager {
 
         // 3. Copy files to overwrite canonical directory
         let fm = FileManager.default
-        let sourceDir = repoDir.appendingPathComponent(folderPath)
+        // Handle root-level skills (folderPath is empty)
+        let sourceDir: URL
+        if folderPath.isEmpty {
+            sourceDir = repoDir
+        } else {
+            sourceDir = repoDir.appendingPathComponent(folderPath)
+        }
         let canonicalDir = skill.canonicalURL
 
         // Delete old files then copy new files
@@ -918,15 +932,74 @@ final class SkillManager {
         let fm = FileManager.default
         let canonicalDir = SkillScanner.sharedSkillsURL.appendingPathComponent(skillName)
 
+        // Remove existing directory if it exists - use aggressive retry logic
+        var removalAttempts = 0
+        let maxRemovalAttempts = 5
+
+        while fm.fileExists(atPath: canonicalDir.path) && removalAttempts < maxRemovalAttempts {
+            do {
+                try fm.removeItem(at: canonicalDir)
+                // Verify removal succeeded
+                if !fm.fileExists(atPath: canonicalDir.path) {
+                    break
+                }
+            } catch {
+                removalAttempts += 1
+                if removalAttempts >= maxRemovalAttempts {
+                    // Last resort: try to remove using shell command
+                    let process = Process()
+                    process.executableURL = URL(fileURLWithPath: "/bin/rm")
+                    process.arguments = ["-rf", canonicalDir.path]
+                    try? process.run()
+                    process.waitUntilExit()
+
+                    // Check if removal succeeded
+                    if fm.fileExists(atPath: canonicalDir.path) {
+                        throw ImportError.directoryNotFound("Cannot remove existing skill directory after \(maxRemovalAttempts) attempts: \(error.localizedDescription)")
+                    }
+                    break
+                }
+                // Wait longer before retrying (file might be locked)
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            }
+        }
+
+        // Final check - if still exists after all retries, throw error
         if fm.fileExists(atPath: canonicalDir.path) {
-            try fm.removeItem(at: canonicalDir)
+            throw ImportError.directoryNotFound("Cannot remove existing skill directory at \(canonicalDir.path)")
         }
 
         if !fm.fileExists(atPath: SkillScanner.sharedSkillsURL.path) {
             try fm.createDirectory(at: SkillScanner.sharedSkillsURL, withIntermediateDirectories: true)
         }
 
-        try fm.copyItem(at: sourceURL, to: canonicalDir)
+        // Copy source to destination with retry
+        var copyAttempts = 0
+        let maxCopyAttempts = 3
+        var lastError: Error?
+
+        while copyAttempts < maxCopyAttempts {
+            do {
+                try fm.copyItem(at: sourceURL, to: canonicalDir)
+                // Verify copy succeeded
+                if fm.fileExists(atPath: canonicalDir.path) {
+                    lastError = nil
+                    break
+                }
+            } catch {
+                lastError = error
+                copyAttempts += 1
+                if copyAttempts >= maxCopyAttempts {
+                    break
+                }
+                // Wait before retry
+                try await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+            }
+        }
+
+        if let error = lastError {
+            throw ImportError.directoryNotFound("Failed to copy skill files after \(maxCopyAttempts) attempts: \(error.localizedDescription)")
+        }
 
         for agent in targetAgents {
             try? SymlinkManager.createSymlink(from: canonicalDir, to: agent)
@@ -1043,7 +1116,7 @@ final class SkillManager {
         }
 
         // 3. Scan skills in repository, match by skill.id
-        let discoveredSkills = await gitService.scanSkillsInRepo(repoDir: repoDir)
+        let discoveredSkills = await gitService.scanSkillsInRepo(repoDir: repoDir, repoURL: repoURL)
         guard let matched = discoveredSkills.first(where: { $0.id == skill.id }) else {
             throw LinkError.skillNotFoundInRepo(skill.id)
         }
@@ -1056,7 +1129,13 @@ final class SkillManager {
         // Ensure local files match the stored skillFolderHash,
         // otherwise hash comparison baseline in subsequent checkForUpdate will be inaccurate
         let fm = FileManager.default
-        let sourceDir = repoDir.appendingPathComponent(matched.folderPath)
+        // Handle root-level skills (folderPath is empty)
+        let sourceDir: URL
+        if matched.folderPath.isEmpty {
+            sourceDir = repoDir
+        } else {
+            sourceDir = repoDir.appendingPathComponent(matched.folderPath)
+        }
         let canonicalDir = skill.canonicalURL
 
         // Delete old files then copy new files (consistent with installSkill/updateSkill)
