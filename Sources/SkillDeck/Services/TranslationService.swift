@@ -50,9 +50,10 @@ private struct DefaultLocalTranslationClient: LocalTranslationClient {
 @available(macOS 26.0, *)
 private struct TranslationFrameworkClient: LocalTranslationClient {
     func translateEnglishToChinese(_ text: String) async throws -> String {
+        let pair = TranslationLanguagePair.englishToSimplifiedChinese
         let session = TranslationSession(
-            installedSource: Locale.Language(identifier: "en"),
-            target: Locale.Language(identifier: "zh-Hans")
+            installedSource: pair.source,
+            target: pair.target
         )
         let response = try await session.translate(text)
         return response.targetText

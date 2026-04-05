@@ -14,10 +14,11 @@ struct TranslationPackAvailabilityChecker {
     func englishToSimplifiedChinese() async -> Availability {
         #if canImport(Translation) && compiler(>=6.2)
         if #available(macOS 26.0, *) {
+            let pair = TranslationLanguagePair.englishToSimplifiedChinese
             let availability = LanguageAvailability()
             let status = await availability.status(
-                from: Locale.Language(identifier: "en"),
-                to: Locale.Language(identifier: "zh-Hans")
+                from: pair.source,
+                to: pair.target
             )
 
             switch status {
