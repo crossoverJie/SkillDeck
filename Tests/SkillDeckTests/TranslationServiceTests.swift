@@ -30,4 +30,15 @@ final class TranslationServiceTests: XCTestCase {
         let calls = await client.calls
         XCTAssertEqual(calls, ["Hello"])
     }
+
+    func testCanonicalEnglishToSimplifiedChineseTranslationPair_usesExplicitSupportedIdentifiers() {
+        XCTAssertEqual(
+            TranslationLanguagePair.englishToSimplifiedChinese.source,
+            Locale.Language(identifier: "en-US")
+        )
+        XCTAssertEqual(
+            TranslationLanguagePair.englishToSimplifiedChinese.target,
+            Locale.Language(identifier: "zh-Hans")
+        )
+    }
 }
