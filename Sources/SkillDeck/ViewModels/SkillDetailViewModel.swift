@@ -49,10 +49,12 @@ final class SkillDetailViewModel {
 
     /// Toggle Agent assignment status
     func toggleAgent(_ agentType: AgentType, for skill: Skill) async {
+        print("[SkillDetailViewModel] toggleAgent called for \(agentType.displayName), skill: \(skill.id)")
         do {
             try await skillManager.toggleAssignment(skill, agent: agentType)
             feedbackMessage = nil
         } catch {
+            print("[SkillDetailViewModel] toggleAgent error: \(error.localizedDescription)")
             feedbackMessage = error.localizedDescription
         }
     }

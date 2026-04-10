@@ -43,7 +43,7 @@ struct SkillDetailView: View {
                     Divider()
 
                     // Agent assignment section
-                    agentAssignmentSection(skill)
+                    agentAssignmentSection()
 
                     Divider()
 
@@ -187,11 +187,11 @@ struct SkillDetailView: View {
 
     /// Agent assignment section (F06)
     @ViewBuilder
-    private func agentAssignmentSection(_ skill: Skill) -> some View {
+    private func agentAssignmentSection() -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Agent Assignment").appFont(.headline)
 
-            AgentToggleView(skill: skill, viewModel: viewModel)
+            AgentToggleView(skillID: skillID, viewModel: viewModel)
         }
     }
 

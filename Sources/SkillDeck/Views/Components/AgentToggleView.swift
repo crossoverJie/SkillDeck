@@ -6,18 +6,36 @@ import SwiftUI
 /// Toggle for inherited installation (isInherited) shows as ON but disabled, with source hint
 struct AgentToggleView: View {
 
-    let skill: Skill
+    let skillID: String
     let viewModel: SkillDetailViewModel
     @Environment(SkillManager.self) private var skillManager
 
+    /// Get the latest skill data from SkillManager to ensure UI reflects current state
+    private var skill: Skill? {
+        skillManager.skills.first { $0.id == skillID }
+    }
+
     var body: some View {
         VStack(spacing: 8) {
-            ForEach(AgentType.allCases) { agentType in
+            // Use skill from SkillManager directly to ensure real-time updates
+            if let skill = skill {
+                ForEach(AgentType.allCases) { agentType in
                 /// Find installation record for this Agent (may be direct installation or inherited)
                 let installation = skill.installations.first { $0.agentType == agentType }
                 let isInstalled = installation != nil
                 /// Check if this is an inherited installation (from another Agent's directory)
-                let isInherited = installation?.isInherited ?? false
+                /// For Codex: reading from ~/.agents/skills/ is not truly "inherited" because
+                /// ~/.agents/skills/ is Codex's official user-level skills directory per Codex documentation
+                let isInherited: Bool = {
+                    guard let installation = installation else {
+                        return false
+                    }
+                    // Codex accessing ~/.agents/skills/ is native support, not inheritance
+                    if agentType == .codex && installation.inheritedFrom == .codex {
+                        return false
+                    }
+                    return installation.isInherited
+                }()
                 let agent = skillManager.agents.first { $0.type == agentType }
                 let isAgentAvailable = agent?.isInstalled == true || agent?.configDirectoryExists == true
 
@@ -60,6 +78,7 @@ struct AgentToggleView: View {
                     .disabled(isInherited || (!isAgentAvailable && !isInstalled))
                 }
                 .padding(.vertical, 2)
+                }
             }
         }
     }
