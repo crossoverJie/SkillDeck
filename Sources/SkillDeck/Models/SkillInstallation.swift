@@ -29,6 +29,19 @@ struct SkillInstallation: Identifiable, Hashable {
         return NSString(string: parent).abbreviatingWithTildeInPath
     }
 
+    /// Whether this installation is truly inherited (UI should treat as read-only)
+    ///
+    /// For Codex: reading from ~/.agents/skills/ is native support, not inheritance
+    /// even though findInstallations marks it as inheritedFrom: .codex
+    /// This ensures consistent behavior across all UI components
+    var isTrulyInherited: Bool {
+        // Codex accessing ~/.agents/skills/ is native support, not inheritance
+        if agentType == .codex && inheritedFrom == .codex {
+            return false
+        }
+        return isInherited
+    }
+
     /// Convenience initializer: create direct installation (non-inherited), keeping backward compatibility
     /// Swift structs generate memberwise init by default (similar to Kotlin data class),
     /// But adding custom init keeps the default one (because it's defined outside extension)

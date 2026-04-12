@@ -49,17 +49,10 @@ private struct AgentToggleRow: View {
         installation != nil
     }
 
-    /// Check if this is an inherited installation
-    /// For Codex: reading from ~/.agents/skills/ is native support, not inheritance
+    /// Check if this is an inherited installation (from another Agent's directory)
+    /// Uses isTrulyInherited which treats Codex's ~/.agents/skills/ as non-inherited
     private var isInherited: Bool {
-        guard let installation = installation else {
-            return false
-        }
-        // Codex accessing ~/.agents/skills/ is native support, not inheritance
-        if agentType == .codex && installation.inheritedFrom == .codex {
-            return false
-        }
-        return installation.isInherited
+        installation?.isTrulyInherited ?? false
     }
 
     /// Check if this is Codex native support (skill in ~/.agents/skills/)
