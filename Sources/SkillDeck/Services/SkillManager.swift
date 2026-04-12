@@ -361,8 +361,11 @@ final class SkillManager {
 
     /// Uninstall skill from specified Agent (delete symlink)
     func unassignSkill(_ skill: Skill, from agent: AgentType) async throws {
+        print("[SkillManager] unassignSkill called for \(skill.id) from \(agent.displayName)")
         try SymlinkManager.removeSymlink(skillName: skill.id, from: agent)
+        print("[SkillManager] unassignSkill: symlink removed, refreshing...")
         await refresh()
+        print("[SkillManager] unassignSkill: refresh completed")
     }
 
     /// Toggle skill installation status on specified Agent
@@ -373,11 +376,21 @@ final class SkillManager {
         let installation = skill.installations.first { $0.agentType == agent }
 
         // Protection: inherited installations cannot be toggled (inherited installations are managed by source Agent)
-        if let installation, installation.isInherited {
+        // For Codex: reading from ~/.agents/skills/ is not truly "inherited" - it's native support
+        let isTrulyInherited: Bool = {
+            guard let installation = installation else { return false }
+            if agent == .codex && installation.inheritedFrom == .codex {
+                return false
+            }
+            return installation.isInherited
+        }()
+        if isTrulyInherited {
+            print("[SkillManager] toggleAssignment blocked: truly inherited installation")
             return
         }
 
         let isInstalled = installation != nil
+        print("[SkillManager] toggleAssignment: agent=\(agent.displayName), isInstalled=\(isInstalled)")
         if isInstalled {
             try await unassignSkill(skill, from: agent)
         } else {

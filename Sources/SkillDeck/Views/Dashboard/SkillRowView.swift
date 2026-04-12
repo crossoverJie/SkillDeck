@@ -25,16 +25,16 @@ struct SkillRowView: View {
                 Spacer()
 
                 // Installed Agent icon row
-                // Use installations instead of installedAgents to get isInherited information
+                // Use installations instead of installedAgents to get isTrulyInherited information
                 // Inherited installation icons have reduced opacity, hover tooltip shows source
                 HStack(spacing: 4) {
                     ForEach(skill.installations) { installation in
                         Image(systemName: installation.agentType.iconName).appFont(.caption)
                             .foregroundStyle(Constants.AgentColors.color(for: installation.agentType))
                             // Reduce opacity for inherited installation icons to visually distinguish from direct installations
-                            .opacity(installation.isInherited ? 0.4 : 1.0)
+                            .opacity(installation.isTrulyInherited ? 0.4 : 1.0)
                             // Hover tooltip: inherited installation shows "Copilot CLI (via ~/.claude/skills)"
-                            .help(installation.isInherited
+                            .help(installation.isTrulyInherited
                                 ? "\(installation.agentType.displayName) (via \(installation.parentDirectoryDisplayPath))"
                                 : installation.agentType.displayName)
                     }

@@ -132,7 +132,6 @@ enum SymlinkManager {
 
         // ========== First pass: Direct installation scan ==========
         for agentType in AgentType.allCases {
-
             let skillURL = agentType.skillsDirectoryURL.appendingPathComponent(skillName)
 
             // Check if skill exists in this Agent's skills directory
@@ -170,12 +169,13 @@ enum SymlinkManager {
         // For Agents without direct installation, check other Agent directories it can additionally read
         for agentType in AgentType.allCases {
             // If already has direct installation, skip (direct installation has higher priority)
-            guard !agentsWithDirectInstallation.contains(agentType) else { continue }
+            guard !agentsWithDirectInstallation.contains(agentType) else {
+                continue
+            }
 
             // Iterate through list of directories this Agent can additionally read
             for additionalDir in agentType.additionalReadableSkillsDirectories {
                 let skillURL = additionalDir.url.appendingPathComponent(skillName)
-
                 guard FileManager.default.fileExists(atPath: skillURL.path) else {
                     continue
                 }
