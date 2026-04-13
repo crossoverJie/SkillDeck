@@ -83,9 +83,11 @@ final class SkillInstallViewModel: Identifiable {
     /// All skills discovered in the repository
     var discoveredSkills: [GitService.DiscoveredSkill] = []
 
-    /// Set of skill names selected by user for installation
+    /// Set of skill folder paths selected by user for installation
+    /// Using folderPath (not id) as the key because multiple skills can have the same id
+    /// (e.g., "skills/pua" and "codex/pua" both have id="pua" but different folderPaths)
     /// Set provides O(1) lookup, similar to Java's HashSet
-    var selectedSkillNames: Set<String> = []
+    var selectedSkillPaths: Set<String> = []
 
     /// Set of target Agents selected by user (Claude Code selected by default)
     var selectedAgents: Set<AgentType> = [.claudeCode]
@@ -189,7 +191,9 @@ final class SkillInstallViewModel: Identifiable {
                 return
             }
 
-            discoveredSkills = discovered
+            // Deduplicate display names: if multiple skills have the same metadata.name,
+            // append the folder path to make them distinguishable in the UI.
+            discoveredSkills = deduplicateSkillNames(discovered)
 
             // 5. Mark already installed skills
             alreadyInstalledNames = Set(skillManager.skills.map(\.id))
@@ -198,14 +202,19 @@ final class SkillInstallViewModel: Identifiable {
             // - F09 Registry install (targetSkillId is set): only select the specific target skill
             // - Manual install (targetSkillId is nil): select all uninstalled skills
             if let targetId = targetSkillId {
-                // From Registry Browser: only select the specific skill the user clicked
-                // Filter to ensure the target skill exists in the repo and isn't already installed
-                selectedSkillNames = Set(
-                    discovered.map(\.id).filter { $0 == targetId && !alreadyInstalledNames.contains($0) }
-                )
+                // From Registry Browser: only select the first matching skill with the target ID
+                // In repos with duplicate IDs (e.g., skills/pua and codex/pua both have id="pua"),
+                // we only want to pre-select ONE of them, not all
+                if let targetSkill = discovered.first(where: { $0.id == targetId && !alreadyInstalledNames.contains($0.id) }) {
+                    selectedSkillPaths = [targetSkill.folderPath]
+                } else {
+                    selectedSkillPaths = []
+                }
             } else {
                 // Manual install: select all uninstalled skills by default
-                selectedSkillNames = Set(discovered.map(\.id).filter { !alreadyInstalledNames.contains($0) })
+                // Use folderPath as the selection key
+                selectedSkillPaths = Set(discovered.filter { !alreadyInstalledNames.contains($0.id) }
+                    .map(\.folderPath))
             }
 
             // Save scan history (so this repo appears in "Recent Repositories" next time)
@@ -222,7 +231,7 @@ final class SkillInstallViewModel: Identifiable {
     ///
     /// Install selected skills one by one, updating progress message
     func installSelected() async {
-        guard !selectedSkillNames.isEmpty else { return }
+        guard !selectedSkillPaths.isEmpty else { return }
         guard let repoDir = tempRepoDir else {
             phase = .error("Repository data not available. Please scan again.")
             return
@@ -231,9 +240,10 @@ final class SkillInstallViewModel: Identifiable {
         phase = .installing
         installedCount = 0
         var failedSkills: [(name: String, error: String)] = []
-        let total = selectedSkillNames.count
+        let total = selectedSkillPaths.count
 
-        for skill in discoveredSkills where selectedSkillNames.contains(skill.id) {
+        // Match skills by folderPath (unique) but install using skill.id (directory name)
+        for skill in discoveredSkills where selectedSkillPaths.contains(skill.folderPath) {
             progressMessage = "Installing \(skill.id) (\(installedCount + 1)/\(total))..."
 
             do {
@@ -274,14 +284,25 @@ final class SkillInstallViewModel: Identifiable {
         }
     }
 
-    /// Toggle selection state of a skill
-    /// symmetricDifference is Set's symmetric difference operation: remove if exists, add if not
-    /// Similar to Java Set's toggle operation
-    func toggleSkillSelection(_ skillName: String) {
-        if selectedSkillNames.contains(skillName) {
-            selectedSkillNames.remove(skillName)
+    /// Toggle selection state of a skill by its folder path
+    /// Ensures at most one skill per skill.id is selected to prevent install conflicts
+    /// (installing multiple skills with the same id would overwrite each other)
+    /// - Parameter folderPath: The unique folder path of the skill (e.g., "skills/pua")
+    func toggleSkillSelection(_ folderPath: String) {
+        guard let selectedSkill = discoveredSkills.first(where: { $0.folderPath == folderPath }) else { return }
+
+        if selectedSkillPaths.contains(folderPath) {
+            // Deselecting: just remove this path
+            selectedSkillPaths.remove(folderPath)
         } else {
-            selectedSkillNames.insert(skillName)
+            // Selecting: first deselect any other skill with the same id to prevent conflicts
+            // (installing both skills/pua and codex/pua would overwrite since both install as "pua")
+            let sameIdSkills = discoveredSkills.filter { $0.id == selectedSkill.id && $0.folderPath != folderPath }
+            for conflict in sameIdSkills {
+                selectedSkillPaths.remove(conflict.folderPath)
+            }
+            // Now select this skill
+            selectedSkillPaths.insert(folderPath)
         }
     }
 
@@ -300,10 +321,61 @@ final class SkillInstallViewModel: Identifiable {
         phase = .inputURL
         repoURLInput = ""
         discoveredSkills = []
-        selectedSkillNames = []
+        selectedSkillPaths = []
         selectedAgents = [.claudeCode]
         alreadyInstalledNames = []
         progressMessage = ""
         installedCount = 0
+    }
+
+    // MARK: - Private Methods
+
+    /// Deduplicate skill display names by appending folder path when conflicts exist.
+    ///
+    /// Problem: Some repositories (e.g., tanweai/pua) contain multiple skill directories
+    /// with the same `name` field in their SKILL.md frontmatter (e.g., "pua").
+    /// Without deduplication, the UI shows multiple entries with identical names,
+    /// making it impossible for users to distinguish between them.
+    ///
+    /// Solution: Count occurrences of each display name. For names that appear multiple times,
+    /// append the parent folder path to differentiate them (e.g., "pua (codex/pua)").
+    ///
+    /// - Parameter skills: Array of discovered skills from the repository scan
+    /// - Returns: Array of skills with modified metadata names to ensure uniqueness
+    private func deduplicateSkillNames(_ skills: [GitService.DiscoveredSkill]) -> [GitService.DiscoveredSkill] {
+        // Count occurrences of each display name (using metadata.name, falling back to id)
+        var nameCounts: [String: Int] = [:]
+        for skill in skills {
+            let displayName = skill.metadata.name.isEmpty ? skill.id : skill.metadata.name
+            nameCounts[displayName, default: 0] += 1
+        }
+
+        // Build the result with deduplicated names
+        return skills.map { skill in
+            let displayName = skill.metadata.name.isEmpty ? skill.id : skill.metadata.name
+
+            // If this name appears multiple times, append folder path to differentiate
+            if nameCounts[displayName, default: 0] > 1 {
+                // Create a modified metadata with disambiguated name
+                let disambiguatedName = "\(displayName) (\(skill.folderPath))"
+                let modifiedMetadata = SkillMetadata(
+                    name: disambiguatedName,
+                    description: skill.metadata.description,
+                    license: skill.metadata.license,
+                    metadata: skill.metadata.metadata,
+                    allowedTools: skill.metadata.allowedTools
+                )
+                return GitService.DiscoveredSkill(
+                    id: skill.id,
+                    folderPath: skill.folderPath,
+                    skillMDPath: skill.skillMDPath,
+                    metadata: modifiedMetadata,
+                    markdownBody: skill.markdownBody
+                )
+            } else {
+                // No conflict, keep original
+                return skill
+            }
+        }
     }
 }
