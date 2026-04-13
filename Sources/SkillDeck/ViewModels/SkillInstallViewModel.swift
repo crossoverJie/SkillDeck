@@ -202,13 +202,14 @@ final class SkillInstallViewModel: Identifiable {
             // - F09 Registry install (targetSkillId is set): only select the specific target skill
             // - Manual install (targetSkillId is nil): select all uninstalled skills
             if let targetId = targetSkillId {
-                // From Registry Browser: only select the specific skill the user clicked
-                // Filter to ensure the target skill exists in the repo and isn't already installed
-                // Use folderPath as the selection key to handle duplicate skill IDs
-                selectedSkillPaths = Set(
-                    discovered.filter { $0.id == targetId && !alreadyInstalledNames.contains($0.id) }
-                        .map(\.folderPath)
-                )
+                // From Registry Browser: only select the first matching skill with the target ID
+                // In repos with duplicate IDs (e.g., skills/pua and codex/pua both have id="pua"),
+                // we only want to pre-select ONE of them, not all
+                if let targetSkill = discovered.first(where: { $0.id == targetId && !alreadyInstalledNames.contains($0.id) }) {
+                    selectedSkillPaths = [targetSkill.folderPath]
+                } else {
+                    selectedSkillPaths = []
+                }
             } else {
                 // Manual install: select all uninstalled skills by default
                 // Use folderPath as the selection key
@@ -284,13 +285,23 @@ final class SkillInstallViewModel: Identifiable {
     }
 
     /// Toggle selection state of a skill by its folder path
-    /// symmetricDifference is Set's symmetric difference operation: remove if exists, add if not
-    /// Similar to Java Set's toggle operation
+    /// Ensures at most one skill per skill.id is selected to prevent install conflicts
+    /// (installing multiple skills with the same id would overwrite each other)
     /// - Parameter folderPath: The unique folder path of the skill (e.g., "skills/pua")
     func toggleSkillSelection(_ folderPath: String) {
+        guard let selectedSkill = discoveredSkills.first(where: { $0.folderPath == folderPath }) else { return }
+
         if selectedSkillPaths.contains(folderPath) {
+            // Deselecting: just remove this path
             selectedSkillPaths.remove(folderPath)
         } else {
+            // Selecting: first deselect any other skill with the same id to prevent conflicts
+            // (installing both skills/pua and codex/pua would overwrite since both install as "pua")
+            let sameIdSkills = discoveredSkills.filter { $0.id == selectedSkill.id && $0.folderPath != folderPath }
+            for conflict in sameIdSkills {
+                selectedSkillPaths.remove(conflict.folderPath)
+            }
+            // Now select this skill
             selectedSkillPaths.insert(folderPath)
         }
     }
