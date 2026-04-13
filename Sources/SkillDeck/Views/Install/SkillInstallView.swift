@@ -193,9 +193,10 @@ struct SkillInstallView: View {
         VStack(spacing: 0) {
             // Skill list (scrollable)
             // List is macOS native list component, with built-in selection, scrolling, etc.
+            // Use folderPath as identifier to handle duplicate skill IDs (e.g., multiple "pua" directories)
             List {
                 Section("Skills Found (\(viewModel.discoveredSkills.count))") {
-                    ForEach(viewModel.discoveredSkills) { skill in
+                    ForEach(viewModel.discoveredSkills, id: \.folderPath) { skill in
                         skillRow(skill)
                     }
                 }
@@ -234,7 +235,7 @@ struct SkillInstallView: View {
                 // Install button
                 HStack {
                     // Selected count hint
-                    let selectedCount = viewModel.selectedSkillNames.count
+                    let selectedCount = viewModel.selectedSkillPaths.count
                     Text("\(selectedCount) skill\(selectedCount == 1 ? "" : "s") selected").appFont(.caption)
                         .foregroundStyle(.secondary)
 
@@ -243,7 +244,7 @@ struct SkillInstallView: View {
                     Button("Install") {
                         Task { await viewModel.installSelected() }
                     }
-                    .disabled(viewModel.selectedSkillNames.isEmpty || viewModel.selectedAgents.isEmpty)
+                    .disabled(viewModel.selectedSkillPaths.isEmpty || viewModel.selectedAgents.isEmpty)
                     // .buttonStyle(.borderedProminent) makes button display filled prominent color style
                     .buttonStyle(.borderedProminent)
                 }
@@ -330,9 +331,10 @@ struct SkillInstallView: View {
         HStack {
             // Checkbox
             // Toggle + checkbox style = macOS native checkbox
+            // Use folderPath for selection (unique) while using id for install status check
             Toggle(isOn: Binding(
-                get: { viewModel.selectedSkillNames.contains(skill.id) },
-                set: { _ in viewModel.toggleSkillSelection(skill.id) }
+                get: { viewModel.selectedSkillPaths.contains(skill.folderPath) },
+                set: { _ in viewModel.toggleSkillSelection(skill.folderPath) }
             )) {
                 EmptyView()
             }

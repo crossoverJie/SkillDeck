@@ -42,11 +42,14 @@ actor GitService {
     /// Skill information discovered in remote repository
     /// Identifiable protocol allows SwiftUI's ForEach to iterate directly (requires id property)
     struct DiscoveredSkill: Identifiable {
-        /// Unique identifier: skill directory name, e.g. "find-skills"
+        /// Unique identifier: skill directory name, e.g., "find-skills"
+        /// Note: For SwiftUI uniqueness when multiple skills have the same directory name
+        /// in different parent directories (e.g., "skills/pua" and "codex/pua"),
+        /// use \.folderPath as the ForEach identifier instead of \.id
         let id: String
-        /// Relative path within repository, e.g. "skills/find-skills"
+        /// Relative path within repository, e.g., "skills/find-skills"
         let folderPath: String
-        /// Relative path of SKILL.md within repository, e.g. "skills/find-skills/SKILL.md"
+        /// Relative path of SKILL.md within repository, e.g., "skills/find-skills/SKILL.md"
         let skillMDPath: String
         /// Parsed SKILL.md metadata
         let metadata: SkillMetadata
