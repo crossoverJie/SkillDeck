@@ -373,7 +373,10 @@ final class SkillManager {
     /// Protection logic: if inherited installation (isInherited), return directly without any operation
     /// This is Service layer defense - even if UI layer disables Toggle, it ensures inherited installations won't be mistakenly operated
     func toggleAssignment(_ skill: Skill, agent: AgentType) async throws {
-        let installation = skill.installations.first { $0.agentType == agent }
+        // Get latest skill data from self.skills to ensure we have current installations
+        let latestSkill = self.skills.first { $0.id == skill.id } ?? skill
+
+        let installation = latestSkill.installations.first { $0.agentType == agent }
 
         // Protection: inherited installations cannot be toggled (inherited installations are managed by source Agent)
         // For Codex: reading from ~/.agents/skills/ is not truly "inherited" - it's native support
@@ -392,9 +395,9 @@ final class SkillManager {
         let isInstalled = installation != nil
         print("[SkillManager] toggleAssignment: agent=\(agent.displayName), isInstalled=\(isInstalled)")
         if isInstalled {
-            try await unassignSkill(skill, from: agent)
+            try await unassignSkill(latestSkill, from: agent)
         } else {
-            try await assignSkill(skill, to: agent)
+            try await assignSkill(latestSkill, to: agent)
         }
     }
 

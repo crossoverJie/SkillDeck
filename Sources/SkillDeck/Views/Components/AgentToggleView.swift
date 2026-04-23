@@ -11,37 +11,37 @@ struct AgentToggleView: View {
     let viewModel: SkillDetailViewModel
     @Environment(SkillManager.self) private var skillManager
 
-    /// Get the latest skill data from SkillManager to ensure UI reflects current state
-    private var skill: Skill? {
-        skillManager.skills.first { $0.id == skillID }
-    }
-
     var body: some View {
         VStack(spacing: 8) {
-            // Use skill from SkillManager directly to ensure real-time updates
-            if let skill = skill {
-                ForEach(AgentType.allCases) { agentType in
-                    AgentToggleRow(
-                        agentType: agentType,
-                        skill: skill,
-                        viewModel: viewModel
-                    )
-                }
+            // Iterate through all detected Agents
+            ForEach(AgentType.allCases) { agentType in
+                AgentToggleRow(
+                    skillID: skillID,
+                    agentType: agentType,
+                    viewModel: viewModel
+                )
             }
         }
     }
 }
 
 /// Single row for an Agent toggle
+/// Uses skillID instead of Skill to ensure proper SwiftUI dependency tracking
 private struct AgentToggleRow: View {
+    let skillID: String
     let agentType: AgentType
-    let skill: Skill
     let viewModel: SkillDetailViewModel
     @Environment(SkillManager.self) private var skillManager
 
+    /// Get the latest skill data from SkillManager to ensure real-time updates
+    /// Accessing skillManager.skills here ensures SwiftUI tracks this dependency
+    private var skill: Skill? {
+        skillManager.skills.first { $0.id == skillID }
+    }
+
     /// Find installation record for this Agent
     private var installation: SkillInstallation? {
-        skill.installations.first { $0.agentType == agentType }
+        skill?.installations.first { $0.agentType == agentType }
     }
 
     /// Whether this Agent has the skill installed
@@ -108,7 +108,10 @@ private struct AgentToggleRow: View {
                 get: { isInstalled },
                 set: { _ in
                     Task {
-                        await viewModel.toggleAgent(agentType, for: skill)
+                        // Pass the current skill from SkillManager, not the captured value
+                        if let skill = skillManager.skills.first(where: { $0.id == skillID }) {
+                            await viewModel.toggleAgent(agentType, for: skill)
+                        }
                     }
                 }
             ))

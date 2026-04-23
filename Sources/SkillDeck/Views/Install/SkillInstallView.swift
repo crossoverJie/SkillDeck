@@ -221,7 +221,13 @@ struct SkillInstallView: View {
                             // Toggle is macOS switch/checkbox component
                             Toggle(isOn: Binding(
                                 get: { viewModel.selectedAgents.contains(agentType) },
-                                set: { _ in viewModel.toggleAgentSelection(agentType) }
+                                set: { newValue in
+                                    if newValue {
+                                        viewModel.selectedAgents.insert(agentType)
+                                    } else {
+                                        viewModel.selectedAgents.remove(agentType)
+                                    }
+                                }
                             )) {
                                 Label(agentType.displayName, systemImage: agentType.iconName).appFont(.caption)
                             }
