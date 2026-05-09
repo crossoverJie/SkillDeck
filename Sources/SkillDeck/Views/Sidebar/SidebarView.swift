@@ -25,6 +25,23 @@ enum SidebarItem: Hashable {
             return nil
         }
     }
+
+    /// Returns a human-readable name for this sidebar item
+    /// Used for accessibility labels and VoiceOver announcements
+    var displayName: String {
+        switch self {
+        case .dashboard:
+            return "Dashboard"
+        case .registry:
+            return "Registry"
+        case .clawHub:
+            return "ClawHub"
+        case .agent(let agentType):
+            return agentType.displayName
+        case .settings:
+            return "Settings"
+        }
+    }
 }
 
 /// SidebarView is the app's sidebar navigation
@@ -321,6 +338,19 @@ struct SidebarView: View {
         }
         // .tag associates selection value, letting List know which SidebarItem this row corresponds to
         .tag(item)
+        // Accessibility: Restore button semantics lost when replacing Button with HStack + onTapGesture
+        // .accessibilityElement makes the entire row a single accessibility element (similar to Button behavior)
+        // children: .combine merges child labels into a single announcement
+        .accessibilityElement(children: .combine)
+        // .accessibilityAddTraits(.isButton) announces this as a button to VoiceOver
+        // This restores the control semantics that Button provided
+        .accessibilityAddTraits(.isButton)
+        // .accessibilityLabel provides the accessible name for the row
+        // Uses item.displayName which maps each SidebarItem case to a human-readable string
+        .accessibilityLabel(item.displayName)
+        // .accessibilityInputLabels allows users to navigate by typing the item name
+        // Uses the same displayName for consistency with the label
+        .accessibilityInputLabels([item.displayName])
         // .onHover listens for mouse enter/leave events (macOS specific, similar to CSS :hover)
         // Closure parameter isHovering: Bool indicates if mouse is over element
         .onHover { isHovering in
