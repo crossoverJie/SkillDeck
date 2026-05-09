@@ -287,32 +287,49 @@ struct SidebarView: View {
     /// @ViewBuilder allows closure to return different View types (similar to Java's generic methods)
     /// `some View` is Swift's opaque return type,
     /// means "returns some View, but caller doesn't need to know the specific type"
+    ///
+    /// Implementation note: Uses `onTapGesture` instead of `Button` to avoid gesture conflicts
+    /// with `List(selection:)`. List's native selection gesture can intercept Button tap events,
+    /// causing intermittent unresponsiveness. Using `onTapGesture` with `contentShape(Rectangle())`
+    /// ensures reliable click detection across the entire row.
     @ViewBuilder
     private func sidebarRow<Label: View>(
         item: SidebarItem,
         @ViewBuilder label: () -> Label
     ) -> some View {
-        // Button ensures clicking always updates selection (List native selection is unreliable in some macOS versions)
-        Button { selection = item } label: { label().appFont(.body) }
-            // .buttonStyle(.plain) removes button default styles (border, press effect, etc.)
-            .buttonStyle(.plain)
-            .foregroundStyle(selection == item ? .primary : .secondary)
-            // .contentShape(Rectangle()) expands interaction area (click+hover) to entire row rectangle
-            // By default Button only responds to events in content (text/icon) area,
-            // row's blank area doesn't trigger .onHover, causing hover effect to only appear above text
-            // Similar to CSS pointer-events: all + width: 100%
-            .contentShape(Rectangle())
-            // .tag 关联选中值，让 List 知道这一行对应哪个 SidebarItem
-            .tag(item)
-            // .onHover listens for mouse enter/leave events (macOS specific, similar to CSS :hover)
-            // Closure parameter isHovering: Bool indicates if mouse is over element
-            .onHover { isHovering in
-                // Use withAnimation to add transition animation, .easeInOut is ease-in-out curve
-                // duration: 0.15 is 150 milliseconds, fast enough but not abrupt
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    hoveredItem = isHovering ? item : nil
-                }
+        // Use HStack + Spacer to make content span full row width
+        // Ensure click area and visual feedback cover entire row, not just text/icon area
+        HStack(spacing: 0) {
+            label()
+                .appFont(.body)
+            Spacer(minLength: 0)
+        }
+        // Horizontal padding keeps content appropriate distance from row edges, consistent with sidebar style
+        .padding(.horizontal, 4)
+        // Vertical padding ensures hover/selection background height matches macOS sidebar row height
+        .padding(.vertical, 4)
+        // Remove default foreground styling - apply directly to label content instead
+        .foregroundStyle(selection == item ? .primary : .secondary)
+        // .contentShape(Rectangle()) expands interaction area (click+hover) to entire row rectangle
+        // Must be applied to container that already spans full width to take effect
+        // Similar to CSS pointer-events: all + width: 100%
+        .contentShape(Rectangle())
+        // .onTapGesture handles click events - using this instead of Button to avoid
+        // gesture conflicts with List(selection:) which can intercept Button taps
+        .onTapGesture {
+            selection = item
+        }
+        // .tag associates selection value, letting List know which SidebarItem this row corresponds to
+        .tag(item)
+        // .onHover listens for mouse enter/leave events (macOS specific, similar to CSS :hover)
+        // Closure parameter isHovering: Bool indicates if mouse is over element
+        .onHover { isHovering in
+            // Use withAnimation to add transition animation, .easeInOut is ease-in-out curve
+            // duration: 0.15 is 150 milliseconds, fast enough but not abrupt
+            withAnimation(.easeInOut(duration: 0.15)) {
+                hoveredItem = isHovering ? item : nil
             }
+        }
     }
 
     /// Returns row background color based on selection/hover state
