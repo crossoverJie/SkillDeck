@@ -29,11 +29,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Swift
-        uses: swift-actions/setup-swift@v3
-        with:
-          swift-version: '6.3.1'
-
       - name: Print Swift version
         run: swift --version
 
