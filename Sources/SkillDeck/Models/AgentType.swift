@@ -15,6 +15,8 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     case openClaw = "openclaw"             // OpenClaw: AI coding assistant with ClawHub registry (https://openclaw.ai)
     case trae = "trae"                       // Trae: ByteDance's AI IDE (https://trae.ai)
     case qoder = "qoder"                     // Qoder: AI coding agent (https://qoder.ai)
+    case qclaw = "qclaw"                     // QClaw: AI coding assistant (skills in ~/.qclaw/skills)
+    case workbuddy = "workbuddy"             // WorkBuddy: AI coding assistant (skills in ~/.workbuddy/skills)
 
     // Identifiable protocol requirement (similar to Java's Comparable), needed for SwiftUI list rendering
     var id: String { rawValue }
@@ -33,6 +35,8 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .openClaw: "OpenClaw"
         case .trae: "Trae"
         case .qoder: "Qoder"
+        case .qclaw: "QClaw"
+        case .workbuddy: "WorkBuddy"
         }
     }
 
@@ -52,6 +56,8 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .openClaw: "red"
         case .trae: "brightGreen"
         case .qoder: "orange"
+        case .qclaw: "mint"
+        case .workbuddy: "yellow"
         }
     }
 
@@ -71,6 +77,8 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .openClaw: "o.circle"               // Letter O icon for OpenClaw
         case .trae: "t.circle"                     // Letter T icon for Trae
         case .qoder: "q.circle"                     // Letter Q icon for Qoder
+        case .qclaw: "hand.raised.circle"            // Hand/claw icon for QClaw
+        case .workbuddy: "w.circle"                 // Letter W icon for WorkBuddy
         }
     }
 
@@ -107,6 +115,10 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
             return "~/.trae/skills"                         // Trae AI IDE skills directory
         case .qoder:
             return "~/.qoder/skills"                        // Qoder AI coding agent skills directory
+        case .qclaw:
+            return "~/.qclaw/skills"                        // QClaw AI assistant skills directory
+        case .workbuddy:
+            return "~/.workbuddy/skills"                    // WorkBuddy AI assistant skills directory
         }
     }
 
@@ -131,6 +143,8 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .openClaw: "~/.openclaw"
         case .trae: "~/.trae"
         case .qoder: "~/.qoder"
+        case .qclaw: "~/.qclaw"
+        case .workbuddy: "~/.workbuddy"
         }
     }
 
@@ -149,6 +163,8 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .openClaw: "openclaw"
         case .trae: "trae"
         case .qoder: "qoder"
+        case .qclaw: "qclaw"
+        case .workbuddy: "workbuddy"
         }
     }
 

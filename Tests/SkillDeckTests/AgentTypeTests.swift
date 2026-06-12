@@ -167,12 +167,52 @@ final class AgentTypeTests: XCTestCase {
         XCTAssertTrue(agent.additionalReadableSkillsDirectories.isEmpty)
     }
 
+    // MARK: - QClaw Agent Properties
+
+    /// Verify all computed properties of the QClaw agent type
+    /// QClaw is an AI coding assistant with standalone directory structure
+    func testQClawProperties() {
+        let agent = AgentType.qclaw
+
+        // rawValue is used as the Codable key in lock file JSON
+        XCTAssertEqual(agent.rawValue, "qclaw")
+        XCTAssertEqual(agent.displayName, "QClaw")
+        XCTAssertEqual(agent.detectCommand, "qclaw")
+        XCTAssertEqual(agent.skillsDirectoryPath, "~/.qclaw/skills")
+        XCTAssertEqual(agent.configDirectoryPath, "~/.qclaw")
+        XCTAssertEqual(agent.iconName, "hand.raised.circle")
+        XCTAssertEqual(agent.brandColor, "mint")
+
+        // QClaw does not read other agents' directories (standalone agent)
+        XCTAssertTrue(agent.additionalReadableSkillsDirectories.isEmpty)
+    }
+
+    // MARK: - WorkBuddy Agent Properties
+
+    /// Verify all computed properties of the WorkBuddy agent type
+    /// WorkBuddy is an AI coding assistant with standalone directory structure
+    func testWorkBuddyProperties() {
+        let agent = AgentType.workbuddy
+
+        // rawValue is used as the Codable key in lock file JSON
+        XCTAssertEqual(agent.rawValue, "workbuddy")
+        XCTAssertEqual(agent.displayName, "WorkBuddy")
+        XCTAssertEqual(agent.detectCommand, "workbuddy")
+        XCTAssertEqual(agent.skillsDirectoryPath, "~/.workbuddy/skills")
+        XCTAssertEqual(agent.configDirectoryPath, "~/.workbuddy")
+        XCTAssertEqual(agent.iconName, "w.circle")
+        XCTAssertEqual(agent.brandColor, "yellow")
+
+        // WorkBuddy does not read other agents' directories (standalone agent)
+        XCTAssertTrue(agent.additionalReadableSkillsDirectories.isEmpty)
+    }
+
     // MARK: - CaseIterable Count
 
     /// Verify the total number of supported agents
     /// This test catches accidental removal of agent cases
     func testAllCasesCount() {
-        // 12 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor, kiro, codeBuddy, openClaw, trae, qoder
-        XCTAssertEqual(AgentType.allCases.count, 12)
+        // 14 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor, kiro, codeBuddy, openClaw, trae, qoder, qclaw, workbuddy
+        XCTAssertEqual(AgentType.allCases.count, 14)
     }
 }
