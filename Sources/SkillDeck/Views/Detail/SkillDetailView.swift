@@ -339,14 +339,22 @@ struct SkillDetailView: View {
 
     /// F12: Update status indicator view
     ///
-    /// Displays different UI based on viewModel's update check status:
+    /// Displays different UI based on the persistent update status from skillManager:
     /// - Checking: ProgressView + "Checking..."
     /// - Has update: orange label + "Update" button
     /// - Updating: ProgressView + "Updating..."
-    /// - Up to date: green checkmark (auto-disappears after 2 seconds)
-    /// - Default: check button
+    /// - Up to date: green checkmark (persists until user navigates away or re-checks)
+    /// - Error: warning icon + error text
+    /// - Default (notChecked): check button
+    ///
+    /// The "Up to Date" state reads from skillManager.updateStatuses[skill.id] (persistent)
+    /// rather than a transient ViewModel flag, so the user always sees the status.
     @ViewBuilder
     private func updateStatusView(_ skill: Skill) -> some View {
+        // Read the persistent update status from SkillManager (set by checkForUpdate / checkAllUpdates)
+        // This survives view refreshes and doesn't auto-disappear
+        let updateStatus = skillManager.updateStatuses[skill.id] ?? .notChecked
+
         if viewModel.isCheckingUpdate {
             // Checking for updates
             HStack(spacing: 4) {
@@ -363,7 +371,7 @@ struct SkillDetailView: View {
                 Text("Updating...").appFont(.caption)
                     .foregroundStyle(.secondary)
             }
-        } else if skill.hasUpdate {
+        } else if skill.hasUpdate || updateStatus == .hasUpdate {
             // Has available update: show hash comparison + GitHub link + Update button
             VStack(alignment: .trailing, spacing: 4) {
                 HStack(spacing: 8) {
@@ -380,12 +388,24 @@ struct SkillDetailView: View {
                 // Displays localHash → remoteHash (7-character short format, consistent with git log --oneline)
                 updateDetailRow(skill)
             }
-        } else if viewModel.showUpToDate {
-            // Already up to date (auto-disappears after 2 seconds)
-            Label("Up to Date", systemImage: "checkmark.circle.fill").appFont(.caption)
-                .foregroundStyle(.green)
+        } else if updateStatus == .upToDate {
+            // Already up to date — persistent label, stays visible until user navigates away or re-checks
+            // Previously this auto-disappeared after 2 seconds, which users could easily miss
+            HStack(spacing: 6) {
+                Label("Up to Date", systemImage: "checkmark.circle.fill").appFont(.caption)
+                    .foregroundStyle(.green)
+
+                // Small "Check Again" button so user can re-verify if needed
+                Button {
+                    Task { await viewModel.checkForUpdate(skill: skill) }
+                } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                }
+                .controlSize(.mini)
+                .help("Check for updates again")
+            }
         } else if let error = viewModel.updateError {
-            // 更新检查出错
+            // Update check error
             HStack(spacing: 4) {
                 Image(systemName: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
@@ -394,7 +414,7 @@ struct SkillDetailView: View {
                     .lineLimit(1)
             }
         } else {
-            // Default state: show check button
+            // Default state (notChecked): show check button
             Button {
                 Task { await viewModel.checkForUpdate(skill: skill) }
             } label: {

@@ -23,8 +23,10 @@ final class SkillDetailViewModel {
     /// F12: Error message from update operation
     var updateError: String?
 
-    /// F12: Check result — whether skill is up to date (for showing "Up to Date" message)
-    var showUpToDate = false
+    // NOTE: showUpToDate was removed — the detail view now reads the persistent
+    // updateStatus from skillManager.updateStatuses[skill.id] instead of a transient flag.
+    // This ensures the "Up to Date" label stays visible until the user navigates away
+    // or triggers another action, rather than auto-disappearing after 2 seconds.
 
     // MARK: - Link to Repository State
 
@@ -106,7 +108,6 @@ final class SkillDetailViewModel {
     func checkForUpdate(skill: Skill) async {
         isCheckingUpdate = true
         updateError = nil
-        showUpToDate = false
 
         do {
             let (hasUpdate, remoteHash, remoteCommitHash) = try await skillManager.checkForUpdate(skill: skill)
@@ -133,15 +134,10 @@ final class SkillDetailViewModel {
                 skillManager.skills[index].localCommitHash = cachedLocalHash
             }
 
-            if !hasUpdate {
-                showUpToDate = true
-                // Auto-hide "Up to Date" message after 2 seconds
-                // Task.sleep is similar to Go's time.Sleep but non-blocking
-                Task {
-                    try? await Task.sleep(for: .seconds(2))
-                    showUpToDate = false
-                }
-            }
+            // NOTE: No longer setting a transient showUpToDate flag.
+            // The updateStatuses[.upToDate] set above (line 120) is persistent —
+            // the detail view reads it directly, so "Up to Date" stays visible
+            // until the user navigates away or triggers another check.
         } catch {
             updateError = error.localizedDescription
         }
