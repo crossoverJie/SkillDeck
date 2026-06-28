@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<!-- ==================================================================
+     CHANGELOG · English · parchment design system
+     Screen-first multi-version changelog page
+     Structure: Hero · Version list (newest first) · Footer
+     ================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SkillDeck · Changelog</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Release history for SkillDeck — every version, every fix, every feature.">
+<meta property="og:title" content="SkillDeck · Changelog">
+<meta property="og:description" content="Release history for SkillDeck — every version, every fix, every feature.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://crossoverjie.github.io/SkillDeck/changelog">
+<meta name="author" content="crossoverJie">
+<meta name="generator" content="Kami">
+<link rel="icon" type="image/svg+xml" href="../Assets/AppIcon.svg">
+<link rel="canonical" href="https://crossoverjie.github.io/SkillDeck/changelog">
+<style>
+/* ========== Tokens ========== */
+
+:root {
+  --parchment:    #f5f4ed;
+  --ivory:        #faf9f5;
+  --warm-sand:    #e8e6dc;
+
+  --brand:        #1B365D;
+  --brand-light:  #2D5A8A;
+  --brand-tint:   #EEF2F7;
+
+  --near-black:   #141413;
+  --dark-warm:    #3d3d3a;
+  --olive:        #504e49;
+  --stone:        #6b6a64;
+
+  --border:       #e8e6dc;
+  --border-soft:  #e5e3d8;
+  --line:         #d8d5c8;
+
+  --tag-feat-bg:  #E4ECF5;
+  --tag-feat-fg:  #1B365D;
+  --tag-fix-bg:   #f0e0d8;
+  --tag-fix-fg:   #8b4513;
+  --tag-doc-bg:   #e8e6dc;
+  --tag-doc-fg:   #504e49;
+  --tag-test-bg:  #e6f4ea;
+  --tag-test-fg:  #2d6a30;
+
+  --serif: Charter, Georgia, Palatino,
+           "Times New Roman", serif;
+  --sans:  var(--serif);
+  --mono:  "JetBrains Mono", "Fira Code", "SF Mono",
+           Consolas, Monaco, monospace;
+  --latin-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--parchment);
+  color: var(--near-black);
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--brand);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+a:hover { color: var(--brand-light); }
+
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 88px 64px 120px;
+}
+
+/* ========== Hero ========== */
+
+.hero {
+  padding-bottom: 40px;
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 56px;
+}
+.eyebrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--latin-ui);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--stone);
+  margin: 0 0 22px;
+}
+.hero-links {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.hero-links a {
+  color: var(--stone);
+  display: flex;
+  align-items: center;
+}
+.hero-links a:hover { color: var(--dark-warm); }
+
+.hero h1 {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 72px;
+  line-height: 1.05;
+  letter-spacing: 0;
+  margin: 0 0 14px;
+  color: var(--near-black);
+  opacity: 0;
+  transform: translateY(10px);
+  filter: blur(6px);
+  animation: hero-rise 900ms cubic-bezier(0.16, 1, 0.3, 1) 120ms forwards;
+}
+@keyframes hero-rise {
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.hero .tagline {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--olive);
+  letter-spacing: 0.2px;
+  margin: 0;
+  max-width: 640px;
+}
+
+/* ========== Version block ========== */
+
+.version {
+  margin-bottom: 48px;
+  padding-bottom: 48px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.version:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.version-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.version-head h2 {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 28px;
+  line-height: 1.15;
+  color: var(--near-black);
+  margin: 0;
+  letter-spacing: 0;
+}
+.version-head h2 a {
+  color: var(--near-black);
+}
+.version-head h2 a:hover {
+  color: var(--brand);
+}
+.version-date {
+  font-family: var(--latin-ui);
+  font-size: 13px;
+  color: var(--stone);
+  white-space: nowrap;
+}
+
+/* ========== Change list ========== */
+
+.changes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.changes li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0;
+  line-height: 1.55;
+  font-size: 15px;
+}
+.changes li .desc {
+  color: var(--dark-warm);
+}
+.changes li .desc strong {
+  font-weight: 500;
+  color: var(--near-black);
+}
+.changes li .pr-link {
+  font-family: var(--latin-ui);
+  font-size: 12px;
+  color: var(--stone);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.changes li .pr-link:hover {
+  color: var(--brand);
+}
+
+/* ========== Tags ========== */
+
+.tag {
+  display: inline-block;
+  font-family: var(--latin-ui);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  min-width: 42px;
+  text-align: center;
+}
+.tag.feat {
+  background: var(--tag-feat-bg);
+  color: var(--tag-feat-fg);
+}
+.tag.fix {
+  background: var(--tag-fix-bg);
+  color: var(--tag-fix-fg);
+}
+.tag.doc {
+  background: var(--tag-doc-bg);
+  color: var(--tag-doc-fg);
+}
+.tag.test {
+  background: var(--tag-test-bg);
+  color: var(--tag-test-fg);
+}
+
+/* ========== Thanks ========== */
+
+.thanks {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--olive);
+}
+.thanks .hl {
+  color: var(--brand);
+  font-weight: 500;
+}
+.thanks-label {
+  font-family: var(--latin-ui);
+  font-size: 11px;
+  color: var(--brand);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* ========== Footer ========== */
+
+footer.foot {
+  margin-top: 56px;
+  padding-top: 40px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 48px;
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--stone);
+}
+.foot .mark {
+  display: grid;
+  grid-template-columns: 48px auto;
+  grid-template-rows: auto auto;
+  column-gap: 14px;
+  align-items: start;
+}
+.foot .mark .foot-logo {
+  grid-row: 1 / span 2;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  object-fit: cover;
+}
+.foot .mark .wm-name {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 28px;
+  color: var(--near-black);
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+.foot .mark .wm-line {
+  font-size: 13px;
+  color: var(--olive);
+  margin-top: 2px;
+}
+.foot .colophon {
+  text-align: right;
+  max-width: 480px;
+}
+.foot .colophon .links {
+  font-family: var(--latin-ui);
+  color: var(--dark-warm);
+  margin-bottom: 16px;
+  line-height: 1.55;
+}
+.foot .colophon .links a {
+  color: var(--dark-warm);
+}
+.foot .colophon .links a:hover { color: var(--brand); }
+.foot .colophon .ethos {
+  color: var(--olive);
+  font-style: italic;
+  line-height: 1.55;
+  max-width: 360px;
+  margin-left: auto;
+}
+
+/* ========== Print ========== */
+
+@media print {
+  body { background: #f5f4ed; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { padding: 0; max-width: 100%; }
+  .version { break-inside: avoid; page-break-inside: avoid; }
+}
+
+/* ========== Responsive ========== */
+
+@media (max-width: 880px) {
+  .page { padding: 64px 32px 80px; }
+  .hero { margin-bottom: 40px; padding-bottom: 32px; }
+  .hero h1 { font-size: 52px; }
+  .hero .tagline { font-size: 16px; }
+  .version-head h2 { font-size: 24px; }
+}
+
+@media (max-width: 480px) {
+  .page { padding: 48px 20px 64px; }
+  .hero h1 { font-size: 44px; }
+  .version-head { flex-direction: column; gap: 4px; }
+  .changes li { flex-wrap: wrap; gap: 6px; }
+  .foot { flex-direction: column; align-items: flex-start; gap: 32px; }
+  .foot .colophon { text-align: left; max-width: 100%; }
+  .foot .colophon .ethos { margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero h1 { animation: none; opacity: 1; transform: none; filter: none; }
+}
+</style>
+</head>
+<body>
+<main class="page">
+
+  <!-- ============ Hero ============ -->
+  <header class="hero">
+    <div class="eyebrow">
+      <span>Changelog</span>
+      <span class="hero-links">
+        <a href="index.html">Home</a>
+        <a href="https://github.com/crossoverJie/SkillDeck" target="_blank" rel="noopener" aria-label="GitHub">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+        </a>
+      </span>
+    </div>
+
+    <h1>Changelog</h1>
+    <p class="tagline">Every version, every fix, every feature. SkillDeck follows semantic versioning — patch for fixes, minor for new agents and capabilities.</p>
+  </header>
+
+  <!-- ============ v0.0.26 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.26">v0.0.26</a></h2>
+      <span class="version-date">Jun 25, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>Root-level skill update</strong>: fixed directory structure breakage and backfill failure when updating skills installed at repo root.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/56">#56</a>
+      </li>
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>Up to Date status</strong>: made the status persistent in skill detail page instead of auto-dismissing after 2 seconds.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/57">#57</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.25 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.25">v0.0.25</a></h2>
+      <span class="version-date">Jun 12, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>QClaw and WorkBuddy</strong>: added support for two new agents, bringing the total to 14.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/55">#55</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.24 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.24">v0.0.24</a></h2>
+      <span class="version-date">May 9, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>Sidebar hit area</strong>: optimized row hit area and fixed gesture conflicts in the agent sidebar.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/53">#53</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.23 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.23">v0.0.23</a></h2>
+      <span class="version-date">Apr 23, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>Agent toggle sync</strong>: corrected state synchronization after toggling agent installations.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/49">#49</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.22 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.22">v0.0.22</a></h2>
+      <span class="version-date">Apr 13, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>AgentToggleView</strong>: fixed real-time UI updates after toggling agent on or off.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/47">#47</a>
+      </li>
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>Install sheet dedup</strong>: deduplicated skill names in the install sheet for repositories with duplicate IDs.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/48">#48</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.21 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.21">v0.0.21</a></h2>
+      <span class="version-date">Apr 9, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>Open in Terminal</strong>: now uses the system default terminal app instead of hardcoding Terminal.app.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/44">#44</a>
+      </li>
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>Translation alignment</strong>: aligned local translation with a canonical language pair for consistency.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/45">#45</a>
+      </li>
+    </ol>
+    <div class="thanks">
+      <div class="thanks-label">Contributors</div>
+      Thanks to <span class="hl">@rocknio</span> for the translation fix.
+    </div>
+  </article>
+
+  <!-- ============ v0.0.20 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.20">v0.0.20</a></h2>
+      <span class="version-date">Apr 3, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Qoder</strong>: added support for Qoder as the 12th supported agent.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/41">#41</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.19 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.19">v0.0.19</a></h2>
+      <span class="version-date">Mar 31, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>Root-level install</strong>: corrected skill installation when <code>folderPath</code> is empty, handling repo-root-level skills properly.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/38">#38</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.18 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.18">v0.0.18</a></h2>
+      <span class="version-date">Mar 24, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>OpenClaw custom directory</strong>: added configurable skills directory for OpenClaw agent.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/37">#37</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.17 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.17">v0.0.17</a></h2>
+      <span class="version-date">Mar 23, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Inline translation</strong>: added skill documentation translation using the macOS Translation framework (macOS 26+).</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/34">#34</a>
+      </li>
+    </ol>
+    <div class="thanks">
+      <div class="thanks-label">Contributors</div>
+      Thanks to <span class="hl">@rocknio</span> for implementing the translation feature.
+    </div>
+  </article>
+
+  <!-- ============ v0.0.16 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.16">v0.0.16</a></h2>
+      <span class="version-date">Mar 18, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>Update button</strong>: preserved <code>remoteTreeHash</code> across refresh so the Update button correctly detects remote changes.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/32">#32</a>
+      </li>
+      <li>
+        <span class="tag test">Test</span>
+        <span class="desc"><strong>remoteTreeHash tests</strong>: added unit tests verifying hash preservation across refresh cycles.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/33">#33</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.15 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.15">v0.0.15</a></h2>
+      <span class="version-date">Mar 12, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Font settings</strong>: added global font size configuration with dynamic settings window sizing.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/28">#28</a>
+      </li>
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Proxy settings</strong>: added HTTPS and SOCKS5 proxy configuration with proxy-aware networking for all git and registry operations.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/29">#29</a>
+      </li>
+    </ol>
+    <div class="thanks">
+      <div class="thanks-label">New Contributors</div>
+      Welcome <span class="hl">@rocknio</span> — first contribution with font settings and proxy support.
+    </div>
+  </article>
+
+  <!-- ============ v0.0.14 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.14">v0.0.14</a></h2>
+      <span class="version-date">Mar 10, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>ClawHub marketplace</strong>: added ClawHub catalog browsing and installation support for OpenClaw agent.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/27">#27</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.13 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.13">v0.0.13</a></h2>
+      <span class="version-date">Mar 5, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>Registry badge</strong>: fixed Installed badge matching by checking both <code>skillId</code> and source repository.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/20">#20</a>
+      </li>
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Trae</strong>: added Trae (ByteDance AI IDE) as the 11th supported agent.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/24">#24</a>
+      </li>
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Local import</strong>: added ability to import skills from a local directory without requiring a GitHub URL.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/26">#26</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.12 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.12">v0.0.12</a></h2>
+      <span class="version-date">Feb 28, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Hidden directory support</strong>: added support for hidden directory layouts like <code>.claude/skills/</code> for viewing and installing skills.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/18">#18</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.11 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.11">v0.0.11</a></h2>
+      <span class="version-date">Feb 27, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Kiro</strong>: added Kiro agent support.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/14">#14</a>
+      </li>
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>CodeBuddy and OpenClaw</strong>: added support for both agents in a single release.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/15">#15</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.10 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.10">v0.0.10</a></h2>
+      <span class="version-date">Feb 26, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Codex skills directory</strong>: added support for <code>~/.codex/skills/</code> directory layout for Codex agent.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/13">#13</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.9 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.9">v0.0.9</a></h2>
+      <span class="version-date">Feb 25, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Cursor</strong>: added Cursor agent support.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/12">#12</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.8 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.8">v0.0.8</a></h2>
+      <span class="version-date">Feb 25, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Antigravity</strong>: added Antigravity agent support.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/9">#9</a>
+      </li>
+    </ol>
+  </article>
+
+  <!-- ============ v0.0.7 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.0.7">v0.0.7</a></h2>
+      <span class="version-date">Feb 24, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag doc">Doc</span>
+        <span class="desc"><strong>Chinese README</strong>: added <code>README_CN.md</code> with full Chinese documentation.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/6">#6</a>
+      </li>
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Registry detail view</strong>: show full SKILL.md content in the registry detail pane instead of just metadata.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/7">#7</a>
+      </li>
+    </ol>
+    <div class="thanks">
+      <div class="thanks-label">New Contributors</div>
+      Welcome <span class="hl">@YIminta</span> — first contribution with the Chinese README.
+    </div>
+  </article>
+
+  <!-- ============ Footer ============ -->
+  <footer class="foot">
+    <div class="mark">
+      <img class="foot-logo" src="../Assets/AppIcon.svg" alt="SkillDeck">
+      <span class="wm-name">SkillDeck</span>
+      <span class="wm-line">Manage AI agent skills, beautifully.</span>
+    </div>
+    <div class="colophon">
+      <div class="links">
+        <a href="index.html">Home</a> &middot;
+        <a href="https://github.com/crossoverJie/SkillDeck" target="_blank" rel="noopener">GitHub</a> &middot;
+        <a href="https://github.com/crossoverJie/SkillDeck/releases" target="_blank" rel="noopener">Releases</a>
+      </div>
+      <p class="ethos">Good skills deserve good paper.</p>
+    </div>
+  </footer>
+
+</main>
+</body>
+</html>
