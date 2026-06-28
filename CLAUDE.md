@@ -41,10 +41,19 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 - **AgentDetector** — detects installed agents by checking CLI binaries (`which`) and config directories
 - **SymlinkManager** — static methods for creating/removing symlinks between canonical and agent directories
 - **FileSystemWatcher** — DispatchSource/FSEvents monitoring with 0.5s debounce, publishes via Combine
+- **GitService** — executes git CLI operations (clone, pull, fetch) for GitHub-based skill installs
+- **UpdateChecker** — compares local vs remote commit hashes to detect skill updates
+- **SkillRegistryService** — fetches skills from skills.sh registry API
+- **ClawHubService** — fetches skills from ClawHub catalog for OpenClaw
+- **TranslationService** — inline Chinese translation of skill docs (macOS 26+ Translation framework)
+- **KeychainService** — stores/retrieves proxy credentials from macOS Keychain
+- **NetworkSessionProvider** — provides URLSession instances with proxy configuration applied
 
-**ViewModels** are `@MainActor @Observable` classes: `DashboardViewModel`, `SkillDetailViewModel`, `SkillEditorViewModel`.
+**ViewModels** are `@MainActor @Observable` classes: `DashboardViewModel`, `SkillDetailViewModel`, `SkillEditorViewModel`, `RegistryBrowserViewModel`, `ClawHubBrowserViewModel`, `SkillInstallViewModel`, `LocalImportViewModel`.
 
-**Views** use `NavigationSplitView` (3-pane macOS layout): Sidebar → Dashboard list → Detail pane.
+**Views** use `NavigationSplitView` (3-pane macOS layout): Sidebar → Dashboard list → Detail pane. Registry views (skills.sh + ClawHub) are separate browser panes.
+
+**Utilities** layer includes: `Constants`, `Extensions`, `VersionComparator`, `MarkdownPreprocessor`, `MarkdownPlainTextExtractor`, `ProxyConfigurationBuilder`, `ProxyEnvironmentImporter`, and a full localization system (`L10n`, `LText`, `L10nKeys`, `LanguageSettings`, `LocalizationResolver`).
 
 ## Key Data Patterns
 
@@ -53,6 +62,23 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 **SKILL.md format**: YAML frontmatter (between `---` delimiters) + markdown body. Parsed by `SkillMDParser` (enum namespace with static methods). Metadata struct is `Codable` for Yams serialization.
 
 **Deduplication**: `SkillScanner` resolves all symlinks to canonical paths, then merges installations for the same canonical skill into a single `Skill` model.
+
+## Localization
+
+The app supports English and Simplified Chinese. All user-facing strings go through the localization system:
+- Define keys in `L10nKeys.swift`
+- Add translations in `L10n.swift`
+- Use `LText("key")` in SwiftUI views (custom view, not Text)
+- Language switching via `LanguageSettings` (persisted in UserDefaults)
+- `LocalizationResolver` resolves keys at runtime based on current language
+
+## Proxy & Networking
+
+The app supports HTTPS and SOCKS5 proxies (configured in Settings). Key components:
+- `ProxySettings` model — stores proxy type, host, port, bypass list, optional Keychain-backed credentials
+- `ProxyConfigurationBuilder` — converts settings to `URLSessionConfiguration`
+- `NetworkSessionProvider` — singleton that provides pre-configured `URLSession` instances
+- `ProxyEnvironmentImporter` — imports proxy settings from system environment variables
 
 ## Swift/SwiftUI Gotchas
 
@@ -83,7 +109,9 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 
 ## Testing
 
-Tests are in `Tests/SkillDeckTests/`. Three test files exist: `SkillMDParserTests`, `LockFileManagerTests`, `SymlinkManagerTests`. Tests use `@testable import SkillDeck` for internal access.
+Tests are in `Tests/SkillDeckTests/` (29 test files). Key test classes: `SkillMDParserTests`, `LockFileManagerTests`, `SymlinkManagerTests`, `SkillManagerToggleTests`, `GitServiceTests`, `AgentTypeTests`, `VersionComparatorTests`. Tests use `@testable import SkillDeck` for internal access.
+
+CI runs `swift build` and `swift test` on every push to `main` and every PR (`.github/workflows/ci.yml`).
 
 ## Release
 
