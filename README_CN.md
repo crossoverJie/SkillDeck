@@ -50,6 +50,8 @@
 - **中文翻译** — 界面语言设为中文时，技能文档段落自动翻译为中文（需要 macOS 26+）
 - **自动刷新** — 文件系统监控，即时响应 CLI 端的变更
 
+- **内置 `skilldeck` 技能** — 通过自然语言在任何 AI 代理中管理技能。无需离开终端即可安装、更新、删除技能，或将技能分配给指定代理。详见 [`skills/skilldeck/SKILL.md`](skills/skilldeck/SKILL.md)。
+
 > 完整功能列表和路线图请参阅 [docs/FEATURES.md](docs/FEATURES.md)。
 
 ## 安装

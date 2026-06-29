@@ -52,6 +52,8 @@
 - **Inline Translation** — Automatic Chinese translation of skill documentation paragraphs when UI language is set to Chinese (requires macOS 26+)
 - **Auto-Refresh** — File system monitoring picks up CLI-side changes instantly
 
+- **Built-in `skilldeck` Skill** — Manage skills via natural language in any AI agent. Install, update, delete, and assign skills to agents without leaving your terminal. See [`skills/skilldeck/SKILL.md`](skills/skilldeck/SKILL.md).
+
 > See the full feature list and roadmap in [docs/FEATURES.md](docs/FEATURES.md).
 
 ## Installation
