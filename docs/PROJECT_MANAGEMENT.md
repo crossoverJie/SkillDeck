@@ -2,7 +2,7 @@
 
 ## 2026-07-14 当前实现
 
-SkillDeck 的全局技能目录由“设置 > 全局技能目录”配置，默认值是 `~/.agents/skills`。全局同步与安装、扫描、锁文件、缓存都读取该配置；全局同步的目标工具严格复用左侧“代理”栏的 `AgentType` 列表和工具配置路径。项目管理功能新增了一个独立的“项目”侧栏入口，不会把项目技能混入全局仪表盘，也不会递归扫描磁盘。
+SkillDeck 的全局技能目录由“设置 > 全局技能目录”配置，默认值是 `~/.agents/skills`。全局同步与安装、扫描、锁文件、缓存都读取该配置；全局同步的目标工具严格复用左侧“代理”栏的 `AgentType` 列表和工具配置路径。项目管理功能新增了一个独立的“项目”侧栏入口，不会把项目技能混入全局仪表盘，也不会递归扫描磁盘。项目与全局同步页均可管理统一规则，规则不会混入技能目录同步。
 
 用户通过“项目”列表工具栏手动选择项目根目录。根目录会保存到 `UserDefaults` 的 `SkillDeck.managedProjects`；应用重启后仍会显示存在的目录。移除项目只移除 SkillDeck 的记录，不会删除项目文件。
 
@@ -12,6 +12,18 @@ SkillDeck 的全局技能目录由“设置 > 全局技能目录”配置，默�
 
 ```text
 <project>/.agents/skills
+```
+
+统一规则的唯一源为：
+
+```text
+<project>/.agents/AGENTS.md
+```
+
+全局同步使用“设置 > 全局技能目录”的父目录下的 `AGENTS.md`，默认是：
+
+```text
+~/.agents/AGENTS.md
 ```
 
 只读取其中包含 `SKILL.md` 的一级技能目录。支持审计和同步的项目目标为：
@@ -46,6 +58,7 @@ SkillDeck 的全局技能目录由“设置 > 全局技能目录”配置，默�
 2. 中间栏列出所有已添加项目，显示源技能数和已完全同步的目标工具数。
 3. 选择项目后，右侧顶部的工具状态条显示每个目标工具是否已整体同步；点击任意工具查看项目源技能清单。
 4. 点击“同步全部工具”可一次同步该源的所有 AI 工具；也可点击“同步整个 skills 目录”只同步当前工具。预览弹窗是唯一可写入文件系统的确认入口。
+5. 右侧“统一规则”区域可新建或编辑唯一规则源，并同步全部规则入口。项目会创建 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`.claude/rules/skilldeck.md`、`.github/copilot-instructions.md`、`.kiro/steering/skilldeck.md`，以及会在 Cursor Rules 面板显示的 `.cursor/rules/skilldeck.mdc`；全局会创建 Codex、Claude、Gemini、Claude Rules、Kiro Steering 的对应用户级入口。
 
 项目页保持与全局仪表盘相同的三栏导航结构：左侧导航、中间对象列表、右侧详情，而不是通过下拉框切换项目。
 
@@ -71,11 +84,23 @@ SkillDeck 的全局技能目录由“设置 > 全局技能目录”配置，默�
 
 随后才创建新的 `.agents` 软链。移除操作只删除由当前同步关系管理的软链，不会删除源技能。
 
+### 2026-07-14 统一规则
+
+规则同步始终以一份 `AGENTS.md` 为内容源；大多数目标是规则文件软链，不复制规则内容。Cursor 项目规则会生成 `.cursor/rules/skilldeck.mdc`，其中只包含 `alwaysApply` 元数据和对统一源的 `@../../.agents/AGENTS.md` 引用，因此会出现在 Cursor 的 Rules 列表且不产生第二份规则正文。Cursor User Rules 由 Cursor 内部配置存储，未提供可安全同步的文件入口。源不存在时只能通过“新建统一规则”创建，不会自动用空文件写入目标。已有真实规则文件或外部软链会先在预览中列为冲突，确认后备份到：
+
+```text
+~/Library/Application Support/SkillDeck/RuleSyncBackups/<ISO-8601 时间>/
+```
+
+移除规则链接只会删除仍指向该统一规则源的软链，不会删除源文件或外部规则。
+
 ## 关键实现位置
 
 - `Sources/SkillDeck/ViewModels/ProjectManager.swift`
   - `ProjectSyncFileSystem`：扫描、变更规划、备份、软链创建与移除。
   - `ProjectManager`：持久化项目根目录、选中状态、变更预览和执行日志。
+- `Sources/SkillDeck/Services/RuleSyncFileSystem.swift`
+  - 统一规则源、规则入口扫描、冲突备份、软链创建与移除。
 - `Sources/SkillDeck/Views/Projects/ProjectManagementView.swift`
   - 项目列表、中间栏项目行、右侧工具状态条、技能明细和变更确认弹窗。
 - `Sources/SkillDeck/Views/ContentView.swift`
@@ -89,6 +114,7 @@ SkillDeck 的全局技能目录由“设置 > 全局技能目录”配置，默�
 
 ```bash
 swift test --filter ProjectSyncFileSystemTests
+swift test --filter RuleSyncFileSystemTests
 swift build
 bash scripts/package-app.sh --version 0.1.0-local
 ```
@@ -97,7 +123,7 @@ bash scripts/package-app.sh --version 0.1.0-local
 
 ## 当前边界
 
-- 第一版只管理 skills，不处理 `AGENTS.md`、规则、命令或 Agent 配置。
+- 规则同步只覆盖文档化的规则入口，不会同步命令、MCP、模型设置或其他 Agent 配置。
 - 只支持用户手动添加项目根目录。
 - 只支持整目录 `.agents` 软链；不支持部分选择或单技能软链。
 - 应用不会自动将既有 `.ai-global/skills` 等非 `.agents` 目录视为已同步；它们会作为冲突显示，避免静默改变项目配置。

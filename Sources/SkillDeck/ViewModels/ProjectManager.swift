@@ -260,6 +260,7 @@ struct ProjectSyncFileSystem {
 final class ProjectManager {
     private static let storageKey = "SkillDeck.managedProjects"
     private let filesystem = ProjectSyncFileSystem()
+    private let ruleFileSystem = RuleSyncFileSystem()
     private let fixedProject: ManagedProject?
     var projects: [ManagedProject] = []
     var inspections: [ProjectInspection] = []
@@ -269,6 +270,11 @@ final class ProjectManager {
     var showsPreview = false
     var applyErrorMessage: String?
     var applyResultMessage: String?
+    var ruleInspections: [RuleInspection] = []
+    var ruleChanges: [RuleChange] = []
+    var showsRulePreview = false
+    var ruleApplyErrorMessage: String?
+    var ruleApplyResultMessage: String?
     var logs: [String] = []
 
     /// Project-local targets and global AI tools intentionally use different path resolvers.
@@ -303,6 +309,13 @@ final class ProjectManager {
         inspections.first { $0.project.id == projectID && $0.agent.id == targetID }
     }
 
+    /// Rules are intentionally tracked per selected source, independent from the selected skills target.
+    var selectedProject: ManagedProject? { projects.first { $0.id == selectedProjectID } }
+    var selectedRulesSourceURL: URL? { selectedProject.map { ruleFileSystem.sourceURL(for: $0) } }
+    var hasSelectedRulesSource: Bool { selectedProject.map { ruleFileSystem.sourceExists(for: $0) } ?? false }
+    var selectedRuleInspections: [RuleInspection] { ruleInspections.filter { $0.project.id == selectedProjectID } }
+    var linkedRuleCount: Int { selectedRuleInspections.filter { $0.state == .linked }.count }
+
     func addProject(_ url: URL) {
         guard fixedProject == nil else { return }
         let project = ManagedProject(rootPath: url.standardizedFileURL.path)
@@ -329,6 +342,7 @@ final class ProjectManager {
 
     func reload() {
         inspections = projects.flatMap { project in targets.map { filesystem.inspect(project: project, agent: $0) } }
+        ruleInspections = projects.flatMap { ruleFileSystem.inspect(project: $0) }
         log("已扫描 \(projects.count) 个项目")
     }
 
@@ -355,6 +369,33 @@ final class ProjectManager {
         log("全部同步预览 \(changes.count) 项")
     }
     func previewRemoval() { guard let inspection = selectedInspection else { return }; changes = filesystem.removePlan(for: inspection); showsPreview = !changes.isEmpty; log("移除预览 \(changes.count) 项") }
+
+    /// Creates only the canonical source file. Target rule files are never generated until the user
+    /// explicitly opens the rules preview and confirms synchronization.
+    func createRulesSource() {
+        guard let project = selectedProject else { return }
+        do {
+            try ruleFileSystem.createSource(for: project)
+            reload()
+            log("已创建统一规则源 \(ruleFileSystem.sourceURL(for: project).path)")
+        } catch {
+            ruleApplyErrorMessage = error.localizedDescription
+        }
+    }
+
+    func previewRuleSyncAll() {
+        guard let project = selectedProject else { return }
+        ruleChanges = ruleFileSystem.syncPlan(for: project)
+        showsRulePreview = !ruleChanges.isEmpty
+        log("规则同步预览 \(ruleChanges.count) 项")
+    }
+
+    func previewRuleRemoval() {
+        guard let project = selectedProject else { return }
+        ruleChanges = ruleFileSystem.removePlan(for: project)
+        showsRulePreview = !ruleChanges.isEmpty
+        log("规则移除预览 \(ruleChanges.count) 项")
+    }
 
     /// Applies the whole-directory migration after its explicit confirmation action.
     func applyChanges(replacingExistingDirectory: Bool = false) {
@@ -394,6 +435,42 @@ final class ProjectManager {
         changes = []
         showsPreview = false
         applyResultMessage = nil
+    }
+
+    func applyRuleChanges(replacingExistingRules: Bool = false) {
+        ruleApplyErrorMessage = nil
+        ruleApplyResultMessage = nil
+        var failures: [String] = []
+        var results: [String] = []
+
+        for index in ruleChanges.indices where ruleChanges[index].needsResolution && replacingExistingRules {
+            ruleChanges[index].resolution = .backupAndReplace
+        }
+
+        for change in ruleChanges {
+            do {
+                let result = try ruleFileSystem.apply(change)
+                log("规则：\(result)")
+                results.append(result)
+            } catch {
+                let message = error.localizedDescription
+                log("规则失败：\(message)")
+                failures.append(message)
+            }
+        }
+
+        reload()
+        if failures.isEmpty {
+            ruleApplyResultMessage = results.joined(separator: "\n")
+        } else {
+            ruleApplyErrorMessage = failures.joined(separator: "\n")
+        }
+    }
+
+    func finishApplyingRuleChanges() {
+        ruleChanges = []
+        showsRulePreview = false
+        ruleApplyResultMessage = nil
     }
 
     private func save() {

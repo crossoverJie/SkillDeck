@@ -114,6 +114,8 @@ struct ProjectSyncDetail: View {
            let inspection = manager.selectedInspection {
             VStack(alignment: .leading, spacing: 0) {
                 projectHeader(project)
+                rulesSection(project)
+                Divider()
                 agentRail(project)
                 Divider()
                 skillsContent(inspection)
@@ -123,6 +125,9 @@ struct ProjectSyncDetail: View {
             .navigationTitle(project.name)
             .sheet(isPresented: $manager.showsPreview) {
                 ProjectChangePreview(manager: manager)
+            }
+            .sheet(isPresented: $manager.showsRulePreview) {
+                RuleChangePreview(manager: manager)
             }
             .sheet(item: $selectedSourceSkill) { skill in
                 if manager.isGlobalSync,
@@ -147,6 +152,46 @@ struct ProjectSyncDetail: View {
             Text(project.name).appFont(.title2).fontWeight(.bold)
             Text(project.rootURL.tildeAbbreviatedPath).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             Text("源：\(project.sourceSkillsURL.tildeAbbreviatedPath)").appFont(.caption).foregroundStyle(.tertiary).textSelection(.enabled)
+        }
+        .padding()
+    }
+
+    /// Rule controls are source-level actions: selecting a single skills target must not change
+    /// which project rules are created, backed up, or removed.
+    private func rulesSection(_ project: ManagedProject) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label("统一规则", systemImage: "doc.text")
+                    .appFont(.headline)
+                Spacer()
+                Text("\(manager.linkedRuleCount)/\(manager.selectedRuleInspections.count) 已同步")
+                    .appFont(.caption)
+                    .foregroundStyle(manager.linkedRuleCount == manager.selectedRuleInspections.count && manager.hasSelectedRulesSource ? .green : .secondary)
+            }
+            if let sourceURL = manager.selectedRulesSourceURL {
+                Text(sourceURL.tildeAbbreviatedPath)
+                    .appFont(.caption)
+                    .foregroundStyle(.tertiary)
+                    .textSelection(.enabled)
+            }
+            HStack(spacing: 8) {
+                if manager.hasSelectedRulesSource, let sourceURL = manager.selectedRulesSourceURL {
+                    Button {
+                        NSWorkspace.shared.open(sourceURL)
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .help("编辑统一规则")
+
+                    Button("同步全部规则") { manager.previewRuleSyncAll() }
+                        .buttonStyle(.borderedProminent)
+                    Button("移除规则链接", role: .destructive) { manager.previewRuleRemoval() }
+                        .disabled(manager.linkedRuleCount == 0)
+                } else {
+                    Button("新建统一规则") { manager.createRulesSource() }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
         }
         .padding()
     }
@@ -336,6 +381,92 @@ private struct ProjectChangePreview: View {
             }
         } message: {
             Text(manager.applyResultMessage ?? "")
+        }
+    }
+}
+
+/// RuleChangePreview mirrors the skills confirmation dialog but lists files, not directories.
+/// Existing rules remain untouched until the single destructive confirmation is selected.
+private struct RuleChangePreview: View {
+    @Bindable var manager: ProjectManager
+    @Environment(\.dismiss) private var dismiss
+
+    private var primaryActionLabel: String {
+        if manager.ruleChanges.contains(where: \.needsResolution) {
+            return "备份后同步 \(manager.ruleChanges.count) 条规则"
+        }
+        return manager.ruleChanges.first?.kind == .removeLink
+            ? "移除 \(manager.ruleChanges.count) 条规则链接"
+            : "同步 \(manager.ruleChanges.count) 条规则"
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("统一规则变更").appFont(.headline)
+                Spacer()
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("关闭")
+            }
+            .padding()
+
+            Divider()
+
+            Text("所有目标规则将引用同一份 AGENTS.md；Cursor 使用可识别的 .mdc 包装规则。")
+                .appFont(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding([.horizontal, .top])
+
+            List(manager.ruleChanges) { change in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(change.kind.label)：\(change.target.name)")
+                        .appFont(.headline)
+                    Text(change.targetURL.tildeAbbreviatedPath)
+                        .appFont(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(change.summary)
+                        .appFont(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 3)
+            }
+            .listStyle(.inset(alternatesRowBackgrounds: true))
+
+            Divider()
+
+            HStack {
+                Button("取消") { dismiss() }
+                Spacer()
+                Button(primaryActionLabel) {
+                    manager.applyRuleChanges(replacingExistingRules: manager.ruleChanges.contains(where: \.needsResolution))
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding()
+        }
+        .frame(minWidth: 560, idealWidth: 680, maxWidth: 820, minHeight: 320, maxHeight: 620)
+        .alert("规则同步失败", isPresented: Binding(
+            get: { manager.ruleApplyErrorMessage != nil },
+            set: { if !$0 { manager.ruleApplyErrorMessage = nil } }
+        )) {
+            Button("好", role: .cancel) { manager.ruleApplyErrorMessage = nil }
+        } message: {
+            Text(manager.ruleApplyErrorMessage ?? "")
+        }
+        .alert("规则同步结果", isPresented: Binding(
+            get: { manager.ruleApplyResultMessage != nil },
+            set: { if !$0 { manager.ruleApplyResultMessage = nil } }
+        )) {
+            Button("完成") {
+                manager.finishApplyingRuleChanges()
+                dismiss()
+            }
+        } message: {
+            Text(manager.ruleApplyResultMessage ?? "")
         }
     }
 }
