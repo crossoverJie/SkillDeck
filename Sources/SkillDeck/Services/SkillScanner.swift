@@ -3,62 +3,20 @@ import Foundation
 /// SkillScanner is responsible for scanning the file system to discover all installed skills
 ///
 /// Scanning strategy:
-/// 1. First scan ~/.agents/skills/ (shared global directory)
-/// 2. Then scan each Agent's skills directory
-/// 3. Deduplicate via symlink resolution: if a skill in an Agent directory is a symlink to ~/.agents/skills/,
-///    keep only one copy and record it in installations
+/// 1. Scan the configured global skills directory as the only canonical source.
+/// 2. Inspect the whole-directory links only to report each skill's synchronized tools.
 ///
 /// This is similar to filepath.Walk in Go for traversing directory trees
 actor SkillScanner {
 
-    /// Shared global skills directory (delegates to AgentType.sharedSkillsDirectoryURL for single source of truth)
-    static let sharedSkillsURL: URL = AgentType.sharedSkillsDirectoryURL
+    /// Shared global skills directory, resolved from the user's storage setting each time it is used.
+    static var sharedSkillsURL: URL { SkillStorageSettings.globalSkillsURL }
 
-    /// Scan all skills, returning deduplicated results
-    /// - Returns: Array of discovered skills (deduplicated, each skill name appears only once)
+    /// Scan the canonical global skills directory.
+    /// - Returns: Skills owned by the configured global directory; agent directories never add independent entries.
     func scanAll() async throws -> [Skill] {
-        // Use skill id (directory name) as deduplication key, not canonicalURL.path
-        // Reason: the same skill might be pointed to by different Agent symlinks to different physical paths
-        // e.g. ~/.copilot/skills/agent-notifier -> /path/to/dev/agent-notifier
-        //      ~/.agents/skills/agent-notifier   (another physical path)
-        // Although canonicalURL is different, skill id is the same, should be treated as same skill
-        var skillMap: [String: Skill] = [:]
-
-        // 1. Scan shared global directory
-        let globalSkills = scanDirectory(Self.sharedSkillsURL, scope: .sharedGlobal)
-        for skill in globalSkills {
-            skillMap[skill.id] = skill
-        }
-
-        // 2. Scan each Agent's skills directory
-        for agentType in AgentType.allCases {
-
-            let agentSkills = scanDirectory(
-                agentType.skillsDirectoryURL,
-                scope: .agentLocal(agentType)
-            )
-
-            for skill in agentSkills {
-                if var existingSkill = skillMap[skill.id] {
-                    // Same name skill exists: merge installations (indicates same skill referenced by multiple Agents)
-                    let newInstallations = skill.installations.filter { newInst in
-                        !existingSkill.installations.contains(where: { $0.id == newInst.id })
-                    }
-                    existingSkill.installations.append(contentsOf: newInstallations)
-                    // If previously agentLocal, now found referenced by other Agents, upgrade to sharedGlobal
-                    if case .agentLocal = existingSkill.scope, existingSkill.installations.count > 1 {
-                        existingSkill.scope = .sharedGlobal
-                    }
-                    skillMap[skill.id] = existingSkill
-                } else {
-                    // New skill: add directly
-                    skillMap[skill.id] = skill
-                }
-            }
-        }
-
-        // Return sorted by name
-        return skillMap.values.sorted { $0.displayName.lowercased() < $1.displayName.lowercased() }
+        scanDirectory(Self.sharedSkillsURL, scope: .sharedGlobal)
+            .sorted { $0.displayName.lowercased() < $1.displayName.lowercased() }
     }
 
     /// Scan all skills in a single directory

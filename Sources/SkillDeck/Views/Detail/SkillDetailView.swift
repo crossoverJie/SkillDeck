@@ -42,11 +42,6 @@ struct SkillDetailView: View {
 
                     Divider()
 
-                    // Agent assignment section
-                    agentAssignmentSection()
-
-                    Divider()
-
                     // Markdown body
                     markdownSection(skill)
                 }
@@ -182,16 +177,6 @@ struct SkillDetailView: View {
                 // animation modifier listens to pathCopied changes, automatically applies smooth transition to colors and other properties
                 .animation(.easeInOut(duration: 0.2), value: pathCopied)
             }
-        }
-    }
-
-    /// Agent assignment section (F06)
-    @ViewBuilder
-    private func agentAssignmentSection() -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Agent Assignment").appFont(.headline)
-
-            AgentToggleView(skillID: skillID, viewModel: viewModel)
         }
     }
 

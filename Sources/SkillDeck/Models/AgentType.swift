@@ -17,6 +17,9 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
     case qoder = "qoder"                     // Qoder: AI coding agent (https://qoder.ai)
     case qclaw = "qclaw"                     // QClaw: AI coding assistant (skills in ~/.qclaw/skills)
     case workbuddy = "workbuddy"             // WorkBuddy: AI coding assistant (skills in ~/.workbuddy/skills)
+    case joyCode = "joycode"
+    case reasonix = "reasonix"
+    case qwen = "qwen"
 
     // Identifiable protocol requirement (similar to Java's Comparable), needed for SwiftUI list rendering
     var id: String { rawValue }
@@ -37,6 +40,9 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .qoder: "Qoder"
         case .qclaw: "QClaw"
         case .workbuddy: "WorkBuddy"
+        case .joyCode: "JoyCode"
+        case .reasonix: "Reasonix"
+        case .qwen: "Qwen"
         }
     }
 
@@ -58,6 +64,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .qoder: "orange"
         case .qclaw: "mint"
         case .workbuddy: "yellow"
+        case .joyCode, .reasonix, .qwen: "gray"
         }
     }
 
@@ -79,6 +86,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .qoder: "q.circle"                     // Letter Q icon for Qoder
         case .qclaw: "hand.raised.circle"            // Hand/claw icon for QClaw
         case .workbuddy: "w.circle"                 // Letter W icon for WorkBuddy
+        case .joyCode, .reasonix, .qwen: "terminal" // Default icon until a dedicated symbol is available
         }
     }
 
@@ -119,6 +127,12 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
             return "~/.qclaw/skills"                        // QClaw AI assistant skills directory
         case .workbuddy:
             return "~/.workbuddy/skills"                    // WorkBuddy AI assistant skills directory
+        case .joyCode:
+            return "~/.joycode/skills"
+        case .reasonix:
+            return "~/.reasonix/skills"
+        case .qwen:
+            return "~/.qwen/skills"
         }
     }
 
@@ -145,6 +159,9 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .qoder: "~/.qoder"
         case .qclaw: "~/.qclaw"
         case .workbuddy: "~/.workbuddy"
+        case .joyCode: "~/.joycode"
+        case .reasonix: "~/.reasonix"
+        case .qwen: "~/.qwen"
         }
     }
 
@@ -165,16 +182,40 @@ enum AgentType: String, CaseIterable, Identifiable, Codable {
         case .qoder: "qoder"
         case .qclaw: "qclaw"
         case .workbuddy: "workbuddy"
+        case .joyCode: "joycode"
+        case .reasonix: "reasonix"
+        case .qwen: "qwen"
         }
     }
 
     /// Shared canonical skills directory URL (~/.agents/skills/)
     /// Used by SkillScanner and agents that read from the shared directory (e.g., OpenCode).
     /// Defined here as a single source of truth to avoid duplicating the path string.
-    static let sharedSkillsDirectoryURL: URL = {
-        let path = NSString(string: "~/.agents/skills").expandingTildeInPath
-        return URL(fileURLWithPath: path)
-    }()
+    static var sharedSkillsDirectoryURL: URL { SkillStorageSettings.globalSkillsURL }
+
+    /// Project-local paths mirror each tool's user-level layout without inheriting user-only overrides.
+    /// For example, a Docker-specific OpenClaw path must not be written into an unrelated project.
+    var projectSkillsRelativePath: String {
+        switch self {
+        case .claudeCode: ".claude/skills"
+        case .codex: ".codex/skills"
+        case .geminiCLI: ".gemini/skills"
+        case .copilotCLI: ".copilot/skills"
+        case .openCode: ".config/opencode/skills"
+        case .antigravity: ".gemini/antigravity/skills"
+        case .cursor: ".cursor/skills"
+        case .kiro: ".kiro/skills"
+        case .codeBuddy: ".codebuddy/skills"
+        case .openClaw: ".openclaw/skills"
+        case .trae: ".trae/skills"
+        case .qoder: ".qoder/skills"
+        case .qclaw: ".qclaw/skills"
+        case .workbuddy: ".workbuddy/skills"
+        case .joyCode: ".joycode/skills"
+        case .reasonix: ".reasonix/skills"
+        case .qwen: ".qwen/skills"
+        }
+    }
 
     /// Skills directories of other Agents that this Agent can read in addition to its own skills directory
     ///

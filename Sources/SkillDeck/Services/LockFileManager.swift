@@ -9,10 +9,7 @@ import Foundation
 actor LockFileManager {
 
     /// Default path for lock file
-    static let defaultPath: URL = {
-        let home = NSString(string: "~/.agents/.skill-lock.json").expandingTildeInPath
-        return URL(fileURLWithPath: home)
-    }()
+    static var defaultPath: URL { SkillStorageSettings.lockFileURL }
 
     /// Currently used lock file path (can be overridden in tests)
     let filePath: URL
@@ -20,8 +17,8 @@ actor LockFileManager {
     /// In-memory cached lock file data
     private var cached: LockFile?
 
-    init(filePath: URL = LockFileManager.defaultPath) {
-        self.filePath = filePath
+    init(filePath: URL? = nil) {
+        self.filePath = filePath ?? Self.defaultPath
     }
 
     /// Read and parse lock file

@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Installation flow consists of two steps:
 /// 1. User inputs GitHub repository URL → shallow clone → scan for skills → display list
-/// 2. User selects skills and Agents to install → execute installation → complete
+/// 2. User selects skills to install into the canonical global directory → execute installation → complete
 ///
 /// @MainActor ensures all properties update on the main thread (UI-bound state must be on main thread)
 /// @Observable enables SwiftUI to automatically track property changes and refresh views
@@ -88,9 +88,6 @@ final class SkillInstallViewModel: Identifiable {
     /// (e.g., "skills/pua" and "codex/pua" both have id="pua" but different folderPaths)
     /// Set provides O(1) lookup, similar to Java's HashSet
     var selectedSkillPaths: Set<String> = []
-
-    /// Set of target Agents selected by user (Claude Code selected by default)
-    var selectedAgents: Set<AgentType> = [.claudeCode]
 
     /// Set of already installed skill names (used to mark "already installed" in the list)
     var alreadyInstalledNames: Set<String> = []
@@ -251,8 +248,7 @@ final class SkillInstallViewModel: Identifiable {
                     from: repoDir,
                     skill: skill,
                     repoSource: normalizedSource,
-                    repoURL: normalizedRepoURL,
-                    targetAgents: selectedAgents
+                    repoURL: normalizedRepoURL
                 )
                 installedCount += 1
             } catch {
@@ -306,15 +302,6 @@ final class SkillInstallViewModel: Identifiable {
         }
     }
 
-    /// Toggle selection state of an Agent
-    func toggleAgentSelection(_ agent: AgentType) {
-        if selectedAgents.contains(agent) {
-            selectedAgents.remove(agent)
-        } else {
-            selectedAgents.insert(agent)
-        }
-    }
-
     /// Reset to initial state (start over)
     func reset() {
         cleanup()
@@ -322,7 +309,6 @@ final class SkillInstallViewModel: Identifiable {
         repoURLInput = ""
         discoveredSkills = []
         selectedSkillPaths = []
-        selectedAgents = [.claudeCode]
         alreadyInstalledNames = []
         progressMessage = ""
         installedCount = 0

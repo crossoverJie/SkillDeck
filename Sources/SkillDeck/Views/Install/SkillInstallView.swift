@@ -205,39 +205,8 @@ struct SkillInstallView: View {
 
             Divider()
 
-            // Agent selection area + install button
+            // Installation always writes to the canonical global skills directory.
             VStack(spacing: 12) {
-                // Agent selection area (two-row layout to avoid horizontal squeezing)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Install to:").appFont(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    // LazyVGrid adapts column width, automatically wraps based on available space
-                    // adaptive(minimum: 120) means each column is at least 120pt, extra space is automatically distributed
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), alignment: .leading)], alignment: .leading, spacing: 8) {
-                        // ForEach iterates through all detected Agents
-                        ForEach(AgentType.allCases) { agentType in
-                            let isDetected = skillManager.agents.first { $0.type == agentType }?.isInstalled == true
-                            // Toggle is macOS switch/checkbox component
-                            Toggle(isOn: Binding(
-                                get: { viewModel.selectedAgents.contains(agentType) },
-                                set: { newValue in
-                                    if newValue {
-                                        viewModel.selectedAgents.insert(agentType)
-                                    } else {
-                                        viewModel.selectedAgents.remove(agentType)
-                                    }
-                                }
-                            )) {
-                                Label(agentType.displayName, systemImage: agentType.iconName).appFont(.caption)
-                            }
-                            .toggleStyle(.checkbox)
-                            // Uninstalled Agents have reduced opacity but are still selectable
-                            .opacity(isDetected ? 1.0 : 0.5)
-                        }
-                    }
-                }
-
                 // Install button
                 HStack {
                     // Selected count hint
@@ -250,7 +219,7 @@ struct SkillInstallView: View {
                     Button("Install") {
                         Task { await viewModel.installSelected() }
                     }
-                    .disabled(viewModel.selectedSkillPaths.isEmpty || viewModel.selectedAgents.isEmpty)
+                    .disabled(viewModel.selectedSkillPaths.isEmpty)
                     // .buttonStyle(.borderedProminent) makes button display filled prominent color style
                     .buttonStyle(.borderedProminent)
                 }

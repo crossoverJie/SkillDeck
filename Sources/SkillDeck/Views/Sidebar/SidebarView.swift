@@ -6,6 +6,10 @@ import SwiftUI
 /// F09 adds `.registry` for browsing the skills.sh catalog.
 enum SidebarItem: Hashable {
     case dashboard
+    /// Whole-directory synchronization for ~/.agents/skills.
+    case globalSync
+    /// Explicitly managed project roots. Project skills stay separate from global skills.
+    case projects
     /// F09: Browse skills.sh catalog (leaderboard + search)
     case registry
     /// Browse the ClawHub marketplace for OpenClaw-compatible skills
@@ -21,7 +25,7 @@ enum SidebarItem: Hashable {
         switch self {
         case .agent(let agentType):
             return agentType
-        case .dashboard, .settings, .registry, .clawHub:
+        case .dashboard, .globalSync, .projects, .settings, .registry, .clawHub:
             return nil
         }
     }
@@ -91,6 +95,28 @@ struct SidebarView: View {
                 .listRowBackground(
                     RoundedRectangle(cornerRadius: 6)
                         .fill(rowBackground(for: .dashboard))
+                )
+
+                sidebarRow(
+                    item: .globalSync,
+                    accessibilityLabel: "全局同步"
+                ) {
+                    Label("全局同步", systemImage: "link")
+                }
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(rowBackground(for: .globalSync))
+                )
+
+                sidebarRow(
+                    item: .projects,
+                    accessibilityLabel: "项目"
+                ) {
+                    Label("项目", systemImage: "folder")
+                }
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(rowBackground(for: .projects))
                 )
 
                 // F09: Registry browser — browse and search skills.sh catalog

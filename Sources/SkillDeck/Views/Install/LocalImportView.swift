@@ -158,32 +158,8 @@ struct LocalImportView: View {
 
             Divider()
 
-            // Agent selection area + Import button
+            // Import always writes to the canonical global skills directory.
             VStack(spacing: 12) {
-                // Agent selection grid (same layout as SkillInstallView)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Install to:").appFont(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    // LazyVGrid adapts column width, automatically wraps based on available space
-                    // adaptive(minimum: 120) means each column is at least 120pt
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), alignment: .leading)], alignment: .leading, spacing: 8) {
-                        ForEach(AgentType.allCases) { agentType in
-                            let isDetected = skillManager.agents.first { $0.type == agentType }?.isInstalled == true
-                            // Toggle is macOS checkbox component
-                            Toggle(isOn: Binding(
-                                get: { viewModel.selectedAgents.contains(agentType) },
-                                set: { _ in viewModel.toggleAgentSelection(agentType) }
-                            )) {
-                                Label(agentType.displayName, systemImage: agentType.iconName).appFont(.caption)
-                            }
-                            .toggleStyle(.checkbox)
-                            // Uninstalled Agents have reduced opacity but are still selectable
-                            .opacity(isDetected ? 1.0 : 0.5)
-                        }
-                    }
-                }
-
                 // Import button
                 HStack {
                     Spacer()
@@ -191,7 +167,6 @@ struct LocalImportView: View {
                     Button("Import") {
                         Task { await viewModel.importSkill() }
                     }
-                    .disabled(viewModel.selectedAgents.isEmpty)
                     .buttonStyle(.borderedProminent)
                 }
             }

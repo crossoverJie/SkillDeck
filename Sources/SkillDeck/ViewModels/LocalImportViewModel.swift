@@ -6,8 +6,8 @@ import AppKit
 /// Import flow consists of phases (finite state machine):
 /// 1. selectPath — User picks a local directory via NSOpenPanel
 /// 2. validating — Verify directory contains a valid SKILL.md
-/// 3. selectAgents — User selects target Agents to install the skill to
-/// 4. importing — Copy files and create symlinks
+/// 3. selectAgents — Directory validated and ready to import into the canonical global directory
+/// 4. importing — Copy files into the canonical directory
 /// 5. completed — Import finished successfully
 /// 6. error — Something went wrong, show error message
 ///
@@ -75,9 +75,6 @@ final class LocalImportViewModel: Identifiable {
     /// Whether a skill with the same name already exists in the canonical directory
     /// When true, the UI shows a warning that the existing skill will be overwritten
     var alreadyExists: Bool = false
-
-    /// Set of target Agents selected by user (Claude Code selected by default)
-    var selectedAgents: Set<AgentType> = [.claudeCode]
 
     /// Progress message displayed during validating/importing phases
     var progressMessage = ""
@@ -192,7 +189,7 @@ final class LocalImportViewModel: Identifiable {
         phase = .selectAgents
     }
 
-    /// Execute the import: copy files, create symlinks, update lock file
+    /// Execute the import: copy files into the canonical directory and update the lock file.
     ///
     /// Delegates to SkillManager.importLocalSkill() which handles all the heavy lifting.
     /// Transitions to .completed on success, .error on failure.
@@ -208,22 +205,11 @@ final class LocalImportViewModel: Identifiable {
         do {
             try await skillManager.importLocalSkill(
                 from: dirURL,
-                skillName: skillName,
-                targetAgents: selectedAgents
+                skillName: skillName
             )
             phase = .completed
         } catch {
             phase = .error(error.localizedDescription)
-        }
-    }
-
-    /// Toggle selection state of an Agent
-    /// If the Agent is already selected, remove it; otherwise, add it
-    func toggleAgentSelection(_ agent: AgentType) {
-        if selectedAgents.contains(agent) {
-            selectedAgents.remove(agent)
-        } else {
-            selectedAgents.insert(agent)
         }
     }
 
@@ -234,7 +220,6 @@ final class LocalImportViewModel: Identifiable {
         skillMetadata = nil
         skillName = ""
         alreadyExists = false
-        selectedAgents = [.claudeCode]
         progressMessage = ""
     }
 }

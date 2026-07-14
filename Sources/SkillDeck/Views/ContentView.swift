@@ -21,6 +21,13 @@ struct ContentView: View {
     /// Currently selected sidebar item
     @State private var selectedSidebarItem: SidebarItem? = .dashboard
 
+    /// ProjectManager is independent from SkillManager because project skills must not be
+    /// deduplicated with global skills that happen to share the same directory name.
+    @State private var projectManager: ProjectManager?
+
+    /// Global sync uses the same manager with the user home directory as a fixed project root.
+    @State private var globalSyncManager: ProjectManager?
+
     /// Currently selected skill ID (used for navigation to detail page)
     @State private var selectedSkillID: String?
 
@@ -48,7 +55,17 @@ struct ContentView: View {
         } content: {
             // Middle column: content varies based on sidebar selection
             // F09: When "Registry" is selected, show RegistryBrowserView instead of DashboardView
-            if selectedSidebarItem == .registry {
+            if selectedSidebarItem == .globalSync {
+                if let globalSyncManager {
+                    GlobalSkillSourceList(manager: globalSyncManager)
+                        .navigationSplitViewColumnWidth(min: 280, ideal: 340, max: 480)
+                }
+            } else if selectedSidebarItem == .projects {
+                if let projectManager {
+                    ProjectTargetList(manager: projectManager)
+                        .navigationSplitViewColumnWidth(min: 280, ideal: 340, max: 480)
+                }
+            } else if selectedSidebarItem == .registry {
                 // F09: Registry browser — browse and search skills.sh catalog
                 if let vm = registryVM {
                     RegistryBrowserView(viewModel: vm)
@@ -71,7 +88,19 @@ struct ContentView: View {
             }
         } detail: {
             // Right column: detail view varies based on sidebar selection
-            if selectedSidebarItem == .registry {
+            if selectedSidebarItem == .globalSync {
+                if let globalSyncManager {
+                    ProjectSyncDetail(manager: globalSyncManager)
+                } else {
+                    EmptyStateView(icon: "link", title: "全局同步", subtitle: "正在准备全局同步管理器")
+                }
+            } else if selectedSidebarItem == .projects {
+                if let projectManager {
+                    ProjectSyncDetail(manager: projectManager)
+                } else {
+                    EmptyStateView(icon: "folder", title: "项目", subtitle: "正在准备项目管理器")
+                }
+            } else if selectedSidebarItem == .registry {
                 // F09: Show registry skill detail when a registry skill is selected
                 if let vm = registryVM, let skill = vm.selectedSkill {
                     RegistrySkillDetailView(
@@ -117,6 +146,12 @@ struct ContentView: View {
         .task {
             dashboardVM = DashboardViewModel(skillManager: skillManager)
             detailVM = SkillDetailViewModel(skillManager: skillManager)
+            let manager = ProjectManager()
+            manager.reload()
+            projectManager = manager
+            let globalManager = ProjectManager(fixedProject: ManagedProject(rootPath: NSHomeDirectory(), displayName: "全局技能", usesConfiguredGlobalSource: true))
+            globalManager.reload()
+            globalSyncManager = globalManager
             // F09: Initialize registry browser ViewModel
             registryVM = RegistryBrowserViewModel(skillManager: skillManager)
             clawHubVM = ClawHubBrowserViewModel(skillManager: skillManager)

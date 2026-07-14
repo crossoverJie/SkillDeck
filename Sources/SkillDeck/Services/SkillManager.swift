@@ -125,7 +125,7 @@ final class SkillManager {
 
     private let scanner = SkillScanner()
     private let detector = AgentDetector()
-    private let lockFileManager = LockFileManager()
+    private var lockFileManager = LockFileManager()
     private let watcher = FileSystemWatcher()
     /// Application self-update checker (GitHub Release check, download, install)
     private let updateChecker = UpdateChecker()
@@ -133,7 +133,7 @@ final class SkillManager {
     private let gitService = GitService()
     /// F12: SkillDeck private commit hash cache, independent of .skill-lock.json
     /// Stored in ~/.agents/.skilldeck-cache.json, doesn't pollute npx skills' lock file format
-    private let commitHashCache = CommitHashCache()
+    private var commitHashCache = CommitHashCache()
 
     private let translationService = TranslationService()
 
@@ -154,6 +154,15 @@ final class SkillManager {
 
     init() {
         setupFileWatcher()
+    }
+
+    /// Recreate services that persist beside the configured canonical skills directory.
+    /// Actor instances retain their file URL at initialization, so changing the setting must replace
+    /// them before refresh rather than continuing to use the previous directory's metadata files.
+    func reloadConfiguredStorage() async {
+        lockFileManager = LockFileManager()
+        commitHashCache = CommitHashCache()
+        await refresh()
     }
 
     /// Translate a short English paragraph into Simplified Chinese (zh-CN).
@@ -306,38 +315,21 @@ final class SkillManager {
 
     // MARK: - F04: Skill Deletion
 
-    /// Delete a skill
-    ///
-    /// Deletion flow:
-    /// 1. Remove direct installation symlinks from all Agents (skip inherited installations)
-    /// 2. Delete canonical directory (actual files)
-    /// 3. Update lock file
-    /// 4. Refresh data
-    ///
-    /// Inherited installation symlinks don't need separate deletion: they point to symlinks in the source Agent directory,
-    /// and the source Agent's symlink will be deleted in step 1; even if not deleted, after the canonical directory is removed
-    /// they become dangling symlinks, which don't affect functionality
+    /// Delete a skill from the configured canonical directory and remove its lock entry.
+    /// Whole-directory links remain valid because they point at the containing directory, not this skill.
     func deleteSkill(_ skill: Skill) async throws {
-        // 1. Remove all direct installation symlinks (skip inherited installations)
-        for installation in skill.installations where installation.isSymlink && !installation.isInherited {
-            try SymlinkManager.removeSymlink(
-                skillName: skill.id,
-                from: installation.agentType
-            )
-        }
-
-        // 2. Delete canonical directory
+        // 1. Delete canonical directory
         let fm = FileManager.default
         if fm.fileExists(atPath: skill.canonicalURL.path) {
             try fm.removeItem(at: skill.canonicalURL)
         }
 
-        // 3. Update lock file (if there's a record)
+        // 2. Update lock file (if there's a record)
         if skill.lockEntry != nil {
             try await lockFileManager.removeEntry(skillName: skill.id)
         }
 
-        // 4. Refresh list
+        // 3. Refresh list
         await refresh()
     }
 
@@ -351,79 +343,26 @@ final class SkillManager {
         await refresh()
     }
 
-    // MARK: - F06: Agent Assignment (Toggle Symlink)
-
-    /// Install skill to specified Agent (create symlink)
-    func assignSkill(_ skill: Skill, to agent: AgentType) async throws {
-        try SymlinkManager.createSymlink(from: skill.canonicalURL, to: agent)
-        await refresh()
-    }
-
-    /// Uninstall skill from specified Agent (delete symlink)
-    func unassignSkill(_ skill: Skill, from agent: AgentType) async throws {
-        print("[SkillManager] unassignSkill called for \(skill.id) from \(agent.displayName)")
-        try SymlinkManager.removeSymlink(skillName: skill.id, from: agent)
-        print("[SkillManager] unassignSkill: symlink removed, refreshing...")
-        await refresh()
-        print("[SkillManager] unassignSkill: refresh completed")
-    }
-
-    /// Toggle skill installation status on specified Agent
-    ///
-    /// Protection logic: if inherited installation (isInherited), return directly without any operation
-    /// This is Service layer defense - even if UI layer disables Toggle, it ensures inherited installations won't be mistakenly operated
-    func toggleAssignment(_ skill: Skill, agent: AgentType) async throws {
-        // Get latest skill data from self.skills to ensure we have current installations
-        let latestSkill = self.skills.first { $0.id == skill.id } ?? skill
-
-        let installation = latestSkill.installations.first { $0.agentType == agent }
-
-        // Protection: inherited installations cannot be toggled (inherited installations are managed by source Agent)
-        // For Codex: reading from ~/.agents/skills/ is not truly "inherited" - it's native support
-        let isTrulyInherited: Bool = {
-            guard let installation = installation else { return false }
-            if agent == .codex && installation.inheritedFrom == .codex {
-                return false
-            }
-            return installation.isInherited
-        }()
-        if isTrulyInherited {
-            print("[SkillManager] toggleAssignment blocked: truly inherited installation")
-            return
-        }
-
-        let isInstalled = installation != nil
-        print("[SkillManager] toggleAssignment: agent=\(agent.displayName), isInstalled=\(isInstalled)")
-        if isInstalled {
-            try await unassignSkill(latestSkill, from: agent)
-        } else {
-            try await assignSkill(latestSkill, to: agent)
-        }
-    }
-
     // MARK: - F10: One-Click Install
 
     /// Install skill from cloned repository to local
     ///
     /// Installation flow:
     /// 1. Get tree hash (for lock file recording, subsequent update detection)
-    /// 2. Copy files to canonical directory (~/.agents/skills/<name>/)
-    /// 3. Create symlinks for selected Agents (skip Codex as it shares canonical directory)
-    /// 4. Create/update lock file entry
-    /// 5. Refresh UI
+    /// 2. Copy files to the configured canonical directory (<global-skills>/<name>/)
+    /// 3. Create/update lock file entry
+    /// 4. Refresh UI
     ///
     /// - Parameters:
     ///   - repoDir: Local temporary directory of cloned repository
     ///   - skill: Skill info to install (from GitService.scanSkillsInRepo)
     ///   - repoSource: Repository source identifier (e.g. "vercel-labs/skills", for lock file)
     ///   - repoURL: Full repository URL (e.g. "https://github.com/vercel-labs/skills.git")
-    ///   - targetAgents: Set of Agents to install to
     func installSkill(
         from repoDir: URL,
         skill: GitService.DiscoveredSkill,
         repoSource: String,
-        repoURL: String,
-        targetAgents: Set<AgentType>
+        repoURL: String
     ) async throws {
         // 1. Get tree hash (git rev-parse HEAD:<folderPath>)
         let treeHash = try await gitService.getTreeHash(for: skill.folderPath, in: repoDir)
@@ -458,7 +397,6 @@ final class SkillManager {
         try await persistInstalledSkillDirectory(
             from: sourceDir,
             skillName: skill.id,
-            targetAgents: targetAgents,
             lockEntry: entry
         )
     }
@@ -469,10 +407,9 @@ final class SkillManager {
     ///
     /// Flow:
     /// 1. Validate the source directory exists and contains a parseable SKILL.md
-    /// 2. Copy the entire directory to canonical path (~/.agents/skills/<skillName>/)
-    /// 3. Create symlinks for selected Agents
-    /// 4. Update lock file with sourceType "local" and source = original directory path
-    /// 5. Refresh UI
+    /// 2. Copy the entire directory to the configured canonical path (<global-skills>/<skillName>/)
+    /// 3. Update lock file with sourceType "local" and source = original directory path
+    /// 4. Refresh UI
     ///
     /// Unlike installSkill (GitHub-based), local imports have no git hash or remote URL.
     /// The lock entry uses sourceType "local" so that checkAllUpdates() can skip them
@@ -481,11 +418,9 @@ final class SkillManager {
     /// - Parameters:
     ///   - sourceURL: Local directory URL containing SKILL.md
     ///   - skillName: Name for the skill (typically the directory name)
-    ///   - targetAgents: Set of Agents to create symlinks for
     func importLocalSkill(
         from sourceURL: URL,
-        skillName: String,
-        targetAgents: Set<AgentType>
+        skillName: String
     ) async throws {
         let fm = FileManager.default
 
@@ -523,23 +458,21 @@ final class SkillManager {
         try await persistInstalledSkillDirectory(
             from: sourceURL,
             skillName: skillName,
-            targetAgents: targetAgents,
             lockEntry: entry
         )
     }
 
-    /// Install a skill fetched from ClawHub into the canonical directory, then expose it to OpenClaw.
+    /// Install a skill fetched from ClawHub into the canonical directory.
     ///
     /// We intentionally do not shell out to `clawhub install`. SkillDeck keeps its own canonical
-    /// storage model (`~/.agents/skills`) and only creates the OpenClaw symlink after the files are
-    /// safely persisted locally. This keeps installation behavior consistent with the rest of the app.
+    /// storage model (the configured global skills directory). Whole-directory synchronization exposes it to OpenClaw
+    /// and every other configured tool after the files are safely persisted locally.
     func installClawHubSkill(
         slug: String,
         version: String,
         detailPageURL: String,
         skillContent: String?,
-        archiveData: Data?,
-        targetAgents: Set<AgentType>
+        archiveData: Data?
     ) async throws -> ClawHubInstallResult {
         let fm = FileManager.default
         let tempRoot = fm.temporaryDirectory.appendingPathComponent("SkillDeck-ClawHub-\(UUID().uuidString)")
@@ -569,7 +502,6 @@ final class SkillManager {
                     try await persistInstalledSkillDirectory(
                         from: extractedSkillDir,
                         skillName: slug,
-                        targetAgents: targetAgents,
                         lockEntry: entry
                     )
                     return .installedFromArchive
@@ -599,7 +531,6 @@ final class SkillManager {
         try await persistInstalledSkillDirectory(
             from: markdownOnlyDir,
             skillName: slug,
-            targetAgents: targetAgents,
             lockEntry: entry
         )
         return .installedSkillMarkdownOnly
@@ -951,13 +882,11 @@ final class SkillManager {
 
     /// Shared persistence helper used by GitHub installs, local imports, and ClawHub installs.
     ///
-    /// The source directory is copied into SkillDeck's canonical storage first, then symlinks are
-    /// created for each selected Agent. Keeping that order matters because Agent directories should
-    /// always point at a fully materialized canonical directory rather than a temporary location.
+    /// The source directory is copied into SkillDeck's canonical storage. Agent directories are
+    /// synchronized separately as whole-directory links, never as per-skill links.
     private func persistInstalledSkillDirectory(
         from sourceURL: URL,
         skillName: String,
-        targetAgents: Set<AgentType>,
         lockEntry: LockEntry
     ) async throws {
         let fm = FileManager.default
@@ -1030,10 +959,6 @@ final class SkillManager {
 
         if let error = lastError {
             throw ImportError.directoryNotFound("Failed to copy skill files after \(maxCopyAttempts) attempts: \(error.localizedDescription)")
-        }
-
-        for agent in targetAgents {
-            try? SymlinkManager.createSymlink(from: canonicalDir, to: agent)
         }
 
         try await lockFileManager.createIfNotExists()
