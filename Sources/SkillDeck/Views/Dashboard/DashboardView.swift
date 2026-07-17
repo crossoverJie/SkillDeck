@@ -17,40 +17,59 @@ struct DashboardView: View {
     @Environment(\.locale) private var locale
 
     var body: some View {
-        Group {
-            if skillManager.isLoading && skillManager.skills.isEmpty {
-                // Show progress indicator on first load
-                ProgressView("Scanning skills...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.filteredItems.isEmpty {
-                // Empty state
-                EmptyStateView(
-                    icon: "magnifyingglass",
-                    title: "No Skills Found",
-                    subtitle: viewModel.searchText.isEmpty
-                        ? "Install skills using npx skills add or the CLI"
-                        : "No skills match your search"
-                )
-            } else {
-                // Skill list
-                List(viewModel.filteredItems, selection: $selectedSkillID) { item in
-                    SkillRowView(skill: item.skill, projectName: projectName(for: item))
-                        .tag(item.id)
-                        // contextMenu is macOS's right-click menu
-                        .contextMenu {
-                            Button("Open in Finder") {
-                                NSWorkspace.shared.selectFile(
-                                    nil,
-                                    inFileViewerRootedAtPath: item.skill.canonicalURL.path
-                                )
-                            }
-                            Divider()  // Menu separator
-                            Button("禁用") {
-                                viewModel.requestDisable(item: item)
-                            }
-                        }
+        VStack(spacing: 0) {
+            // This content-level action stays visible even when the toolbar overflows or disabling
+            // the final active skill leaves the dashboard in its empty state.
+            if !viewModel.disabledSkills.isEmpty {
+                HStack {
+                    Button {
+                        viewModel.showsDisabledSkills = true
+                    } label: {
+                        Label("已禁用技能（\(viewModel.disabledSkills.count)）", systemImage: "archivebox")
+                    }
+                    .buttonStyle(.bordered)
+                    Spacer()
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(.bar)
+            }
+
+            Group {
+                if skillManager.isLoading && skillManager.skills.isEmpty {
+                    // Show progress indicator on first load
+                    ProgressView("Scanning skills...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if viewModel.filteredItems.isEmpty {
+                    // Empty state
+                    EmptyStateView(
+                        icon: "magnifyingglass",
+                        title: "No Skills Found",
+                        subtitle: viewModel.searchText.isEmpty
+                            ? "Install skills using npx skills add or the CLI"
+                            : "No skills match your search"
+                    )
+                } else {
+                    // Skill list
+                    List(viewModel.filteredItems, selection: $selectedSkillID) { item in
+                        SkillRowView(skill: item.skill, projectName: projectName(for: item))
+                            .tag(item.id)
+                            // contextMenu is macOS's right-click menu
+                            .contextMenu {
+                                Button("Open in Finder") {
+                                    NSWorkspace.shared.selectFile(
+                                        nil,
+                                        inFileViewerRootedAtPath: item.skill.canonicalURL.path
+                                    )
+                                }
+                                Divider()  // Menu separator
+                                Button("禁用") {
+                                    viewModel.requestDisable(item: item)
+                                }
+                            }
+                    }
+                    .listStyle(.inset(alternatesRowBackgrounds: true))
+                }
             }
         }
         .navigationTitle(navigationTitle)
@@ -144,7 +163,7 @@ struct DashboardView: View {
                 .help("查看并恢复已禁用的技能")
             }
         }
-        // Delete confirmation dialog
+        // Disable confirmation dialog
         // .alert similar to Android's AlertDialog or Web's confirm()
         .alert("禁用技能", isPresented: $viewModel.showDisableConfirmation) {
             Button("Cancel", role: .cancel) {
