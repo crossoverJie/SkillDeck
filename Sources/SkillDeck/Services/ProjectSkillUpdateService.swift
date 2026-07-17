@@ -12,9 +12,11 @@ actor ProjectSkillUpdateService {
     private let sourceRoot: URL
     private let lockFileManager: LockFileManager
     private let gitService = GitService()
+    private let disabledSkillStore: DisabledSkillStore
 
-    init(sourceRoot: URL) {
+    init(sourceRoot: URL, disabledSkillStore: DisabledSkillStore = DisabledSkillStore()) {
         self.sourceRoot = sourceRoot
+        self.disabledSkillStore = disabledSkillStore
         let agentsRoot = sourceRoot.deletingLastPathComponent()
         self.lockFileManager = LockFileManager(filePath: agentsRoot.appendingPathComponent(".skill-lock.json"))
     }
@@ -90,17 +92,10 @@ actor ProjectSkillUpdateService {
         return try await loadSkill(named: skill.id, at: skill.canonicalURL)
     }
 
-    /// Deletes only this project's source skill directory and its project-local lock entry.
-    /// The service owns `sourceRoot`, so a dashboard action cannot remove a same-named global skill.
-    func deleteSkill(named name: String) async throws {
-        let directory = sourceRoot.appendingPathComponent(name)
-        let fileManager = FileManager.default
-        if fileManager.fileExists(atPath: directory.path) {
-            try fileManager.removeItem(at: directory)
-        }
-        if await lockFileManager.exists {
-            try await lockFileManager.removeEntry(skillName: name)
-        }
+    /// Moves a project skill into the home-level archive without writing archive files into the project.
+    /// The project lock entry is intentionally retained so repository metadata works after restoration.
+    func disableSkill(_ skill: Skill, projectName: String) throws {
+        _ = try disabledSkillStore.disable(skill: skill, projectName: projectName)
     }
 
     private func lockEntry(for skillName: String) async -> LockEntry? {

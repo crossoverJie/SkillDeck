@@ -43,14 +43,18 @@ final class DashboardViewModel {
     /// Currently selected skill (used for navigation to detail page)
     var selectedSkillID: String?
 
-    /// Whether to show delete confirmation dialog
-    var showDeleteConfirmation = false
+    /// Whether to show disable confirmation dialog
+    var showDisableConfirmation = false
 
-    /// Dashboard row pending deletion. Its origin determines which storage scope is modified.
-    var itemToDelete: DashboardSkillItem?
+    /// Dashboard row pending disablement. Its origin determines which storage scope is modified.
+    var itemToDisable: DashboardSkillItem?
 
     /// Project skills are loaded independently because their lock file is scoped to each project.
     var projectItems: [DashboardSkillItem] = []
+
+    /// Reversible archive records shown from the dashboard toolbar.
+    var disabledSkills: [DisabledSkillRecord] = []
+    var showsDisabledSkills = false
 
     /// Sort direction enum
     /// Swift enums can conform to multiple protocols:
@@ -116,6 +120,28 @@ final class DashboardViewModel {
         projectItems = items
     }
 
+    /// Reloads the shared archive index; the archive is outside project directories by design.
+    func reloadDisabledSkills() {
+        do {
+            disabledSkills = try DisabledSkillStore().records()
+        } catch {
+            skillManager.errorMessage = "读取已禁用技能失败：\(error.localizedDescription)"
+        }
+    }
+
+    /// Restores the archived directory to its original global or project source and refreshes both lists.
+    func restoreDisabledSkill(_ record: DisabledSkillRecord) async {
+        do {
+            try DisabledSkillStore().restore(record)
+            await skillManager.refresh()
+            projectManager.reload()
+            await reloadProjectSkills()
+            reloadDisabledSkills()
+        } catch {
+            skillManager.errorMessage = error.localizedDescription
+        }
+    }
+
     /// Calculates the list of skills to display based on current search, filter, and sort conditions
     /// Computed property: dynamically calculated on each access, similar to Java getter
     var filteredItems: [DashboardSkillItem] {
@@ -172,35 +198,36 @@ final class DashboardViewModel {
         filteredItems.first { $0.id == id } ?? (skillManager.skills.map { DashboardSkillItem(skill: $0, origin: .global) } + projectItems).first { $0.id == id }
     }
 
-    /// Requests skill deletion (shows confirmation dialog first)
-    func requestDelete(item: DashboardSkillItem) {
-        itemToDelete = item
-        showDeleteConfirmation = true
+    /// Requests reversible skill disablement (shows confirmation dialog first).
+    func requestDisable(item: DashboardSkillItem) {
+        itemToDisable = item
+        showDisableConfirmation = true
     }
 
-    /// Confirms deletion
+    /// Confirms disablement
     func confirmDelete() async {
-        guard let item = itemToDelete else { return }
+        guard let item = itemToDisable else { return }
         do {
             switch item.origin {
             case .global:
-                try await skillManager.deleteSkill(item.skill)
+                try await skillManager.disableSkill(item.skill)
             case .project(let projectSkill):
                 let service = ProjectSkillUpdateService(sourceRoot: projectSkill.row.sourceURL.deletingLastPathComponent())
-                try await service.deleteSkill(named: projectSkill.row.name)
+                try await service.disableSkill(item.skill, projectName: projectSkill.project.name)
                 projectManager.reload()
                 await reloadProjectSkills()
             }
+            reloadDisabledSkills()
         } catch {
-            skillManager.errorMessage = "Delete failed: \(error.localizedDescription)"
+            skillManager.errorMessage = "禁用技能失败：\(error.localizedDescription)"
         }
-        itemToDelete = nil
-        showDeleteConfirmation = false
+        itemToDisable = nil
+        showDisableConfirmation = false
     }
 
-    /// Cancels deletion
+    /// Cancels disablement
     func cancelDelete() {
-        itemToDelete = nil
-        showDeleteConfirmation = false
+        itemToDisable = nil
+        showDisableConfirmation = false
     }
 }

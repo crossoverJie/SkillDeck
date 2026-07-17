@@ -313,23 +313,12 @@ final class SkillManager {
         watcher.startWatching(paths: paths)
     }
 
-    // MARK: - F04: Skill Deletion
+    // MARK: - F04: Skill Disablement
 
-    /// Delete a skill from the configured canonical directory and remove its lock entry.
-    /// Whole-directory links remain valid because they point at the containing directory, not this skill.
-    func deleteSkill(_ skill: Skill) async throws {
-        // 1. Delete canonical directory
-        let fm = FileManager.default
-        if fm.fileExists(atPath: skill.canonicalURL.path) {
-            try fm.removeItem(at: skill.canonicalURL)
-        }
-
-        // 2. Update lock file (if there's a record)
-        if skill.lockEntry != nil {
-            try await lockFileManager.removeEntry(skillName: skill.id)
-        }
-
-        // 3. Refresh list
+    /// Disables a skill by moving it to the central reversible archive. Lock metadata stays intact,
+    /// so restoring the directory also restores its repository update information and symlink targets.
+    func disableSkill(_ skill: Skill) async throws {
+        _ = try DisabledSkillStore().disable(skill: skill)
         await refresh()
     }
 

@@ -6,11 +6,13 @@ final class ProjectSkillUpdateServiceTests: XCTestCase {
     private var projectRoot: URL!
     private var sourceRoot: URL!
     private var skillDirectory: URL!
+    private var archiveRoot: URL!
 
     override func setUpWithError() throws {
         projectRoot = FileManager.default.temporaryDirectory.appendingPathComponent("SkillDeckProjectUpdate-\(UUID().uuidString)")
         sourceRoot = projectRoot.appendingPathComponent(".agents/skills")
         skillDirectory = sourceRoot.appendingPathComponent("demo")
+        archiveRoot = projectRoot.appendingPathComponent("archive")
         try FileManager.default.createDirectory(at: skillDirectory, withIntermediateDirectories: true)
         try "---\nname: Demo\ndescription: Project test\n---\n\n# Demo\n".write(
             to: skillDirectory.appendingPathComponent("SKILL.md"),
@@ -38,7 +40,7 @@ final class ProjectSkillUpdateServiceTests: XCTestCase {
         )
         try await lockManager.updateEntry(skillName: "demo", entry: expectedEntry)
 
-        let service = ProjectSkillUpdateService(sourceRoot: sourceRoot)
+        let service = ProjectSkillUpdateService(sourceRoot: sourceRoot, disabledSkillStore: DisabledSkillStore(root: archiveRoot))
         let skill = try await service.loadSkill(named: "demo", at: skillDirectory)
 
         XCTAssertEqual(skill.canonicalURL, skillDirectory)
@@ -50,7 +52,7 @@ final class ProjectSkillUpdateServiceTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: projectLockURL.path))
     }
 
-    func testDeleteRemovesOnlyProjectSkillAndProjectLockEntry() async throws {
+    func testDisableMovesOnlyProjectSkillAndKeepsProjectLockEntry() async throws {
         let secondSkill = sourceRoot.appendingPathComponent("keep")
         try FileManager.default.createDirectory(at: secondSkill, withIntermediateDirectories: true)
         try "---\nname: Keep\n---\n".write(to: secondSkill.appendingPathComponent("SKILL.md"), atomically: true, encoding: .utf8)
@@ -61,15 +63,16 @@ final class ProjectSkillUpdateServiceTests: XCTestCase {
         try await lockManager.updateEntry(skillName: "demo", entry: entry)
         try await lockManager.updateEntry(skillName: "keep", entry: entry)
 
-        let service = ProjectSkillUpdateService(sourceRoot: sourceRoot)
-        try await service.deleteSkill(named: "demo")
+        let service = ProjectSkillUpdateService(sourceRoot: sourceRoot, disabledSkillStore: DisabledSkillStore(root: archiveRoot))
+        let skill = try await service.loadSkill(named: "demo", at: skillDirectory)
+        try await service.disableSkill(skill, projectName: "Test Project")
 
         await lockManager.invalidateCache()
         let deletedEntry = try await lockManager.getEntry(skillName: "demo")
         let retainedEntry = try await lockManager.getEntry(skillName: "keep")
         XCTAssertFalse(FileManager.default.fileExists(atPath: skillDirectory.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: secondSkill.path))
-        XCTAssertNil(deletedEntry)
+        XCTAssertEqual(deletedEntry, entry)
         XCTAssertEqual(retainedEntry, entry)
     }
 }

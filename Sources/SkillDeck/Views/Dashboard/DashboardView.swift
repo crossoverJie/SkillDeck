@@ -45,8 +45,8 @@ struct DashboardView: View {
                                 )
                             }
                             Divider()  // Menu separator
-                            Button("Delete", role: .destructive) {
-                                viewModel.requestDelete(item: item)
+                            Button("禁用") {
+                                viewModel.requestDisable(item: item)
                             }
                         }
                 }
@@ -57,6 +57,7 @@ struct DashboardView: View {
         // Project changes refresh the source-skill rows without waiting for an app relaunch.
         .task(id: viewModel.projectRevision) {
             await viewModel.reloadProjectSkills()
+            viewModel.reloadDisabledSkills()
         }
         // Search bar (macOS standard search field, displayed in toolbar)
         .searchable(text: $viewModel.searchText, prompt: "Search skills...")
@@ -132,20 +133,33 @@ struct DashboardView: View {
                     }
                 }
             }
+
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    viewModel.reloadDisabledSkills()
+                    viewModel.showsDisabledSkills = true
+                } label: {
+                    Label("已禁用技能", systemImage: "archivebox")
+                }
+                .help("查看并恢复已禁用的技能")
+            }
         }
         // Delete confirmation dialog
         // .alert similar to Android's AlertDialog or Web's confirm()
-        .alert("Delete Skill", isPresented: $viewModel.showDeleteConfirmation) {
+        .alert("禁用技能", isPresented: $viewModel.showDisableConfirmation) {
             Button("Cancel", role: .cancel) {
                 viewModel.cancelDelete()
             }
-            Button("Delete", role: .destructive) {
+            Button("禁用") {
                 Task { await viewModel.confirmDelete() }
             }
         } message: {
-            if let item = viewModel.itemToDelete {
-                Text("Are you sure you want to delete \"\(item.skill.displayName)\"? This action cannot be undone.")
+            if let item = viewModel.itemToDisable {
+                Text("\"\(item.skill.displayName)\" 会移至 ~/.agents/.skilldeck-disabled，不会删除；可从“已禁用技能”恢复。")
             }
+        }
+        .sheet(isPresented: $viewModel.showsDisabledSkills) {
+            DisabledSkillsSheet(viewModel: viewModel)
         }
         // Error message
         .overlay(alignment: .bottom) {
