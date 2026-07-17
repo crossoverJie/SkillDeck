@@ -90,6 +90,19 @@ actor ProjectSkillUpdateService {
         return try await loadSkill(named: skill.id, at: skill.canonicalURL)
     }
 
+    /// Deletes only this project's source skill directory and its project-local lock entry.
+    /// The service owns `sourceRoot`, so a dashboard action cannot remove a same-named global skill.
+    func deleteSkill(named name: String) async throws {
+        let directory = sourceRoot.appendingPathComponent(name)
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: directory.path) {
+            try fileManager.removeItem(at: directory)
+        }
+        if await lockFileManager.exists {
+            try await lockFileManager.removeEntry(skillName: name)
+        }
+    }
+
     private func lockEntry(for skillName: String) async -> LockEntry? {
         await lockFileManager.invalidateCache()
         guard await lockFileManager.exists else { return nil }

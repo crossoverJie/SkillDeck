@@ -132,8 +132,23 @@ struct ContentView: View {
                         subtitle: L10n.string(L10nKeys.emptySelectSkillSubtitleClawHub, bundle: localizationBundle, locale: locale)
                     )
                 }
-            } else if let skillID = selectedSkillID, let vm = detailVM {
-                SkillDetailView(skillID: skillID, viewModel: vm)
+            } else if let itemID = selectedSkillID, let dashboardVM {
+                if let item = dashboardVM.item(id: itemID) {
+                    switch item.origin {
+                    case .global:
+                        if let detailVM {
+                            SkillDetailView(skillID: item.skill.id, viewModel: detailVM)
+                        }
+                    case .project(let projectSkill):
+                        ProjectSkillDetailView(row: projectSkill.row)
+                    }
+                } else {
+                    EmptyStateView(
+                        icon: "square.stack.3d.up",
+                        title: L10n.string(L10nKeys.emptySelectSkillTitle, bundle: localizationBundle, locale: locale),
+                        subtitle: L10n.string(L10nKeys.emptySelectSkillSubtitleList, bundle: localizationBundle, locale: locale)
+                    )
+                }
             } else {
                 EmptyStateView(
                     icon: "square.stack.3d.up",
@@ -144,11 +159,11 @@ struct ContentView: View {
         }
         // .task executes async task when View first appears (similar to React's useEffect([], ...))
         .task {
-            dashboardVM = DashboardViewModel(skillManager: skillManager)
-            detailVM = SkillDetailViewModel(skillManager: skillManager)
             let manager = ProjectManager()
             manager.reload()
             projectManager = manager
+            dashboardVM = DashboardViewModel(skillManager: skillManager, projectManager: manager)
+            detailVM = SkillDetailViewModel(skillManager: skillManager)
             let globalManager = ProjectManager(fixedProject: ManagedProject(rootPath: NSHomeDirectory(), displayName: "全局技能", usesConfiguredGlobalSource: true))
             globalManager.reload()
             globalSyncManager = globalManager

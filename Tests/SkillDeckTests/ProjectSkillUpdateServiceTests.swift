@@ -49,4 +49,27 @@ final class ProjectSkillUpdateServiceTests: XCTestCase {
         XCTAssertEqual(skill.lockEntry, expectedEntry)
         XCTAssertTrue(FileManager.default.fileExists(atPath: projectLockURL.path))
     }
+
+    func testDeleteRemovesOnlyProjectSkillAndProjectLockEntry() async throws {
+        let secondSkill = sourceRoot.appendingPathComponent("keep")
+        try FileManager.default.createDirectory(at: secondSkill, withIntermediateDirectories: true)
+        try "---\nname: Keep\n---\n".write(to: secondSkill.appendingPathComponent("SKILL.md"), atomically: true, encoding: .utf8)
+
+        let lockManager = LockFileManager(filePath: projectRoot.appendingPathComponent(".agents/.skill-lock.json"))
+        try await lockManager.createIfNotExists()
+        let entry = LockEntry(source: "owner/repository", sourceType: "github", sourceUrl: "https://github.com/owner/repository.git", skillPath: "demo/SKILL.md", skillFolderHash: "hash", installedAt: "2026-07-14T00:00:00Z", updatedAt: "2026-07-14T00:00:00Z")
+        try await lockManager.updateEntry(skillName: "demo", entry: entry)
+        try await lockManager.updateEntry(skillName: "keep", entry: entry)
+
+        let service = ProjectSkillUpdateService(sourceRoot: sourceRoot)
+        try await service.deleteSkill(named: "demo")
+
+        await lockManager.invalidateCache()
+        let deletedEntry = try await lockManager.getEntry(skillName: "demo")
+        let retainedEntry = try await lockManager.getEntry(skillName: "keep")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: skillDirectory.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: secondSkill.path))
+        XCTAssertNil(deletedEntry)
+        XCTAssertEqual(retainedEntry, entry)
+    }
 }

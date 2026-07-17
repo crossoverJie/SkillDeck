@@ -105,6 +105,17 @@ struct ProjectSkillRow: Identifiable, Hashable {
     var id: String { targetURL.path }
 }
 
+/// Represents one canonical project skill in dashboard context. Project inspections contain one
+/// copy per AI tool target, so this wrapper keeps the project identity while exposing a single
+/// source directory to the dashboard.
+struct ProjectDashboardSkill: Identifiable {
+    let project: ManagedProject
+    let row: ProjectSkillRow
+
+    /// Absolute source paths remain unique when separate projects use the same skill folder name.
+    var id: String { row.sourceURL.standardizedFileURL.path }
+}
+
 struct ProjectInspection: Identifiable {
     let project: ManagedProject
     let agent: ProjectAgent
@@ -276,6 +287,8 @@ final class ProjectManager {
     var ruleApplyErrorMessage: String?
     var ruleApplyResultMessage: String?
     var logs: [String] = []
+    /// Changes whenever project filesystem inspection is refreshed, allowing dashboard data to reload.
+    var dashboardRevision = 0
 
     /// Project-local targets and global AI tools intentionally use different path resolvers.
     /// The global set is the sidebar's AgentType list; projects retain their local configuration paths.
@@ -316,6 +329,21 @@ final class ProjectManager {
     var selectedRuleInspections: [RuleInspection] { ruleInspections.filter { $0.project.id == selectedProjectID } }
     var linkedRuleCount: Int { selectedRuleInspections.filter { $0.state == .linked }.count }
 
+    /// Source skills are repeated once per configured AI tool in `inspections`. The dashboard needs
+    /// each project skill only once because opening or deleting it always acts on the source directory.
+    var dashboardSkills: [ProjectDashboardSkill] {
+        var seenSourcePaths = Set<String>()
+        var skills: [ProjectDashboardSkill] = []
+        for inspection in inspections {
+            for row in inspection.skills {
+                let sourcePath = row.sourceURL.standardizedFileURL.path
+                guard seenSourcePaths.insert(sourcePath).inserted else { continue }
+                skills.append(ProjectDashboardSkill(project: inspection.project, row: row))
+            }
+        }
+        return skills
+    }
+
     func addProject(_ url: URL) {
         guard fixedProject == nil else { return }
         let project = ManagedProject(rootPath: url.standardizedFileURL.path)
@@ -343,6 +371,7 @@ final class ProjectManager {
     func reload() {
         inspections = projects.flatMap { project in targets.map { filesystem.inspect(project: project, agent: $0) } }
         ruleInspections = projects.flatMap { ruleFileSystem.inspect(project: $0) }
+        dashboardRevision += 1
         log("已扫描 \(projects.count) 个项目")
     }
 

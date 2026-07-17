@@ -22,7 +22,7 @@ struct DashboardView: View {
                 // Show progress indicator on first load
                 ProgressView("Scanning skills...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.filteredSkills.isEmpty {
+            } else if viewModel.filteredItems.isEmpty {
                 // Empty state
                 EmptyStateView(
                     icon: "magnifyingglass",
@@ -33,20 +33,20 @@ struct DashboardView: View {
                 )
             } else {
                 // Skill list
-                List(viewModel.filteredSkills, selection: $selectedSkillID) { skill in
-                    SkillRowView(skill: skill)
-                        .tag(skill.id)
+                List(viewModel.filteredItems, selection: $selectedSkillID) { item in
+                    SkillRowView(skill: item.skill, projectName: projectName(for: item))
+                        .tag(item.id)
                         // contextMenu is macOS's right-click menu
                         .contextMenu {
                             Button("Open in Finder") {
                                 NSWorkspace.shared.selectFile(
                                     nil,
-                                    inFileViewerRootedAtPath: skill.canonicalURL.path
+                                    inFileViewerRootedAtPath: item.skill.canonicalURL.path
                                 )
                             }
                             Divider()  // Menu separator
                             Button("Delete", role: .destructive) {
-                                viewModel.requestDelete(skill: skill)
+                                viewModel.requestDelete(item: item)
                             }
                         }
                 }
@@ -54,6 +54,10 @@ struct DashboardView: View {
             }
         }
         .navigationTitle(navigationTitle)
+        // Project changes refresh the source-skill rows without waiting for an app relaunch.
+        .task(id: viewModel.projectRevision) {
+            await viewModel.reloadProjectSkills()
+        }
         // Search bar (macOS standard search field, displayed in toolbar)
         .searchable(text: $viewModel.searchText, prompt: "Search skills...")
         // Toolbar: sorting and filtering
@@ -139,8 +143,8 @@ struct DashboardView: View {
                 Task { await viewModel.confirmDelete() }
             }
         } message: {
-            if let skill = viewModel.skillToDelete {
-                Text("Are you sure you want to delete \"\(skill.displayName)\"? This will remove the skill directory and all symlinks. This action cannot be undone.")
+            if let item = viewModel.itemToDelete {
+                Text("Are you sure you want to delete \"\(item.skill.displayName)\"? This action cannot be undone.")
             }
         }
         // Error message
@@ -168,6 +172,11 @@ struct DashboardView: View {
             return agent.displayName
         }
         return "All Skills"
+    }
+
+    private func projectName(for item: DashboardSkillItem) -> String? {
+        guard case .project(let projectSkill) = item.origin else { return nil }
+        return projectSkill.project.name
     }
 
     private var languageBadge: String {

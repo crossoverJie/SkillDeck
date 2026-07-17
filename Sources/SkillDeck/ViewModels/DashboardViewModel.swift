@@ -1,5 +1,20 @@
 import Foundation
 
+/// A dashboard row may originate from the configured global store or a specific project store.
+/// `Skill.id` alone is not sufficient here because different projects can legitimately use the
+/// same directory name, so identity is based on the canonical filesystem path.
+struct DashboardSkillItem: Identifiable {
+    enum Origin {
+        case global
+        case project(ProjectDashboardSkill)
+    }
+
+    let skill: Skill
+    let origin: Origin
+
+    var id: String { skill.canonicalURL.standardizedFileURL.path }
+}
+
 /// DashboardViewModel manages the state and interaction logic for the Dashboard page
 ///
 /// In the MVVM architecture, the ViewModel acts as a bridge between View and Model:
@@ -31,8 +46,11 @@ final class DashboardViewModel {
     /// Whether to show delete confirmation dialog
     var showDeleteConfirmation = false
 
-    /// Skill pending deletion
-    var skillToDelete: Skill?
+    /// Dashboard row pending deletion. Its origin determines which storage scope is modified.
+    var itemToDelete: DashboardSkillItem?
+
+    /// Project skills are loaded independently because their lock file is scoped to each project.
+    var projectItems: [DashboardSkillItem] = []
 
     /// Sort direction enum
     /// Swift enums can conform to multiple protocols:
@@ -75,25 +93,49 @@ final class DashboardViewModel {
 
     /// Reference to global SkillManager (dependency injection)
     let skillManager: SkillManager
+    let projectManager: ProjectManager
 
-    init(skillManager: SkillManager) {
+    init(skillManager: SkillManager, projectManager: ProjectManager) {
         self.skillManager = skillManager
+        self.projectManager = projectManager
+    }
+
+    /// Exposes the project's revision as a SwiftUI task dependency without duplicating state.
+    var projectRevision: Int { projectManager.dashboardRevision }
+
+    /// Reads project source skills after ProjectManager has removed per-agent duplicates.
+    func reloadProjectSkills() async {
+        var items: [DashboardSkillItem] = []
+        for projectSkill in projectManager.dashboardSkills {
+            let service = ProjectSkillUpdateService(sourceRoot: projectSkill.row.sourceURL.deletingLastPathComponent())
+            guard let skill = try? await service.loadSkill(named: projectSkill.row.name, at: projectSkill.row.sourceURL) else {
+                continue
+            }
+            items.append(DashboardSkillItem(skill: skill, origin: .project(projectSkill)))
+        }
+        projectItems = items
     }
 
     /// Calculates the list of skills to display based on current search, filter, and sort conditions
     /// Computed property: dynamically calculated on each access, similar to Java getter
-    var filteredSkills: [Skill] {
-        var result = skillManager.skills
+    var filteredItems: [DashboardSkillItem] {
+        var result = skillManager.skills.map { DashboardSkillItem(skill: $0, origin: .global) } + projectItems
 
         // 1. Search filtering
         if !searchText.isEmpty {
-            result = skillManager.search(query: searchText)
+            let query = searchText.lowercased()
+            result = result.filter { item in
+                item.skill.displayName.lowercased().contains(query)
+                    || item.skill.metadata.description.lowercased().contains(query)
+                    || item.skill.id.lowercased().contains(query)
+            }
         }
 
         // 2. Agent filtering
         if let agent = selectedAgentFilter {
-            result = result.filter { skill in
-                skill.installations.contains { $0.agentType == agent }
+            result = result.filter { item in
+                guard case .global = item.origin else { return false }
+                return item.skill.installations.contains { $0.agentType == agent }
             }
         }
 
@@ -104,48 +146,61 @@ final class DashboardViewModel {
         case .name:
             result.sort {
                 ascending
-                    ? $0.displayName.lowercased() < $1.displayName.lowercased()
-                    : $0.displayName.lowercased() > $1.displayName.lowercased()
+                    ? $0.skill.displayName.lowercased() < $1.skill.displayName.lowercased()
+                    : $0.skill.displayName.lowercased() > $1.skill.displayName.lowercased()
             }
         case .scope:
             result.sort {
                 ascending
-                    ? $0.scope.displayName < $1.scope.displayName
-                    : $0.scope.displayName > $1.scope.displayName
+                    ? $0.skill.scope.displayName < $1.skill.scope.displayName
+                    : $0.skill.scope.displayName > $1.skill.scope.displayName
             }
         case .agent:
             // Agent Count defaults to descending (most first) for better visibility
             result.sort {
                 ascending
-                    ? $0.installations.count < $1.installations.count
-                    : $0.installations.count > $1.installations.count
+                    ? $0.skill.installations.count < $1.skill.installations.count
+                    : $0.skill.installations.count > $1.skill.installations.count
             }
         }
 
         return result
     }
 
+    /// Finds the selected row by its path-based ID, avoiding collisions between same-named skills.
+    func item(id: String) -> DashboardSkillItem? {
+        filteredItems.first { $0.id == id } ?? (skillManager.skills.map { DashboardSkillItem(skill: $0, origin: .global) } + projectItems).first { $0.id == id }
+    }
+
     /// Requests skill deletion (shows confirmation dialog first)
-    func requestDelete(skill: Skill) {
-        skillToDelete = skill
+    func requestDelete(item: DashboardSkillItem) {
+        itemToDelete = item
         showDeleteConfirmation = true
     }
 
     /// Confirms deletion
     func confirmDelete() async {
-        guard let skill = skillToDelete else { return }
+        guard let item = itemToDelete else { return }
         do {
-            try await skillManager.deleteSkill(skill)
+            switch item.origin {
+            case .global:
+                try await skillManager.deleteSkill(item.skill)
+            case .project(let projectSkill):
+                let service = ProjectSkillUpdateService(sourceRoot: projectSkill.row.sourceURL.deletingLastPathComponent())
+                try await service.deleteSkill(named: projectSkill.row.name)
+                projectManager.reload()
+                await reloadProjectSkills()
+            }
         } catch {
             skillManager.errorMessage = "Delete failed: \(error.localizedDescription)"
         }
-        skillToDelete = nil
+        itemToDelete = nil
         showDeleteConfirmation = false
     }
 
     /// Cancels deletion
     func cancelDelete() {
-        skillToDelete = nil
+        itemToDelete = nil
         showDeleteConfirmation = false
     }
 }
