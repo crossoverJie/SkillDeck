@@ -35,6 +35,30 @@ struct DashboardView: View {
                 .background(.bar)
             }
 
+            // Segmented controls are the native compact control for mutually exclusive display modes.
+            Picker("技能范围", selection: $viewModel.scopeFilter) {
+                ForEach(DashboardScopeFilter.allCases) { filter in
+                    Text(filter.title).tag(filter)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            if viewModel.scopeFilter == .project {
+                Picker("项目", selection: $viewModel.selectedProjectFilterID) {
+                    Text("全部项目").tag(String?.none)
+                    ForEach(viewModel.projectManager.projects) { project in
+                        Text(project.name).tag(Optional(project.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            }
+
             Group {
                 if skillManager.isLoading && skillManager.skills.isEmpty {
                     // Show progress indicator on first load

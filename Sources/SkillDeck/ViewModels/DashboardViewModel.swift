@@ -15,6 +15,38 @@ struct DashboardSkillItem: Identifiable {
     var id: String { skill.canonicalURL.standardizedFileURL.path }
 }
 
+/// Controls whether the dashboard shows all active skills or only one storage scope.
+/// This is separate from the Agent sidebar filter because a project skill is shared by project
+/// configuration directories rather than installed into one user-level Agent directory.
+enum DashboardScopeFilter: CaseIterable, Identifiable {
+    case all
+    case global
+    case project
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .all: "全部"
+        case .global: "全局"
+        case .project: "项目"
+        }
+    }
+
+    func includes(_ skill: Skill) -> Bool {
+        switch self {
+        case .all:
+            return true
+        case .global:
+            if case .sharedGlobal = skill.scope { return true }
+            return false
+        case .project:
+            if case .project = skill.scope { return true }
+            return false
+        }
+    }
+}
+
 /// DashboardViewModel manages the state and interaction logic for the Dashboard page
 ///
 /// In the MVVM architecture, the ViewModel acts as a bridge between View and Model:
@@ -33,6 +65,12 @@ final class DashboardViewModel {
 
     /// Currently selected Agent filter (nil means show all)
     var selectedAgentFilter: AgentType?
+
+    /// Storage scope filter displayed above the dashboard list.
+    var scopeFilter: DashboardScopeFilter = .all
+
+    /// Optional project identity used only while the project scope filter is active.
+    var selectedProjectFilterID: String?
 
     /// Sort order
     var sortOrder: SortOrder = .name
@@ -147,7 +185,17 @@ final class DashboardViewModel {
     var filteredItems: [DashboardSkillItem] {
         var result = skillManager.skills.map { DashboardSkillItem(skill: $0, origin: .global) } + projectItems
 
-        // 1. Search filtering
+        // 1. Scope filtering
+        result = result.filter { scopeFilter.includes($0.skill) }
+
+        if scopeFilter == .project, let selectedProjectFilterID {
+            result = result.filter { item in
+                guard case .project(let projectSkill) = item.origin else { return false }
+                return projectSkill.project.id == selectedProjectFilterID
+            }
+        }
+
+        // 2. Search filtering
         if !searchText.isEmpty {
             let query = searchText.lowercased()
             result = result.filter { item in
@@ -157,7 +205,7 @@ final class DashboardViewModel {
             }
         }
 
-        // 2. Agent filtering
+        // 3. Agent filtering
         if let agent = selectedAgentFilter {
             result = result.filter { item in
                 guard case .global = item.origin else { return false }
@@ -165,7 +213,7 @@ final class DashboardViewModel {
             }
         }
 
-        // 3. Sorting (ascending or descending based on sort direction)
+        // 4. Sorting (ascending or descending based on sort direction)
         // In Swift closures, $0 and $1 are anonymous parameters, similar to Kotlin's it
         let ascending = sortDirection == .ascending
         switch sortOrder {
