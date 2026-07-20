@@ -11,7 +11,7 @@ struct DisabledSkillsSheet: View {
         NavigationStack {
             Group {
                 if viewModel.disabledSkills.isEmpty {
-                    ContentUnavailableView("没有已禁用技能", systemImage: "archivebox")
+                    ContentUnavailableView(L10n.currentString(L10nKeys.dashboardDisabledEmpty), systemImage: "archivebox")
                 } else {
                     List(viewModel.disabledSkills) { record in
                         HStack(spacing: 12) {
@@ -26,7 +26,7 @@ struct DisabledSkillsSheet: View {
                                     .lineLimit(1)
                             }
                             Spacer()
-                            Button("恢复") {
+                            Button(L10n.currentString(L10nKeys.dashboardRestore)) {
                                 Task { await viewModel.restoreDisabledSkill(record) }
                             }
                             .buttonStyle(.borderedProminent)
@@ -35,10 +35,10 @@ struct DisabledSkillsSheet: View {
                     }
                 }
             }
-            .navigationTitle("已禁用技能")
+            .navigationTitle(L10n.currentString(L10nKeys.dashboardDisabledTitle))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") { dismiss() }
+                    Button(L10n.currentString(L10nKeys.commonClose)) { dismiss() }
                 }
             }
         }

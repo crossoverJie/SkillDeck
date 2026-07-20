@@ -98,7 +98,7 @@ enum DisabledSkillStoreError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .restoreDestinationExists(let path):
-            return "无法恢复，原位置已有技能：\(path)"
+            return L10n.currentFormat(L10nKeys.dashboardRestoreConflict, path)
         }
     }
 }

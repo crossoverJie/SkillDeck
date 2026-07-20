@@ -92,13 +92,13 @@ struct ContentView: View {
                 if let globalSyncManager {
                     ProjectSyncDetail(manager: globalSyncManager)
                 } else {
-                    EmptyStateView(icon: "link", title: "全局同步", subtitle: "正在准备全局同步管理器")
+                    EmptyStateView(icon: "link", title: L10n.string(L10nKeys.sidebarGlobalSync, bundle: localizationBundle, locale: locale), subtitle: L10n.string(L10nKeys.contentPreparingGlobalSync, bundle: localizationBundle, locale: locale))
                 }
             } else if selectedSidebarItem == .projects {
                 if let projectManager {
                     ProjectSyncDetail(manager: projectManager)
                 } else {
-                    EmptyStateView(icon: "folder", title: "项目", subtitle: "正在准备项目管理器")
+                    EmptyStateView(icon: "folder", title: L10n.string(L10nKeys.sidebarProjects, bundle: localizationBundle, locale: locale), subtitle: L10n.string(L10nKeys.contentPreparingProjects, bundle: localizationBundle, locale: locale))
                 }
             } else if selectedSidebarItem == .registry {
                 // F09: Show registry skill detail when a registry skill is selected
@@ -164,7 +164,7 @@ struct ContentView: View {
             projectManager = manager
             dashboardVM = DashboardViewModel(skillManager: skillManager, projectManager: manager)
             detailVM = SkillDetailViewModel(skillManager: skillManager)
-            let globalManager = ProjectManager(fixedProject: ManagedProject(rootPath: NSHomeDirectory(), displayName: "全局技能", usesConfiguredGlobalSource: true))
+            let globalManager = ProjectManager(fixedProject: ManagedProject(rootPath: NSHomeDirectory(), usesConfiguredGlobalSource: true))
             globalManager.reload()
             globalSyncManager = globalManager
             // F09: Initialize registry browser ViewModel

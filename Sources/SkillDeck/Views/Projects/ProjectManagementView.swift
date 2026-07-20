@@ -10,20 +10,20 @@ struct ProjectTargetList: View {
         Group {
             if manager.projects.isEmpty {
                 ContentUnavailableView(
-                    "尚未添加项目",
+                    L10n.currentString(L10nKeys.projectsEmptyTitle),
                     systemImage: "folder.badge.plus",
-                    description: Text("添加一个项目根目录后，SkillDeck 只会扫描其直接下的 .agents/skills。")
+                    description: Text(L10n.currentString(L10nKeys.projectsEmptyDescription))
                 )
             } else {
                 List(manager.projects, selection: $manager.selectedProjectID) { project in
                     ProjectRow(project: project, manager: manager)
                         .tag(Optional(project.id))
                         .contextMenu {
-                            Button("在 Finder 中显示") {
+                            Button(L10n.currentString(L10nKeys.commonShowInFinder)) {
                                 NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: project.rootPath)
                             }
                             Divider()
-                            Button("移除项目", role: .destructive) {
+                            Button(L10n.currentString(L10nKeys.projectsRemove), role: .destructive) {
                                 manager.remove(projectID: project.id)
                             }
                         }
@@ -31,17 +31,17 @@ struct ProjectTargetList: View {
                 .listStyle(.inset(alternatesRowBackgrounds: true))
             }
         }
-        .navigationTitle("项目")
+        .navigationTitle(L10n.currentString(L10nKeys.projectsTitle))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(action: chooseProject) {
                     Image(systemName: "plus")
                 }
-                .help("添加项目")
+                .help(L10n.currentString(L10nKeys.projectsAdd))
             }
             ToolbarItem {
                 Button { manager.reload() } label: { Image(systemName: "arrow.clockwise") }
-                    .help("重新扫描项目")
+                    .help(L10n.currentString(L10nKeys.projectsRescan))
             }
         }
         .onChange(of: manager.selectedProjectID) { _, projectID in
@@ -54,7 +54,7 @@ struct ProjectTargetList: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.message = "选择项目根目录"
+        panel.message = L10n.currentString(L10nKeys.projectsChooseRoot)
         if panel.runModal() == .OK, let url = panel.url {
             manager.addProject(url)
         }
@@ -86,7 +86,7 @@ private struct ProjectRow: View {
                 Label(project.name, systemImage: "folder")
                     .appFont(.headline)
                 Spacer()
-                Text("\(sourceCount) 个技能")
+                Text(L10n.currentFormat(L10nKeys.projectsSkillCount, sourceCount))
                     .appFont(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -94,7 +94,7 @@ private struct ProjectRow: View {
                 .appFont(.caption)
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)
-            Label("\(fullySyncedTargets)/\(manager.targets.count) 个工具已完全同步", systemImage: "link")
+            Label(L10n.currentFormat(L10nKeys.projectsSyncedToolsCount, fullySyncedTargets, manager.targets.count), systemImage: "link")
                 .appFont(.caption)
                 .foregroundStyle(fullySyncedTargets == manager.targets.count && sourceCount > 0 ? .green : .secondary)
         }
@@ -143,7 +143,7 @@ struct ProjectSyncDetail: View {
                 }
             }
         } else {
-            ContentUnavailableView("选择项目", systemImage: "folder", description: Text("在中间列表中选择一个项目，查看它的技能同步状态。"))
+            ContentUnavailableView(L10n.currentString(L10nKeys.projectsSelectTitle), systemImage: "folder", description: Text(L10n.currentString(L10nKeys.projectsSelectDescription)))
         }
     }
 
@@ -151,7 +151,7 @@ struct ProjectSyncDetail: View {
         VStack(alignment: .leading, spacing: 5) {
             Text(project.name).appFont(.title2).fontWeight(.bold)
             Text(project.rootURL.tildeAbbreviatedPath).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-            Text("源：\(project.sourceSkillsURL.tildeAbbreviatedPath)").appFont(.caption).foregroundStyle(.tertiary).textSelection(.enabled)
+            Text(L10n.currentFormat(L10nKeys.commonSourcePath, project.sourceSkillsURL.tildeAbbreviatedPath)).appFont(.caption).foregroundStyle(.tertiary).textSelection(.enabled)
         }
         .padding()
     }
@@ -161,10 +161,10 @@ struct ProjectSyncDetail: View {
     private func rulesSection(_ project: ManagedProject) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Label("统一规则", systemImage: "doc.text")
+                Label(L10n.currentString(L10nKeys.projectsRulesTitle), systemImage: "doc.text")
                     .appFont(.headline)
                 Spacer()
-                Text("\(manager.linkedRuleCount)/\(manager.selectedRuleInspections.count) 已同步")
+                Text(L10n.currentFormat(L10nKeys.projectsRulesSyncedCount, manager.linkedRuleCount, manager.selectedRuleInspections.count))
                     .appFont(.caption)
                     .foregroundStyle(manager.linkedRuleCount == manager.selectedRuleInspections.count && manager.hasSelectedRulesSource ? .green : .secondary)
             }
@@ -181,14 +181,14 @@ struct ProjectSyncDetail: View {
                     } label: {
                         Image(systemName: "pencil")
                     }
-                    .help("编辑统一规则")
+                    .help(L10n.currentString(L10nKeys.projectsRulesEdit))
 
-                    Button("同步全部规则") { manager.previewRuleSyncAll() }
+                    Button(L10n.currentString(L10nKeys.projectsRulesSyncAll)) { manager.previewRuleSyncAll() }
                         .buttonStyle(.borderedProminent)
-                    Button("移除规则链接", role: .destructive) { manager.previewRuleRemoval() }
+                    Button(L10n.currentString(L10nKeys.projectsRulesRemove), role: .destructive) { manager.previewRuleRemoval() }
                         .disabled(manager.linkedRuleCount == 0)
                 } else {
-                    Button("新建统一规则") { manager.createRulesSource() }
+                    Button(L10n.currentString(L10nKeys.projectsRulesCreate)) { manager.createRulesSource() }
                         .buttonStyle(.borderedProminent)
                 }
             }
@@ -231,15 +231,15 @@ struct ProjectSyncDetail: View {
     private func skillsContent(_ inspection: ProjectInspection) -> some View {
         if !inspection.targetIsAvailable {
             ContentUnavailableView(
-                "未检测到项目源技能",
+                L10n.currentString(L10nKeys.projectsSkillsMissingTitle),
                 systemImage: "folder.badge.questionmark",
-                description: Text("在项目 .agents/skills 下添加包含 SKILL.md 的技能后即可整体同步。")
+                description: Text(L10n.currentString(L10nKeys.projectsSkillsMissingDescription))
             )
         } else if inspection.skills.isEmpty {
             ContentUnavailableView(
-                "没有项目技能",
+                L10n.currentString(L10nKeys.projectsSkillsEmptyTitle),
                 systemImage: "square.stack.3d.up",
-                description: Text("在项目 .agents/skills 下添加包含 SKILL.md 的技能。")
+                description: Text(L10n.currentString(L10nKeys.projectsSkillsEmptyDescription))
             )
         } else {
             List(inspection.skills) { skill in
@@ -251,7 +251,7 @@ struct ProjectSyncDetail: View {
                             .foregroundStyle(.secondary)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(skill.name).appFont(.headline)
-                            Text(manager.isGlobalSync ? "全局源技能，点击查看和更新" : "项目技能，点击查看和更新")
+                            Text(L10n.currentString(manager.isGlobalSync ? L10nKeys.projectsSkillDetailGlobal : L10nKeys.projectsSkillDetailProject))
                                 .appFont(.caption)
                                 .foregroundStyle(.tertiary)
                         }
@@ -259,7 +259,7 @@ struct ProjectSyncDetail: View {
                         if !manager.isGlobalSync {
                             Image(systemName: "arrow.up.circle")
                                 .foregroundStyle(.secondary)
-                                .help("查看和更新项目技能")
+                                .help(L10n.currentString(L10nKeys.projectsSkillDetailHelp))
                         }
                         Image(systemName: "chevron.right")
                             .appFont(.caption)
@@ -275,13 +275,13 @@ struct ProjectSyncDetail: View {
 
     private func actionBar(_ inspection: ProjectInspection) -> some View {
         HStack {
-            Button("同步全部工具") { manager.previewSyncAll() }
+            Button(L10n.currentString(L10nKeys.projectsSyncAllTools)) { manager.previewSyncAll() }
                 .buttonStyle(.borderedProminent)
-            Button("同步整个 skills 目录") { manager.previewSync() }
-            Button("移除同步目录链接", role: .destructive) { manager.previewRemoval() }
+            Button(L10n.currentString(L10nKeys.projectsSyncDirectory)) { manager.previewSync() }
+            Button(L10n.currentString(L10nKeys.projectsRemoveDirectory), role: .destructive) { manager.previewRemoval() }
                 .disabled(!manager.canRemoveSelectedTarget)
             Spacer()
-            Text("源技能 \(inspection.skills.count) 项")
+            Text(L10n.currentFormat(L10nKeys.projectsSourceSkillCount, inspection.skills.count))
                 .appFont(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -300,13 +300,13 @@ private struct ProjectChangePreview: View {
     private var primaryActionLabel: String {
         if manager.changes.count > 1 {
             return manager.changes.contains(where: \.needsResolution)
-                ? "备份后同步 \(manager.changes.count) 个工具"
-                : "同步 \(manager.changes.count) 个工具"
+                ? L10n.currentFormat(L10nKeys.syncActionBackupAll, manager.changes.count)
+                : L10n.currentFormat(L10nKeys.syncActionAll, manager.changes.count)
         }
         return switch manager.changes.first?.kind {
-        case .replaceDirectory: "备份后整体替换"
-        case .removeDirectoryLink: "移除目录软链"
-        case .createDirectoryLink, nil: "创建目录软链"
+        case .replaceDirectory: L10n.currentString(L10nKeys.syncActionBackupReplace)
+        case .removeDirectoryLink: L10n.currentString(L10nKeys.syncActionRemoveLink)
+        case .createDirectoryLink, nil: L10n.currentString(L10nKeys.syncActionCreateLink)
         }
     }
 
@@ -314,20 +314,20 @@ private struct ProjectChangePreview: View {
         VStack(spacing: 0) {
             // This header matches the app's existing import sheets: compact title, close control, and a divider.
             HStack {
-                Text("项目同步变更").appFont(.headline)
+                Text(L10n.currentString(L10nKeys.projectsChangeTitle)).appFont(.headline)
                 Spacer()
                 Button { dismiss() } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("关闭")
+                .help(L10n.currentString(L10nKeys.commonClose))
             }
             .padding()
 
             Divider()
 
-            Text("同步会将每个目标 skills 目录指向：\(sourcePath)")
+            Text(L10n.currentFormat(L10nKeys.projectsChangeDestination, sourcePath))
                 .appFont(.subheadline)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -338,7 +338,7 @@ private struct ProjectChangePreview: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(change.kind.label)：\(change.targetRoot.tildeAbbreviatedPath)")
                             .appFont(.headline)
-                        Text("包含 \(change.skillNames.count) 个源技能")
+                        Text(L10n.currentFormat(L10nKeys.projectsChangeContainsSkills, change.skillNames.count))
                             .appFont(.caption)
                             .foregroundStyle(.secondary)
                         Text(change.summary).appFont(.caption).foregroundStyle(.secondary)
@@ -351,7 +351,7 @@ private struct ProjectChangePreview: View {
             Divider()
 
             HStack {
-                Button("取消") { dismiss() }
+                Button(L10n.currentString(L10nKeys.commonCancel)) { dismiss() }
                 Spacer()
                 Button(primaryActionLabel) {
                     manager.applyChanges(replacingExistingDirectory: manager.changes.contains(where: \.needsResolution))
@@ -361,21 +361,21 @@ private struct ProjectChangePreview: View {
             .padding()
         }
         .frame(minWidth: 560, idealWidth: 680, maxWidth: 820, minHeight: 320, maxHeight: 620)
-        .alert("同步失败", isPresented: Binding(
+        .alert(L10n.currentString(L10nKeys.projectsSyncFailed), isPresented: Binding(
             get: { manager.applyErrorMessage != nil },
             set: { if !$0 { manager.applyErrorMessage = nil } }
         )) {
-            Button("好", role: .cancel) {
+            Button(L10n.currentString(L10nKeys.commonOK), role: .cancel) {
                 manager.applyErrorMessage = nil
             }
         } message: {
             Text(manager.applyErrorMessage ?? "")
         }
-        .alert("同步结果", isPresented: Binding(
+        .alert(L10n.currentString(L10nKeys.projectsSyncResult), isPresented: Binding(
             get: { manager.applyResultMessage != nil },
             set: { if !$0 { manager.applyResultMessage = nil } }
         )) {
-            Button("完成") {
+            Button(L10n.currentString(L10nKeys.commonDone)) {
                 manager.finishApplyingChanges()
                 dismiss()
             }
@@ -393,29 +393,29 @@ private struct RuleChangePreview: View {
 
     private var primaryActionLabel: String {
         if manager.ruleChanges.contains(where: \.needsResolution) {
-            return "备份后同步 \(manager.ruleChanges.count) 条规则"
+            return L10n.currentFormat(L10nKeys.ruleActionBackup, manager.ruleChanges.count)
         }
         return manager.ruleChanges.first?.kind == .removeLink
-            ? "移除 \(manager.ruleChanges.count) 条规则链接"
-            : "同步 \(manager.ruleChanges.count) 条规则"
+            ? L10n.currentFormat(L10nKeys.ruleActionRemove, manager.ruleChanges.count)
+            : L10n.currentFormat(L10nKeys.ruleActionSync, manager.ruleChanges.count)
     }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("统一规则变更").appFont(.headline)
+                Text(L10n.currentString(L10nKeys.projectsRulesChangeTitle)).appFont(.headline)
                 Spacer()
                 Button { dismiss() } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("关闭")
+                .help(L10n.currentString(L10nKeys.commonClose))
             }
             .padding()
 
             Divider()
 
-            Text("所有目标规则将引用同一份 AGENTS.md；Cursor 使用可识别的 .mdc 包装规则。")
+            Text(L10n.currentString(L10nKeys.projectsRulesChangeDescription))
                 .appFont(.subheadline)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -439,7 +439,7 @@ private struct RuleChangePreview: View {
             Divider()
 
             HStack {
-                Button("取消") { dismiss() }
+                Button(L10n.currentString(L10nKeys.commonCancel)) { dismiss() }
                 Spacer()
                 Button(primaryActionLabel) {
                     manager.applyRuleChanges(replacingExistingRules: manager.ruleChanges.contains(where: \.needsResolution))
@@ -449,19 +449,19 @@ private struct RuleChangePreview: View {
             .padding()
         }
         .frame(minWidth: 560, idealWidth: 680, maxWidth: 820, minHeight: 320, maxHeight: 620)
-        .alert("规则同步失败", isPresented: Binding(
+        .alert(L10n.currentString(L10nKeys.projectsRulesFailed), isPresented: Binding(
             get: { manager.ruleApplyErrorMessage != nil },
             set: { if !$0 { manager.ruleApplyErrorMessage = nil } }
         )) {
-            Button("好", role: .cancel) { manager.ruleApplyErrorMessage = nil }
+            Button(L10n.currentString(L10nKeys.commonOK), role: .cancel) { manager.ruleApplyErrorMessage = nil }
         } message: {
             Text(manager.ruleApplyErrorMessage ?? "")
         }
-        .alert("规则同步结果", isPresented: Binding(
+        .alert(L10n.currentString(L10nKeys.projectsRulesResult), isPresented: Binding(
             get: { manager.ruleApplyResultMessage != nil },
             set: { if !$0 { manager.ruleApplyResultMessage = nil } }
         )) {
-            Button("完成") {
+            Button(L10n.currentString(L10nKeys.commonDone)) {
                 manager.finishApplyingRuleChanges()
                 dismiss()
             }

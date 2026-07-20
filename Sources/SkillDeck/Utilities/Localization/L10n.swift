@@ -12,6 +12,26 @@ import Foundation
 /// - This is an `enum` with only `static` members, used as a namespacing pattern.
 ///   Swift does not have packages in the Java sense, so this is a common way to group helpers.
 enum L10n {
+    /// Looks up a string using the app language preference outside SwiftUI views.
+    ///
+    /// Services cannot read SwiftUI's environment values, but sync plans and operation results
+    /// are still user-facing. Resolving the same preference here keeps those messages bilingual
+    /// without coupling filesystem code to SwiftUI.
+    static func currentString(_ key: String) -> String {
+        let rawLanguage = UserDefaults.standard.string(forKey: LanguageSettings.appLanguageKey)
+        let language = AppLanguage(rawValue: rawLanguage ?? LanguageSettings.defaultLanguage.rawValue) ?? LanguageSettings.defaultLanguage
+        let resolution = LocalizationResolver.resolve(language: language)
+        return string(key, bundle: resolution.bundle, locale: resolution.locale)
+    }
+
+    /// Formats a localized template with values while retaining the caller's active language.
+    static func currentFormat(_ key: String, _ arguments: CVarArg...) -> String {
+        let rawLanguage = UserDefaults.standard.string(forKey: LanguageSettings.appLanguageKey)
+        let language = AppLanguage(rawValue: rawLanguage ?? LanguageSettings.defaultLanguage.rawValue) ?? LanguageSettings.defaultLanguage
+        let resolution = LocalizationResolver.resolve(language: language)
+        return String(format: string(key, bundle: resolution.bundle, locale: resolution.locale), locale: resolution.locale, arguments: arguments)
+    }
+
     static func string(
         _ key: String,
         bundle: Bundle,

@@ -48,7 +48,7 @@ final class ProjectSkillDetailViewModel {
             remoteHash = nil
             hasUpdate = false
             errorMessage = nil
-            statusMessage = "已关联仓库，并已同步当前项目技能"
+            statusMessage = L10n.currentString(L10nKeys.projectDetailLinkedAndSynced)
         } catch {
             errorMessage = error.localizedDescription
             statusMessage = nil
@@ -64,7 +64,7 @@ final class ProjectSkillDetailViewModel {
             remoteHash = result.remoteHash
             hasUpdate = result.hasUpdate
             errorMessage = nil
-            statusMessage = result.hasUpdate ? "发现可用更新" : "当前已是最新版本"
+            statusMessage = L10n.currentString(result.hasUpdate ? L10nKeys.projectDetailUpdateAvailable : L10nKeys.projectDetailUpToDate)
         } catch {
             errorMessage = error.localizedDescription
             statusMessage = nil
@@ -80,7 +80,7 @@ final class ProjectSkillDetailViewModel {
             self.remoteHash = nil
             hasUpdate = false
             errorMessage = nil
-            statusMessage = "项目技能已更新到最新版本"
+            statusMessage = L10n.currentString(L10nKeys.projectDetailUpdated)
         } catch {
             errorMessage = error.localizedDescription
             statusMessage = nil

@@ -35,7 +35,7 @@ struct ProjectSkillDetailView: View {
                 ProgressView()
             } else {
                 ContentUnavailableView(
-                    "无法读取 SKILL.md",
+                    L10n.currentString(L10nKeys.projectDetailReadFailed),
                     systemImage: "exclamationmark.triangle",
                     description: Text(viewModel.errorMessage ?? row.sourceURL.path)
                 )
@@ -63,19 +63,19 @@ struct ProjectSkillDetailView: View {
     @ViewBuilder
     private func repositorySection(_ skill: Skill) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("项目更新").appFont(.headline)
+            Text(L10n.currentString(L10nKeys.projectDetailUpdate)).appFont(.headline)
             if let entry = skill.lockEntry {
                 Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
                     GridRow {
-                        Text("来源").foregroundStyle(.secondary)
+                        Text(L10n.currentString(L10nKeys.projectDetailSource)).foregroundStyle(.secondary)
                         Text(entry.source).textSelection(.enabled)
                     }
                     GridRow {
-                        Text("仓库").foregroundStyle(.secondary)
+                        Text(L10n.currentString(L10nKeys.projectDetailRepository)).foregroundStyle(.secondary)
                         Text(entry.sourceUrl).textSelection(.enabled)
                     }
                     GridRow {
-                        Text("更新于").foregroundStyle(.secondary)
+                        Text(L10n.currentString(L10nKeys.projectDetailUpdatedAt)).foregroundStyle(.secondary)
                         Text(entry.updatedAt.formattedDate)
                     }
                 }
@@ -86,13 +86,13 @@ struct ProjectSkillDetailView: View {
                         ProgressView().controlSize(.small)
                     }
                     if viewModel.hasUpdate {
-                        Label("发现更新", systemImage: "arrow.up.circle.fill")
+                        Label(L10n.currentString(L10nKeys.projectDetailUpdateFound), systemImage: "arrow.up.circle.fill")
                             .foregroundStyle(.orange)
-                        Button("更新") { Task { await viewModel.update() } }
+                        Button(L10n.currentString(L10nKeys.projectDetailUpdateNow)) { Task { await viewModel.update() } }
                             .buttonStyle(.borderedProminent)
                             .disabled(viewModel.isUpdating)
                     } else {
-                        Button("检查更新") { Task { await viewModel.checkForUpdate() } }
+                        Button(L10n.currentString(L10nKeys.projectDetailCheckUpdate)) { Task { await viewModel.checkForUpdate() } }
                             .disabled(viewModel.isChecking)
                     }
                 }
@@ -102,7 +102,7 @@ struct ProjectSkillDetailView: View {
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { Task { await viewModel.linkRepository() } }
                         .disabled(viewModel.isLinking)
-                    Button("关联仓库") { Task { await viewModel.linkRepository() } }
+                    Button(L10n.currentString(L10nKeys.projectDetailLinkRepository)) { Task { await viewModel.linkRepository() } }
                         .disabled(viewModel.repositoryInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isLinking)
                 }
             }
@@ -126,19 +126,19 @@ struct ProjectSkillDetailView: View {
             } label: {
                 Image(systemName: "folder")
             }
-            .help("在 Finder 中显示")
+            .help(L10n.currentString(L10nKeys.commonShowInFinder))
 
             Button { openInTerminal() } label: {
                 Image(systemName: "terminal")
             }
-            .help("在终端中打开")
+            .help(L10n.currentString(L10nKeys.projectDetailOpenTerminal))
 
             Button {
                 NSWorkspace.shared.open(row.sourceURL.appendingPathComponent("SKILL.md"))
             } label: {
                 Image(systemName: "pencil")
             }
-            .help("用默认编辑器打开 SKILL.md")
+            .help(L10n.currentString(L10nKeys.projectDetailOpenEditor))
         }
     }
 

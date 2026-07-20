@@ -27,9 +27,9 @@ enum DashboardScopeFilter: CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .all: "全部"
-        case .global: "全局"
-        case .project: "项目"
+        case .all: L10n.currentString(L10nKeys.dashboardAll)
+        case .global: L10n.currentString(L10nKeys.dashboardGlobal)
+        case .project: L10n.currentString(L10nKeys.dashboardProjectScope)
         }
     }
 
@@ -163,7 +163,7 @@ final class DashboardViewModel {
         do {
             disabledSkills = try DisabledSkillStore().records()
         } catch {
-            skillManager.errorMessage = "读取已禁用技能失败：\(error.localizedDescription)"
+            skillManager.errorMessage = L10n.currentFormat(L10nKeys.dashboardDisabledReadFailed, error.localizedDescription)
         }
     }
 
@@ -267,7 +267,7 @@ final class DashboardViewModel {
             }
             reloadDisabledSkills()
         } catch {
-            skillManager.errorMessage = "禁用技能失败：\(error.localizedDescription)"
+            skillManager.errorMessage = L10n.currentFormat(L10nKeys.dashboardDisableFailed, error.localizedDescription)
         }
         itemToDisable = nil
         showDisableConfirmation = false

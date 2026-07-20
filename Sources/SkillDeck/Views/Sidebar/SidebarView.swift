@@ -99,9 +99,9 @@ struct SidebarView: View {
 
                 sidebarRow(
                     item: .globalSync,
-                    accessibilityLabel: "全局同步"
+                    accessibilityLabel: L10n.string(L10nKeys.sidebarGlobalSync, bundle: localizationBundle, locale: locale)
                 ) {
-                    Label("全局同步", systemImage: "link")
+                    Label(L10n.string(L10nKeys.sidebarGlobalSync, bundle: localizationBundle, locale: locale), systemImage: "link")
                 }
                 .listRowBackground(
                     RoundedRectangle(cornerRadius: 6)
@@ -110,9 +110,9 @@ struct SidebarView: View {
 
                 sidebarRow(
                     item: .projects,
-                    accessibilityLabel: "项目"
+                    accessibilityLabel: L10n.string(L10nKeys.sidebarProjects, bundle: localizationBundle, locale: locale)
                 ) {
-                    Label("项目", systemImage: "folder")
+                    Label(L10n.string(L10nKeys.sidebarProjects, bundle: localizationBundle, locale: locale), systemImage: "folder")
                 }
                 .listRowBackground(
                     RoundedRectangle(cornerRadius: 6)

@@ -133,9 +133,9 @@ enum ProjectSkillUpdateError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .repositoryNotLinked:
-            return "请先关联 GitHub 仓库"
+            return L10n.currentString(L10nKeys.projectDetailLinkRequired)
         case .skillNotFoundInRepository(let name):
-            return "仓库中未找到技能：\(name)"
+            return L10n.currentFormat(L10nKeys.projectDetailNotFound, name)
         }
     }
 }

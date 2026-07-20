@@ -12,7 +12,18 @@ enum RuleTargetFormat: Equatable {
 /// global rules live in each tool's user configuration directory.
 struct RuleSyncTarget: Identifiable, Hashable {
     let id: String
-    let name: String
+    private let defaultName: String
+
+    /// Target display names are computed so they refresh with the app language instead of
+    /// being frozen when the static target registry is first initialized.
+    var name: String {
+        switch id {
+        case "codex": L10n.currentString(L10nKeys.ruleTargetCodex)
+        case "claude-rules": L10n.currentString(L10nKeys.ruleTargetClaudeDirectory)
+        case "cursor": L10n.currentString(L10nKeys.ruleTargetCursor)
+        default: defaultName
+        }
+    }
     let projectRelativePath: String
     let globalRelativePath: String
     let format: RuleTargetFormat
@@ -25,7 +36,7 @@ struct RuleSyncTarget: Identifiable, Hashable {
         format: RuleTargetFormat = .symbolicLink
     ) {
         self.id = id
-        self.name = name
+        self.defaultName = name
         self.projectRelativePath = projectRelativePath
         self.globalRelativePath = globalRelativePath
         self.format = format
@@ -41,13 +52,13 @@ struct RuleSyncTarget: Identifiable, Hashable {
     }
 
     static let all: [RuleSyncTarget] = [
-        .init(id: "codex", name: "Codex / 通用 Agent", projectRelativePath: "AGENTS.md", globalRelativePath: ".codex/AGENTS.md"),
+        .init(id: "codex", name: "Codex / Generic Agent", projectRelativePath: "AGENTS.md", globalRelativePath: ".codex/AGENTS.md"),
         .init(id: "claude", name: "Claude Code", projectRelativePath: "CLAUDE.md", globalRelativePath: ".claude/CLAUDE.md"),
         .init(id: "gemini", name: "Gemini CLI", projectRelativePath: "GEMINI.md", globalRelativePath: ".gemini/GEMINI.md"),
-        .init(id: "claude-rules", name: "Claude 规则目录", projectRelativePath: ".claude/rules/skilldeck.md", globalRelativePath: ".claude/rules/skilldeck.md"),
+        .init(id: "claude-rules", name: "Claude Rules Directory", projectRelativePath: ".claude/rules/skilldeck.md", globalRelativePath: ".claude/rules/skilldeck.md"),
         .init(id: "copilot", name: "GitHub Copilot", projectRelativePath: ".github/copilot-instructions.md", globalRelativePath: ""),
         .init(id: "kiro", name: "Kiro Steering", projectRelativePath: ".kiro/steering/skilldeck.md", globalRelativePath: ".kiro/steering/skilldeck.md"),
-        .init(id: "cursor", name: "Cursor 项目规则", projectRelativePath: ".cursor/rules/skilldeck.mdc", globalRelativePath: "", format: .cursorRule)
+        .init(id: "cursor", name: "Cursor Project Rules", projectRelativePath: ".cursor/rules/skilldeck.mdc", globalRelativePath: "", format: .cursorRule)
     ]
 }
 
@@ -56,11 +67,11 @@ enum RuleLinkState: String {
 
     var label: String {
         switch self {
-        case .linked: "已同步"
-        case .missing: "未同步"
-        case .broken: "失效软链"
-        case .foreignLink: "指向其他位置"
-        case .occupied: "已有规则文件"
+        case .linked: L10n.currentString(L10nKeys.syncStateLinked)
+        case .missing: L10n.currentString(L10nKeys.syncStateMissing)
+        case .broken: L10n.currentString(L10nKeys.syncStateBroken)
+        case .foreignLink: L10n.currentString(L10nKeys.syncStateForeignLink)
+        case .occupied: L10n.currentString(L10nKeys.syncStateOccupied)
         }
     }
 }
@@ -80,9 +91,9 @@ enum RuleChangeKind: String {
 
     var label: String {
         switch self {
-        case .createLink: "创建规则软链"
-        case .replaceItem: "备份后替换规则"
-        case .removeLink: "移除规则软链"
+        case .createLink: L10n.currentString(L10nKeys.ruleChangeCreate)
+        case .replaceItem: L10n.currentString(L10nKeys.ruleChangeReplace)
+        case .removeLink: L10n.currentString(L10nKeys.ruleChangeRemove)
         }
     }
 }
@@ -167,7 +178,7 @@ struct RuleSyncFileSystem {
                     target: inspection.target,
                     sourceURL: inspection.sourceURL,
                     targetURL: inspection.targetURL,
-                    summary: "已有规则文件或外部软链，备份后替换为统一规则。",
+                    summary: L10n.currentString(L10nKeys.ruleSummaryReplace),
                     needsResolution: true
                 )
             }
@@ -177,8 +188,8 @@ struct RuleSyncFileSystem {
                 sourceURL: inspection.sourceURL,
                 targetURL: inspection.targetURL,
                 summary: inspection.target.format == .cursorRule
-                    ? "创建 Cursor 规则文件，并引用统一的 AGENTS.md。"
-                    : "创建规则软链，指向统一的 AGENTS.md。",
+                    ? L10n.currentString(L10nKeys.ruleSummaryCursorCreate)
+                    : L10n.currentString(L10nKeys.ruleSummaryCreate),
                 needsResolution: false
             )
         }
@@ -192,7 +203,7 @@ struct RuleSyncFileSystem {
                 target: inspection.target,
                 sourceURL: inspection.sourceURL,
                 targetURL: inspection.targetURL,
-                summary: "只移除由 SkillDeck 创建的规则软链，不删除统一规则源。",
+                summary: L10n.currentString(L10nKeys.ruleSummaryRemove),
                 needsResolution: false
             )
         }
@@ -204,15 +215,15 @@ struct RuleSyncFileSystem {
             try fileManager.createDirectory(at: change.targetURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try writeTarget(for: change)
         case .replaceItem:
-            guard change.resolution == .backupAndReplace else { return "保留 \(change.target.name) 的现有规则" }
+            guard change.resolution == .backupAndReplace else { return L10n.currentFormat(L10nKeys.ruleResultKeep, change.target.name) }
             let backup = try backup(change.targetURL)
             try fileManager.createDirectory(at: change.targetURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try writeTarget(for: change)
-            return "\(change.target.name) 已备份到 \(backup.path)"
+            return L10n.currentFormat(L10nKeys.ruleResultBackup, change.target.name, backup.path)
         case .removeLink:
             try fileManager.removeItem(at: change.targetURL)
         }
-        return "已执行 \(change.kind.label)：\(change.target.name)"
+        return L10n.currentFormat(L10nKeys.ruleResultApplied, change.kind.label, change.target.name)
     }
 
     private func linkDestination(at url: URL) -> URL? {

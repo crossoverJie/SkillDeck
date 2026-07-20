@@ -25,7 +25,7 @@ struct DashboardView: View {
                     Button {
                         viewModel.showsDisabledSkills = true
                     } label: {
-                        Label("已禁用技能（\(viewModel.disabledSkills.count)）", systemImage: "archivebox")
+                        Label(L10n.currentFormat(L10nKeys.dashboardDisabledCount, viewModel.disabledSkills.count), systemImage: "archivebox")
                     }
                     .buttonStyle(.bordered)
                     Spacer()
@@ -36,7 +36,7 @@ struct DashboardView: View {
             }
 
             // Segmented controls are the native compact control for mutually exclusive display modes.
-            Picker("技能范围", selection: $viewModel.scopeFilter) {
+            Picker(L10n.currentString(L10nKeys.dashboardScope), selection: $viewModel.scopeFilter) {
                 ForEach(DashboardScopeFilter.allCases) { filter in
                     Text(filter.title).tag(filter)
                 }
@@ -47,8 +47,8 @@ struct DashboardView: View {
             .padding(.vertical, 8)
 
             if viewModel.scopeFilter == .project {
-                Picker("项目", selection: $viewModel.selectedProjectFilterID) {
-                    Text("全部项目").tag(String?.none)
+                Picker(L10n.currentString(L10nKeys.dashboardProject), selection: $viewModel.selectedProjectFilterID) {
+                    Text(L10n.currentString(L10nKeys.dashboardAllProjects)).tag(String?.none)
                     ForEach(viewModel.projectManager.projects) { project in
                         Text(project.name).tag(Optional(project.id))
                     }
@@ -87,7 +87,7 @@ struct DashboardView: View {
                                     )
                                 }
                                 Divider()  // Menu separator
-                                Button("禁用") {
+                                Button(L10n.currentString(L10nKeys.dashboardDisable)) {
                                     viewModel.requestDisable(item: item)
                                 }
                             }
@@ -182,23 +182,23 @@ struct DashboardView: View {
                     viewModel.reloadDisabledSkills()
                     viewModel.showsDisabledSkills = true
                 } label: {
-                    Label("已禁用技能", systemImage: "archivebox")
+                    Label(L10n.currentString(L10nKeys.dashboardDisabledTitle), systemImage: "archivebox")
                 }
-                .help("查看并恢复已禁用的技能")
+                .help(L10n.currentString(L10nKeys.dashboardDisabledHelp))
             }
         }
         // Disable confirmation dialog
         // .alert similar to Android's AlertDialog or Web's confirm()
-        .alert("禁用技能", isPresented: $viewModel.showDisableConfirmation) {
-            Button("Cancel", role: .cancel) {
+        .alert(L10n.currentString(L10nKeys.dashboardDisable), isPresented: $viewModel.showDisableConfirmation) {
+            Button(L10n.currentString(L10nKeys.commonCancel), role: .cancel) {
                 viewModel.cancelDelete()
             }
-            Button("禁用") {
+            Button(L10n.currentString(L10nKeys.dashboardDisable)) {
                 Task { await viewModel.confirmDelete() }
             }
         } message: {
             if let item = viewModel.itemToDisable {
-                Text("\"\(item.skill.displayName)\" 会移至 ~/.agents/.skilldeck-disabled，不会删除；可从“已禁用技能”恢复。")
+                Text(L10n.currentFormat(L10nKeys.dashboardDisableDescription, item.skill.displayName))
             }
         }
         .sheet(isPresented: $viewModel.showsDisabledSkills) {

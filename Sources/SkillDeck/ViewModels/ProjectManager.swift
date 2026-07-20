@@ -16,7 +16,13 @@ struct ManagedProject: Codable, Hashable, Identifiable {
 
     var id: String { rootPath }
     var rootURL: URL { URL(fileURLWithPath: rootPath) }
-    var name: String { displayName ?? rootURL.lastPathComponent }
+    /// The global source is a virtual project used only by the sync UI, so its display name
+    /// follows the current app language instead of exposing the user's home-folder name.
+    var name: String {
+        usesConfiguredGlobalSource == true
+            ? L10n.currentString(L10nKeys.sidebarGlobalSync)
+            : displayName ?? rootURL.lastPathComponent
+    }
     var sourceSkillsURL: URL {
         usesConfiguredGlobalSource == true ? SkillStorageSettings.globalSkillsURL : rootURL.appendingPathComponent(".agents/skills")
     }
@@ -82,13 +88,13 @@ enum ProjectSkillState: String {
 
     var label: String {
         switch self {
-        case .linked: "已同步"
-        case .directoryLinked: "整目录已同步"
-        case .missing: "未同步"
-        case .broken: "失效软链"
-        case .foreignLink: "指向其他位置"
-        case .occupied: "已有真实文件"
-        case .rootConflict: "目标目录冲突"
+        case .linked: L10n.currentString(L10nKeys.syncStateLinked)
+        case .directoryLinked: L10n.currentString(L10nKeys.syncStateDirectoryLinked)
+        case .missing: L10n.currentString(L10nKeys.syncStateMissing)
+        case .broken: L10n.currentString(L10nKeys.syncStateBroken)
+        case .foreignLink: L10n.currentString(L10nKeys.syncStateForeignLink)
+        case .occupied: L10n.currentString(L10nKeys.syncStateOccupied)
+        case .rootConflict: L10n.currentString(L10nKeys.syncStateRootConflict)
         }
     }
 
@@ -134,9 +140,9 @@ enum ProjectChangeKind: String {
     case createDirectoryLink, replaceDirectory, removeDirectoryLink
     var label: String {
         switch self {
-        case .createDirectoryLink: "创建目录软链"
-        case .replaceDirectory: "备份后整体替换"
-        case .removeDirectoryLink: "移除目录软链"
+        case .createDirectoryLink: L10n.currentString(L10nKeys.syncChangeCreateDirectory)
+        case .replaceDirectory: L10n.currentString(L10nKeys.syncChangeReplaceDirectory)
+        case .removeDirectoryLink: L10n.currentString(L10nKeys.syncChangeRemoveDirectory)
         }
     }
 }
@@ -215,9 +221,9 @@ struct ProjectSyncFileSystem {
         let skillNames = inspection.skills.map(\.name)
         if sameLocation(linkDestination(at: target) ?? target, source) { return [] }
         if fileManager.fileExists(atPath: target.path) || linkDestination(at: target) != nil {
-            return [.init(kind: .replaceDirectory, sourceRoot: source, targetRoot: target, skillNames: skillNames, summary: "目标 skills 目录已有内容。备份后将整个目录改为直接指向项目 .agents/skills。", needsResolution: true)]
+            return [.init(kind: .replaceDirectory, sourceRoot: source, targetRoot: target, skillNames: skillNames, summary: L10n.currentString(L10nKeys.syncSummaryReplaceDirectory), needsResolution: true)]
         }
-        return [.init(kind: .createDirectoryLink, sourceRoot: source, targetRoot: target, skillNames: skillNames, summary: "创建整个 skills 目录软链，直接指向项目 .agents/skills。", needsResolution: false)]
+        return [.init(kind: .createDirectoryLink, sourceRoot: source, targetRoot: target, skillNames: skillNames, summary: L10n.currentString(L10nKeys.syncSummaryCreateDirectory), needsResolution: false)]
     }
 
     /// Removal is only available for the full directory link owned by project sync.
@@ -226,7 +232,7 @@ struct ProjectSyncFileSystem {
               sameLocation(linkDestination(at: inspection.targetURL) ?? inspection.targetURL, inspection.project.sourceSkillsURL) else {
             return []
         }
-        return [.init(kind: .removeDirectoryLink, sourceRoot: inspection.project.sourceSkillsURL, targetRoot: inspection.targetURL, skillNames: inspection.skills.map(\.name), summary: "只移除目标目录软链，不删除项目源技能。", needsResolution: false)]
+        return [.init(kind: .removeDirectoryLink, sourceRoot: inspection.project.sourceSkillsURL, targetRoot: inspection.targetURL, skillNames: inspection.skills.map(\.name), summary: L10n.currentString(L10nKeys.syncSummaryRemoveDirectory), needsResolution: false)]
     }
 
     func apply(_ change: ProjectChange) throws -> String {
@@ -236,15 +242,15 @@ struct ProjectSyncFileSystem {
             try fileManager.createDirectory(at: change.targetRoot.deletingLastPathComponent(), withIntermediateDirectories: true)
             try fileManager.createSymbolicLink(at: change.targetRoot, withDestinationURL: change.sourceRoot)
         case .replaceDirectory:
-            guard change.resolution == .backupAndReplace else { return "保留目标 skills 目录" }
+            guard change.resolution == .backupAndReplace else { return L10n.currentString(L10nKeys.syncResultKeepDirectory) }
             let backup = try backup(change.targetRoot)
             try fileManager.createDirectory(at: change.targetRoot.deletingLastPathComponent(), withIntermediateDirectories: true)
             try fileManager.createSymbolicLink(at: change.targetRoot, withDestinationURL: change.sourceRoot)
-            return "已备份到 \(backup.path)"
+            return L10n.currentFormat(L10nKeys.syncResultBackup, backup.path)
         case .removeDirectoryLink:
             try fileManager.removeItem(at: change.targetRoot)
         }
-        return "已执行 \(change.kind.label)"
+        return L10n.currentFormat(L10nKeys.syncResultApplied, change.kind.label)
     }
 
     private func linkDestination(at url: URL) -> URL? {

@@ -13,7 +13,7 @@ struct GlobalSkillSourceList: View {
                     Label(source.name, systemImage: "tray.full")
                         .appFont(.headline)
                     Spacer()
-                    Text("\(sourceSkillCount) 个技能")
+                    Text(L10n.currentFormat(L10nKeys.projectsSkillCount, sourceSkillCount))
                         .appFont(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -21,7 +21,7 @@ struct GlobalSkillSourceList: View {
                     .appFont(.caption)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
-                Label("\(syncedTargetCount)/\(manager.targets.count) 个工具已整体同步", systemImage: "link")
+                Label(L10n.currentFormat(L10nKeys.projectsSyncedToolsCount, syncedTargetCount, manager.targets.count), systemImage: "link")
                     .appFont(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -29,11 +29,11 @@ struct GlobalSkillSourceList: View {
             .tag(Optional(source.id))
         }
         .listStyle(.inset(alternatesRowBackgrounds: true))
-        .navigationTitle("全局同步")
+        .navigationTitle(L10n.currentString(L10nKeys.sidebarGlobalSync))
         .toolbar {
             ToolbarItem {
                 Button { manager.reload() } label: { Image(systemName: "arrow.clockwise") }
-                    .help("重新扫描全局技能")
+                    .help(L10n.currentString(L10nKeys.globalSyncRescan))
             }
         }
         .onChange(of: manager.selectedProjectID) { _, projectID in
