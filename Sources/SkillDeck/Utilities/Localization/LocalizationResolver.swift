@@ -25,8 +25,7 @@ enum LocalizationResolver {
     ///   - `bundle` is the provided `baseBundle`
     /// - explicit language (e.g. `en`, `zh-Hans`):
     ///   - `locale` is `Locale(identifier: rawValue)` (deterministic override)
-    ///   - `bundle` is a language-specific `.lproj` bundle if present under `baseBundle`,
-    ///     otherwise it falls back to `baseBundle`
+    ///   - `bundle` remains `baseBundle`; `L10n.string` selects the matching `.lproj` inside it
     ///
     /// - Parameters:
     ///   - language: User preference.
@@ -46,19 +45,9 @@ enum LocalizationResolver {
         case .english, .simplifiedChinese:
             // Create a deterministic locale override.
             let locale = Locale(identifier: language.rawValue)
-
-            // Swift/iOS/macOS store localized resources under language folders:
-            //   <bundle>/<lang>.lproj/...
-            // If the `.lproj` exists we create a sub-bundle rooted at that directory.
-            // Otherwise we must safely fall back to the base bundle.
-            let candidates = [language.rawValue, language.rawValue.lowercased()]
-            for candidate in candidates {
-                if let lprojPath = baseBundle.path(forResource: candidate, ofType: "lproj"),
-                   let languageBundle = Bundle(path: lprojPath) {
-                    return Resolution(locale: locale, bundle: languageBundle)
-                }
-            }
-
+            // Keep the resource-root bundle in the SwiftUI environment. Passing an `.lproj`
+            // sub-bundle back into `L10n.string` makes a second language lookup depend on the
+            // system locale, so English overrides can incorrectly return Chinese resources.
             return Resolution(locale: locale, bundle: baseBundle)
         }
     }

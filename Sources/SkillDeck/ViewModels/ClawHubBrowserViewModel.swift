@@ -279,8 +279,7 @@ final class ClawHubBrowserViewModel {
                 version: version,
                 detailPageURL: skill.browserURL.absoluteString,
                 skillContent: skillContent,
-                archiveData: archiveData,
-                targetAgents: [.openClaw]
+                archiveData: archiveData
             )
 
             syncInstalledSkills()

@@ -69,20 +69,38 @@ struct GeneralSettingsView: View {
     /// State for OpenClaw custom skills directory path (for Docker/volume mount scenarios)
     @State private var openClawCustomPath: String = ""
     @State private var isUsingCustomOpenClawPath: Bool = false
+    @State private var globalSkillsPath: String = ""
 
     var body: some View {
         Form {
             Section {
                 LabeledContent {
-                    Text(Constants.sharedSkillsPath)
-                        .textSelection(.enabled)  // Allow users to select and copy
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Text(globalSkillsPath)
+                            .textSelection(.enabled)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+
+                        Button("浏览...") {
+                            selectGlobalSkillsDirectory()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+
+                        Button("恢复默认") {
+                            SkillStorageSettings.setGlobalSkillsPath(nil)
+                            globalSkillsPath = SkillStorageSettings.globalSkillsPath
+                            Task { await skillManager.reloadConfiguredStorage() }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
                 } label: {
                     LText(key: L10nKeys.settingsSectionPathsSharedSkills)
                 }
 
                 LabeledContent {
-                    Text(Constants.lockFilePath)
+                    Text(SkillStorageSettings.lockFileURL.tildeAbbreviatedPath)
                         .textSelection(.enabled)
                         .foregroundStyle(.secondary)
                 } label: {
@@ -187,6 +205,7 @@ struct GeneralSettingsView: View {
         .padding()
         .onAppear {
             loadOpenClawCustomPath()
+            globalSkillsPath = SkillStorageSettings.globalSkillsPath
         }
     }
 
@@ -223,7 +242,26 @@ struct GeneralSettingsView: View {
             openClawCustomPath = url.path
             AgentPathSettings.setCustomPath(url.path, for: .openClaw)
             // Trigger refresh to update skills from newly selected path
-            Task { await skillManager.refresh() }
+            Task { await skillManager.reloadConfiguredStorage() }
+        }
+    }
+
+    /// NSOpenPanel supplies a user-chosen directory while keeping the preference as an absolute path.
+    /// This avoids relying on shell expansion at every filesystem call.
+    private func selectGlobalSkillsDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.showsHiddenFiles = true
+        panel.message = "选择全局技能目录"
+        panel.prompt = "选择"
+        panel.directoryURL = SkillStorageSettings.globalSkillsURL
+
+        if panel.runModal() == .OK, let url = panel.url {
+            SkillStorageSettings.setGlobalSkillsPath(url.path)
+            globalSkillsPath = url.path
+            Task { await skillManager.reloadConfiguredStorage() }
         }
     }
 }

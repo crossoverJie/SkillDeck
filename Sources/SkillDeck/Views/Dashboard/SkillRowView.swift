@@ -2,10 +2,17 @@ import SwiftUI
 
 /// SkillRowView is the skill card for each row in the list
 ///
-/// Displays skill name, description, scope badge, and installed Agent icons
+/// Displays skill name, description, scope badge, and a compact installed Agent summary.
 struct SkillRowView: View {
 
     let skill: Skill
+    /// Project rows carry their source project name so same-named skills remain distinguishable.
+    let projectName: String?
+
+    init(skill: Skill, projectName: String? = nil) {
+        self.skill = skill
+        self.projectName = projectName
+    }
 
     /// Get SkillManager from environment for reading updateStatuses dictionary
     /// @Environment is SwiftUI's dependency injection mechanism (similar to Spring's @Autowired)
@@ -14,30 +21,44 @@ struct SkillRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // First row: name + badges
-            HStack {
-                Text(skill.displayName).appFont(.headline)
+            HStack(spacing: 6) {
+                Text(skill.displayName)
+                    .appFont(.headline)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .layoutPriority(1)
 
                 ScopeBadge(scope: skill.scope)
+                    .fixedSize()
 
                 // F12: Display different indicator icons based on update check status
                 updateStatusIndicator
 
-                Spacer()
+                Spacer(minLength: 4)
 
-                // Installed Agent icon row
-                // Use installations instead of installedAgents to get isTrulyInherited information
-                // Inherited installation icons have reduced opacity, hover tooltip shows source
-                HStack(spacing: 4) {
-                    ForEach(skill.installations) { installation in
-                        Image(systemName: installation.agentType.iconName).appFont(.caption)
-                            .foregroundStyle(Constants.AgentColors.color(for: installation.agentType))
-                            // Reduce opacity for inherited installation icons to visually distinguish from direct installations
-                            .opacity(installation.isTrulyInherited ? 0.4 : 1.0)
-                            // Hover tooltip: inherited installation shows "Copilot CLI (via ~/.claude/skills)"
-                            .help(installation.isTrulyInherited
-                                ? "\(installation.agentType.displayName) (via \(installation.parentDirectoryDisplayPath))"
-                                : installation.agentType.displayName)
+                // The dashboard column is intentionally narrow. Showing every installed agent here
+                // caused names and scope badges to wrap, so the row shows a stable three-icon preview.
+                if !skill.installations.isEmpty {
+                    HStack(spacing: 3) {
+                        ForEach(visibleInstallations) { installation in
+                            Image(systemName: installation.agentType.iconName).appFont(.caption)
+                                .foregroundStyle(Constants.AgentColors.color(for: installation.agentType))
+                                // Reduce opacity for inherited installation icons to visually distinguish from direct installations
+                                .opacity(installation.isTrulyInherited ? 0.4 : 1.0)
+                                // Hover tooltip: inherited installation shows "Copilot CLI (via ~/.claude/skills)"
+                                .help(installation.isTrulyInherited
+                                    ? "\(installation.agentType.displayName) (via \(installation.parentDirectoryDisplayPath))"
+                                    : installation.agentType.displayName)
+                        }
+                        if hiddenInstallationCount > 0 {
+                            Text("+\(hiddenInstallationCount)")
+                                .appFont(.caption2)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
                     }
+                    .fixedSize()
+                    .help(installationSummary)
                 }
             }
 
@@ -64,12 +85,37 @@ struct SkillRowView: View {
                     Label(lockEntry.source, systemImage: "link").appFont(.caption)
                         .foregroundStyle(.tertiary)
                 }
+
+                if let projectName {
+                    Label(projectName, systemImage: "folder")
+                        .appFont(.caption)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
             }
         }
         .padding(.vertical, 4)
     }
 
     // MARK: - Update Status Indicator
+
+    /// The list row previews a bounded number of agents; details still expose every installation.
+    private var visibleInstallations: ArraySlice<SkillInstallation> {
+        skill.installations.prefix(3)
+    }
+
+    private var hiddenInstallationCount: Int {
+        max(skill.installations.count - visibleInstallations.count, 0)
+    }
+
+    /// Tooltip keeps the complete installation information available without expanding the row.
+    private var installationSummary: String {
+        skill.installations.map { installation in
+            installation.isTrulyInherited
+                ? "\(installation.agentType.displayName) (via \(installation.parentDirectoryDisplayPath))"
+                : installation.agentType.displayName
+        }.joined(separator: ", ")
+    }
 
     /// Renders different status indicators based on SkillUpdateStatus enum
     ///

@@ -17,43 +17,91 @@ struct DashboardView: View {
     @Environment(\.locale) private var locale
 
     var body: some View {
-        Group {
-            if skillManager.isLoading && skillManager.skills.isEmpty {
-                // Show progress indicator on first load
-                ProgressView("Scanning skills...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.filteredSkills.isEmpty {
-                // Empty state
-                EmptyStateView(
-                    icon: "magnifyingglass",
-                    title: "No Skills Found",
-                    subtitle: viewModel.searchText.isEmpty
-                        ? "Install skills using npx skills add or the CLI"
-                        : "No skills match your search"
-                )
-            } else {
-                // Skill list
-                List(viewModel.filteredSkills, selection: $selectedSkillID) { skill in
-                    SkillRowView(skill: skill)
-                        .tag(skill.id)
-                        // contextMenu is macOS's right-click menu
-                        .contextMenu {
-                            Button("Open in Finder") {
-                                NSWorkspace.shared.selectFile(
-                                    nil,
-                                    inFileViewerRootedAtPath: skill.canonicalURL.path
-                                )
-                            }
-                            Divider()  // Menu separator
-                            Button("Delete", role: .destructive) {
-                                viewModel.requestDelete(skill: skill)
-                            }
-                        }
+        VStack(spacing: 0) {
+            // This content-level action stays visible even when the toolbar overflows or disabling
+            // the final active skill leaves the dashboard in its empty state.
+            if !viewModel.disabledSkills.isEmpty {
+                HStack {
+                    Button {
+                        viewModel.showsDisabledSkills = true
+                    } label: {
+                        Label(L10n.currentFormat(L10nKeys.dashboardDisabledCount, viewModel.disabledSkills.count), systemImage: "archivebox")
+                    }
+                    .buttonStyle(.bordered)
+                    Spacer()
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(.bar)
+            }
+
+            // Segmented controls are the native compact control for mutually exclusive display modes.
+            Picker(L10n.currentString(L10nKeys.dashboardScope), selection: $viewModel.scopeFilter) {
+                ForEach(DashboardScopeFilter.allCases) { filter in
+                    Text(filter.title).tag(filter)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            if viewModel.scopeFilter == .project {
+                Picker(L10n.currentString(L10nKeys.dashboardProject), selection: $viewModel.selectedProjectFilterID) {
+                    Text(L10n.currentString(L10nKeys.dashboardAllProjects)).tag(String?.none)
+                    ForEach(viewModel.projectManager.projects) { project in
+                        Text(project.name).tag(Optional(project.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            }
+
+            Group {
+                if skillManager.isLoading && skillManager.skills.isEmpty {
+                    // Show progress indicator on first load
+                    ProgressView("Scanning skills...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if viewModel.filteredItems.isEmpty {
+                    // Empty state
+                    EmptyStateView(
+                        icon: "magnifyingglass",
+                        title: "No Skills Found",
+                        subtitle: viewModel.searchText.isEmpty
+                            ? "Install skills using npx skills add or the CLI"
+                            : "No skills match your search"
+                    )
+                } else {
+                    // Skill list
+                    List(viewModel.filteredItems, selection: $selectedSkillID) { item in
+                        SkillRowView(skill: item.skill, projectName: projectName(for: item))
+                            .tag(item.id)
+                            // contextMenu is macOS's right-click menu
+                            .contextMenu {
+                                Button("Open in Finder") {
+                                    NSWorkspace.shared.selectFile(
+                                        nil,
+                                        inFileViewerRootedAtPath: item.skill.canonicalURL.path
+                                    )
+                                }
+                                Divider()  // Menu separator
+                                Button(L10n.currentString(L10nKeys.dashboardDisable)) {
+                                    viewModel.requestDisable(item: item)
+                                }
+                            }
+                    }
+                    .listStyle(.inset(alternatesRowBackgrounds: true))
+                }
             }
         }
         .navigationTitle(navigationTitle)
+        // Project changes refresh the source-skill rows without waiting for an app relaunch.
+        .task(id: viewModel.projectRevision) {
+            await viewModel.reloadProjectSkills()
+            viewModel.reloadDisabledSkills()
+        }
         // Search bar (macOS standard search field, displayed in toolbar)
         .searchable(text: $viewModel.searchText, prompt: "Search skills...")
         // Toolbar: sorting and filtering
@@ -128,20 +176,33 @@ struct DashboardView: View {
                     }
                 }
             }
+
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    viewModel.reloadDisabledSkills()
+                    viewModel.showsDisabledSkills = true
+                } label: {
+                    Label(L10n.currentString(L10nKeys.dashboardDisabledTitle), systemImage: "archivebox")
+                }
+                .help(L10n.currentString(L10nKeys.dashboardDisabledHelp))
+            }
         }
-        // Delete confirmation dialog
+        // Disable confirmation dialog
         // .alert similar to Android's AlertDialog or Web's confirm()
-        .alert("Delete Skill", isPresented: $viewModel.showDeleteConfirmation) {
-            Button("Cancel", role: .cancel) {
+        .alert(L10n.currentString(L10nKeys.dashboardDisable), isPresented: $viewModel.showDisableConfirmation) {
+            Button(L10n.currentString(L10nKeys.commonCancel), role: .cancel) {
                 viewModel.cancelDelete()
             }
-            Button("Delete", role: .destructive) {
+            Button(L10n.currentString(L10nKeys.dashboardDisable)) {
                 Task { await viewModel.confirmDelete() }
             }
         } message: {
-            if let skill = viewModel.skillToDelete {
-                Text("Are you sure you want to delete \"\(skill.displayName)\"? This will remove the skill directory and all symlinks. This action cannot be undone.")
+            if let item = viewModel.itemToDisable {
+                Text(L10n.currentFormat(L10nKeys.dashboardDisableDescription, item.skill.displayName))
             }
+        }
+        .sheet(isPresented: $viewModel.showsDisabledSkills) {
+            DisabledSkillsSheet(viewModel: viewModel)
         }
         // Error message
         .overlay(alignment: .bottom) {
@@ -168,6 +229,11 @@ struct DashboardView: View {
             return agent.displayName
         }
         return "All Skills"
+    }
+
+    private func projectName(for item: DashboardSkillItem) -> String? {
+        guard case .project(let projectSkill) = item.origin else { return nil }
+        return projectSkill.project.name
     }
 
     private var languageBadge: String {

@@ -67,23 +67,17 @@ final class LocalizationResolverTests: XCTestCase {
         XCTAssertEqual(resolution.bundle.bundleURL, baseBundle.bundleURL)
     }
 
-    func testLocalizationResolver_explicitEnglish_setsLocale_andFallsBackToBaseBundle_whenLprojMissing() {
+    func testLocalizationResolver_explicitEnglish_keepsBaseBundleForL10nLookup() {
         let baseBundle = SkillDeckResources.bundle
 
         let resolution = LocalizationResolver.resolve(language: .english, baseBundle: baseBundle)
 
         XCTAssertEqual(resolution.locale.identifier, Locale(identifier: AppLanguage.english.rawValue).identifier)
 
-        let lprojPath = baseBundle.path(forResource: AppLanguage.english.rawValue, ofType: "lproj")
-        if lprojPath == nil {
-            XCTAssertEqual(resolution.bundle.bundleURL, baseBundle.bundleURL)
-        } else {
-            XCTAssertNotEqual(resolution.bundle.bundleURL, baseBundle.bundleURL)
-            XCTAssertTrue(resolution.bundle.bundleURL.path.hasSuffix("\(AppLanguage.english.rawValue).lproj"))
-        }
+        XCTAssertEqual(resolution.bundle.bundleURL, baseBundle.bundleURL)
     }
 
-    func testLocalizationResolver_explicitSimplifiedChinese_setsLocale_andFallsBackToBaseBundle_whenLprojMissing() {
+    func testLocalizationResolver_explicitSimplifiedChinese_keepsBaseBundleForL10nLookup() {
         let baseBundle = SkillDeckResources.bundle
 
         let resolution = LocalizationResolver.resolve(language: .simplifiedChinese, baseBundle: baseBundle)
@@ -93,17 +87,6 @@ final class LocalizationResolverTests: XCTestCase {
             Locale(identifier: AppLanguage.simplifiedChinese.rawValue).identifier
         )
 
-        let candidatePaths = [
-            baseBundle.path(forResource: AppLanguage.simplifiedChinese.rawValue, ofType: "lproj"),
-            baseBundle.path(forResource: AppLanguage.simplifiedChinese.rawValue.lowercased(), ofType: "lproj")
-        ]
-
-        if candidatePaths.allSatisfy({ $0 == nil }) {
-            XCTAssertEqual(resolution.bundle.bundleURL, baseBundle.bundleURL)
-        } else {
-            XCTAssertNotEqual(resolution.bundle.bundleURL, baseBundle.bundleURL)
-            let path = resolution.bundle.bundleURL.path.lowercased()
-            XCTAssertTrue(path.hasSuffix("zh-hans.lproj") || path.hasSuffix("zh_hans.lproj"))
-        }
+        XCTAssertEqual(resolution.bundle.bundleURL, baseBundle.bundleURL)
     }
 }

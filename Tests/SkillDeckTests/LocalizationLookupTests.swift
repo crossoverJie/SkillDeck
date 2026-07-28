@@ -24,4 +24,17 @@ final class LocalizationLookupTests: XCTestCase {
 
         XCTAssertEqual(result, "通用")
     }
+
+    func testNewProjectSyncKeys_areLocalizedWhenEnglishIsSelected() {
+        let resolution = LocalizationResolver.resolve(language: .english)
+
+        XCTAssertEqual(
+            L10n.string(L10nKeys.sidebarGlobalSync, bundle: resolution.bundle, locale: resolution.locale),
+            "Global Sync"
+        )
+        XCTAssertEqual(
+            L10n.string(L10nKeys.dashboardAll, bundle: resolution.bundle, locale: resolution.locale),
+            "All"
+        )
+    }
 }

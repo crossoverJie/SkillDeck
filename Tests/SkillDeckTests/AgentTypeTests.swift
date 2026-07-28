@@ -212,7 +212,7 @@ final class AgentTypeTests: XCTestCase {
     /// Verify the total number of supported agents
     /// This test catches accidental removal of agent cases
     func testAllCasesCount() {
-        // 14 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor, kiro, codeBuddy, openClaw, trae, qoder, qclaw, workbuddy
-        XCTAssertEqual(AgentType.allCases.count, 14)
+        // 17 agents: the original 14 plus JoyCode, Reasonix and Qwen.
+        XCTAssertEqual(AgentType.allCases.count, 17)
     }
 }

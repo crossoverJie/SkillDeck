@@ -62,12 +62,9 @@ final class FileSystemWatcher {
         }
         sources.removeAll()
 
-        // Close all file descriptors
-        // File descriptor (fd) is an integer reference to an open file in Unix systems
-        // Similar to Java's FileInputStream or Go's os.File, must be closed after use
-        for fd in fileDescriptors {
-            close(fd)
-        }
+        // Each DispatchSource invokes its cancel handler, which closes its own file descriptor.
+        // Clearing this bookkeeping array must not close descriptors a second time: Unix may have
+        // already reused that numeric descriptor for an unrelated file by then.
         fileDescriptors.removeAll()
 
         debounceTimer?.cancel()
@@ -87,11 +84,13 @@ final class FileSystemWatcher {
 
         // Create DispatchSource to monitor file system events
         // .write indicates directory content change (file add/delete/modify)
-        // .global() indicates callback triggered on global concurrent queue
+        // The main queue serializes observer state and debounceTimer mutations. DispatchSource can
+        // coalesce filesystem events on this queue without blocking disk I/O because the handler
+        // only schedules a lightweight delayed notification.
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd,
             eventMask: [.write, .delete, .rename, .attrib],
-            queue: .global()
+            queue: .main
         )
 
         // [weak self] is Swift's weak reference capture, preventing retain cycles (memory leaks)
@@ -114,16 +113,15 @@ final class FileSystemWatcher {
         debounceTimer?.cancel()
 
         let timer = DispatchWorkItem { [weak self] in
-            // Send notification on main thread (UI updates must be on main thread)
-            // DispatchQueue.main is similar to Android's runOnUiThread or Go's main goroutine
-            DispatchQueue.main.async {
-                self?.onChange.send()
-            }
+            // The work item also runs on the main queue, so Combine subscribers that refresh
+            // SwiftUI-bound state receive the notification on the same serialized executor.
+            self?.onChange.send()
         }
 
         debounceTimer = timer
-        // asyncAfter: Delay execution, implementing debounce effect
-        DispatchQueue.global().asyncAfter(deadline: .now() + debounceInterval, execute: timer)
+        // asyncAfter delays this lightweight callback without leaving the main-queue ownership
+        // domain of the @Observable debounceTimer property.
+        DispatchQueue.main.asyncAfter(deadline: .now() + debounceInterval, execute: timer)
     }
 
     /// Deinitializer (similar to Java's finalize or Go's defer cleanup)

@@ -1,91 +1,13 @@
 import Foundation
 
-/// SymlinkManager is responsible for creating and removing symlinks (F06 Agent Assignment)
+/// SymlinkManager provides filesystem inspection for whole-directory skill synchronization.
 ///
 /// Core Concepts:
-/// - The "real copy" of all skills is stored in ~/.agents/skills/ (canonical location)
-/// - Each Agent references the shared skill via symlink
-/// - Example: ~/.claude/skills/agent-notifier -> ~/.agents/skills/agent-notifier
+/// - The canonical directory is selected in SkillDeck settings.
+/// - Each Agent can reference it through a single directory symlink.
 ///
 /// symlink is similar to Linux/macOS `ln -s`, a special file pointing to another file/directory
 enum SymlinkManager {
-
-    enum SymlinkError: Error, LocalizedError {
-        case sourceNotFound(URL)
-        case targetAlreadyExists(URL)
-        case targetDirectoryNotFound(URL)
-        case removalFailed(URL, Error)
-
-        var errorDescription: String? {
-            switch self {
-            case .sourceNotFound(let url):
-                "Skill source directory not found: \(url.path)"
-            case .targetAlreadyExists(let url):
-                "Target already exists: \(url.path)"
-            case .targetDirectoryNotFound(let url):
-                "Agent skills directory not found: \(url.path)"
-            case .removalFailed(let url, let error):
-                "Failed to remove symlink at \(url.path): \(error.localizedDescription)"
-            }
-        }
-    }
-
-    /// Create symlink for skill to specified Agent's skills directory
-    ///
-    /// - Parameters:
-    ///   - source: canonical path of the skill (e.g. ~/.agents/skills/agent-notifier/)
-    ///   - agent: target Agent type
-    /// - Throws: SymlinkError
-    ///
-    /// Effect: agent.skillsDirectoryURL/skillName -> source
-    static func createSymlink(from source: URL, to agent: AgentType) throws {
-        let fm = FileManager.default
-        let skillName = source.lastPathComponent
-        let targetDir = agent.skillsDirectoryURL
-        let targetURL = targetDir.appendingPathComponent(skillName)
-
-        // 1. Verify source directory exists
-        guard fm.fileExists(atPath: source.path) else {
-            throw SymlinkError.sourceNotFound(source)
-        }
-
-        // 2. Ensure target Agent's skills directory exists, create if not
-        if !fm.fileExists(atPath: targetDir.path) {
-            // withIntermediateDirectories: true is similar to mkdir -p, creates parent directories recursively
-            try fm.createDirectory(at: targetDir, withIntermediateDirectories: true)
-        }
-
-        // 3. Check if target location already exists
-        guard !fm.fileExists(atPath: targetURL.path) else {
-            throw SymlinkError.targetAlreadyExists(targetURL)
-        }
-
-        // 4. Create symlink
-        // createSymbolicLink is equivalent to ln -s source targetURL
-        try fm.createSymbolicLink(at: targetURL, withDestinationURL: source)
-    }
-
-    /// Remove symlink of a skill under specified Agent
-    ///
-    /// - Parameters:
-    ///   - skillName: skill directory name
-    ///   - agent: Agent type
-    /// - Throws: SymlinkError
-    static func removeSymlink(skillName: String, from agent: AgentType) throws {
-        let fm = FileManager.default
-        let targetURL = agent.skillsDirectoryURL.appendingPathComponent(skillName)
-
-        // Verify path is indeed a symlink to avoid deleting real directory by mistake
-        guard isSymlink(at: targetURL) else {
-            return // Not a symlink, return silently
-        }
-
-        do {
-            try fm.removeItem(at: targetURL)
-        } catch {
-            throw SymlinkError.removalFailed(targetURL, error)
-        }
-    }
 
     /// Check if given path is a symlink
     ///

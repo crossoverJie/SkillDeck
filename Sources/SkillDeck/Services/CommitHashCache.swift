@@ -74,10 +74,7 @@ actor CommitHashCache {
 
     /// Default path for the cache file: ~/.agents/.skilldeck-cache.json
     /// `static let` is a compile-time constant, similar to Java's static final
-    static let defaultPath: URL = {
-        let home = NSString(string: "~/.agents/.skilldeck-cache.json").expandingTildeInPath
-        return URL(fileURLWithPath: home)
-    }()
+    static var defaultPath: URL { SkillStorageSettings.cacheFileURL }
 
     /// Current cache file path (can be overridden in tests)
     private let filePath: URL
@@ -99,8 +96,8 @@ actor CommitHashCache {
 
     // MARK: - Initialization
 
-    init(filePath: URL = CommitHashCache.defaultPath) {
-        self.filePath = filePath
+    init(filePath: URL? = nil) {
+        self.filePath = filePath ?? Self.defaultPath
     }
 
     // MARK: - Public Methods

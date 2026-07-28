@@ -24,6 +24,7 @@ enum Constants {
             case .qoder:       Color(red: 0.96, green: 0.52, blue: 0.15)  // Orange #F58426
             case .qclaw:       Color(red: 0.0, green: 0.78, blue: 0.55)   // Mint #00C78B
             case .workbuddy:   Color(red: 1.0, green: 0.80, blue: 0.0)    // Yellow #FFCC00
+            case .joyCode, .reasonix, .qwen: .gray
             }
         }
     }
