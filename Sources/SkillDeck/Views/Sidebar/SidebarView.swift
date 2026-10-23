@@ -291,6 +291,28 @@ struct SidebarView: View {
                 .disabled(skillManager.isCheckingUpdates)
             }
 
+            // F19: Batch update all skills with available updates
+            ToolbarItem {
+                Button {
+                    Task { await skillManager.updateAllSkills() }
+                } label: {
+                    if skillManager.isUpdatingAllSkills {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("\(skillManager.batchUpdateCompleted)/\(skillManager.batchUpdateTotal)")
+                                .appFont(.caption)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Image(systemName: "arrow.down.circle")
+                    }
+                }
+                .help(L10n.string(L10nKeys.sidebarHelpUpdateAllSkills, bundle: localizationBundle, locale: locale))
+                .disabled(skillManager.isUpdatingAllSkills || skillManager.isCheckingUpdates)
+            }
+
             // Refresh button: rescan file system
             ToolbarItem {
                 Button {

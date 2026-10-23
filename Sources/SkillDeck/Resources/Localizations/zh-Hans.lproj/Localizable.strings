@@ -82,6 +82,7 @@
 "sidebar.install.fromLocalFolder" = "从本地文件夹...";
 "sidebar.help.installSkill" = "安装技能";
 "sidebar.help.checkAllUpdates" = "检查所有技能更新";
+"sidebar.help.updateAllSkills" = "更新所有技能";
 "sidebar.help.refreshSkills" = "刷新技能";
 
 "empty.selectSkill.title" = "选择一个技能";

@@ -1,5 +1,23 @@
 import Foundation
 
+/// Protocol defining git operations required by SkillDeck services
+protocol GitServiceProtocol: Sendable {
+    func checkGitAvailable() async -> Bool
+    func cloneRepo(repoURL: String, shallow: Bool) async throws -> URL
+    func shallowClone(repoURL: String) async throws -> URL
+    func getCommitHash(in repoDir: URL) async throws -> String
+    func findCommitForTreeHash(treeHash: String, folderPath: String, in repoDir: URL) async throws -> String?
+    func getTreeHash(for path: String, in repoDir: URL) async throws -> String
+    func scanSkillsInRepo(repoDir: URL, repoURL: String?) async -> [GitService.DiscoveredSkill]
+    func cleanupTempDirectory(_ url: URL) async
+}
+
+extension GitServiceProtocol {
+    func scanSkillsInRepo(repoDir: URL) async -> [GitService.DiscoveredSkill] {
+        await scanSkillsInRepo(repoDir: repoDir, repoURL: nil)
+    }
+}
+
 /// GitService encapsulates all git CLI operations, core infrastructure for F10 (One-Click Install) and F12 (Update Check)
 ///
 /// Uses `actor` type for thread safety, as git operations involve temporary directories and filesystem read/write,
@@ -7,7 +25,7 @@ import Foundation
 /// actor is similar to Go's goroutine + channel pattern, but with compiler-enforced safety.
 ///
 /// Design pattern: Reuse the Process API pattern verified in AgentDetector to execute external commands
-actor GitService {
+actor GitService: GitServiceProtocol {
 
     // MARK: - Error Types
 

@@ -82,6 +82,7 @@
 "sidebar.install.fromLocalFolder" = "From Local Folder...";
 "sidebar.help.installSkill" = "Install skill";
 "sidebar.help.checkAllUpdates" = "Check all skills for updates";
+"sidebar.help.updateAllSkills" = "Update all skills";
 "sidebar.help.refreshSkills" = "Refresh skills";
 
 "empty.selectSkill.title" = "Select a Skill";
