@@ -82,7 +82,12 @@
 "sidebar.install.fromLocalFolder" = "From Local Folder...";
 "sidebar.help.installSkill" = "Install skill";
 "sidebar.help.checkAllUpdates" = "Check all skills for updates";
+"sidebar.help.updateAllSkills" = "Update all skills";
 "sidebar.help.refreshSkills" = "Refresh skills";
+
+"skill.update.error.batchInProgress" = "Batch update is currently in progress. Please wait for it to complete.";
+"skill.update.error.individualInProgress" = "An update is already in progress for this skill.";
+"skill.update.error.invalidLockEntry" = "Invalid skill lock entry.";
 
 "empty.selectSkill.title" = "Select a Skill";
 "empty.selectSkill.subtitle.list" = "Choose a skill from the list to view its details";

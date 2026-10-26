@@ -288,7 +288,37 @@ struct SidebarView: View {
                     }
                 }
                 .help(L10n.string(L10nKeys.sidebarHelpCheckAllUpdates, bundle: localizationBundle, locale: locale))
-                .disabled(skillManager.isCheckingUpdates)
+                .disabled(
+                    skillManager.isCheckingUpdates
+                        || skillManager.isUpdatingAllSkills
+                        || !skillManager.updatingSkillIDs.isEmpty
+                )
+            }
+
+            // F19: Batch update all skills with available updates
+            ToolbarItem {
+                Button {
+                    Task { await skillManager.updateAllSkills() }
+                } label: {
+                    if skillManager.isUpdatingAllSkills {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("\(skillManager.batchUpdateCompleted)/\(skillManager.batchUpdateTotal)")
+                                .appFont(.caption)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Image(systemName: "arrow.down.circle")
+                    }
+                }
+                .help(L10n.string(L10nKeys.sidebarHelpUpdateAllSkills, bundle: localizationBundle, locale: locale))
+                .disabled(
+                    skillManager.isUpdatingAllSkills
+                        || skillManager.isCheckingUpdates
+                        || !skillManager.updatingSkillIDs.isEmpty
+                )
             }
 
             // Refresh button: rescan file system

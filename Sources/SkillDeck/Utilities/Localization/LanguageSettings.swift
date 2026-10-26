@@ -12,4 +12,13 @@ enum LanguageSettings {
 
     /// Default preference when the user has not chosen a language.
     static let defaultLanguage: AppLanguage = .system
+
+    /// Resolve the bundle/locale selected by the persisted app-language preference.
+    ///
+    /// `LocalizedError.errorDescription` has no access to the SwiftUI environment,
+    /// so service-layer errors resolve the user's preference here.
+    static func currentResolution(defaults: UserDefaults = .standard) -> LocalizationResolver.Resolution {
+        let language = AppLanguage(storedRawValue: defaults.string(forKey: appLanguageKey))
+        return LocalizationResolver.resolve(language: language)
+    }
 }

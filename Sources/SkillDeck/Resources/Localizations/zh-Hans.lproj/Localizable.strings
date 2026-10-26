@@ -82,7 +82,12 @@
 "sidebar.install.fromLocalFolder" = "从本地文件夹...";
 "sidebar.help.installSkill" = "安装技能";
 "sidebar.help.checkAllUpdates" = "检查所有技能更新";
+"sidebar.help.updateAllSkills" = "更新所有技能";
 "sidebar.help.refreshSkills" = "刷新技能";
+
+"skill.update.error.batchInProgress" = "批量更新正在进行中，请等待完成。";
+"skill.update.error.individualInProgress" = "该技能正在更新中。";
+"skill.update.error.invalidLockEntry" = "技能锁文件条目无效。";
 
 "empty.selectSkill.title" = "选择一个技能";
 "empty.selectSkill.subtitle.list" = "从列表中选择一个技能以查看详情";
