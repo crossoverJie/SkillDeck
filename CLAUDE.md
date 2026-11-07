@@ -94,19 +94,19 @@ The app supports HTTPS and SOCKS5 proxies (configured in Settings). Key componen
 |-------|-----------------|---------------|------------------------|
 | Claude Code | `~/.claude/skills/` | `claude` binary | Own directory only |
 | Codex | `~/.codex/skills/` | `codex` binary | Own → `~/.agents/skills/` (shared global) |
-| Gemini CLI | `~/.gemini/skills/` | `gemini` binary | Own directory only |
 | Copilot CLI | `~/.copilot/skills/` | `gh` binary | Own → `~/.claude/skills/` |
 | OpenCode | `~/.config/opencode/skills/` | `opencode` binary | Own → `~/.claude/skills/` → `~/.agents/skills/` |
-| Antigravity | `~/.gemini/antigravity/skills/` | `antigravity` binary | Own directory only |
+| Pi | `~/.pi/agent/skills/` | `pi` binary | Own → `~/.agents/skills/` (Agent Skills location) |
 | Cursor | `~/.cursor/skills/` | `cursor` binary | Own → `~/.claude/skills/` |
 | Kiro | `~/.kiro/skills/` | `kiro` binary | Own directory only |
 | CodeBuddy | `~/.codebuddy/skills/` | `codebuddy` binary | Own directory only |
-| OpenClaw | `~/.openclaw/skills/` | `openclaw` binary | Own directory only |
 | Trae | `~/.trae/skills/` | `trae` binary | Own directory only |
 | Qoder | `~/.qoder/skills/` | `qoder` binary | Own → `~/.agents/skills/` (legacy compat) |
 | QClaw | `~/.qclaw/skills/` | `qclaw` binary | Own directory only |
 | WorkBuddy | `~/.workbuddy/skills/` | `workbuddy` binary | Own directory only |
-| Pi | `~/.pi/agent/skills/` | `pi` binary | Own → `~/.agents/skills/` (Agent Skills location) |
+| Gemini CLI | `~/.gemini/skills/` | `gemini` binary | Own directory only |
+| Antigravity | `~/.gemini/antigravity/skills/` | `antigravity` binary | Own directory only |
+| OpenClaw | `~/.openclaw/skills/` | `openclaw` binary | Own directory only |
 
 ## Testing
 

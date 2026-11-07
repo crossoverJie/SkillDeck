@@ -289,6 +289,19 @@ final class AgentTypeTests: XCTestCase {
         XCTAssertFalse(AgentType.isSameDirectory(plain, missing.deletingLastPathComponent()))
     }
 
+    /// Declaration order is the UI order: `allCases` feeds the sidebar, install sheets,
+    /// import sheets and Agent toggles. This test makes an unintentional reorder visible.
+    func testAllCasesDisplayOrder() {
+        XCTAssertEqual(
+            AgentType.allCases.map(\.rawValue),
+            [
+                "claude-code", "codex", "copilot-cli", "opencode", "pi",
+                "cursor", "kiro", "codebuddy", "trae", "qoder", "qclaw", "workbuddy",
+                "gemini-cli", "antigravity", "openclaw",
+            ]
+        )
+    }
+
     // MARK: - CaseIterable Count
 
     /// Verify the total number of supported agents

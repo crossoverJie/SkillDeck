@@ -33,7 +33,7 @@
 
 ## Features
 
-- **Multi-Agent Support** — Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor, Kiro, CodeBuddy, OpenClaw, Trae, Qoder
+- **Multi-Agent Support** — Claude Code, Codex, Copilot CLI, OpenCode, Pi, Cursor, Kiro, CodeBuddy, Trae, Qoder, QClaw, WorkBuddy, Gemini CLI, Antigravity, OpenClaw
 - **Registry & Marketplace Browser** — Browse [skills.sh](https://skills.sh) leaderboard plus the ClawHub catalog for OpenClaw with search, sorting, and filters
 - **Unified Dashboard** — All skills in one three-pane macOS-native view
 - **Usage Insights** — Track invocation counts per skill across Codex, Claude Code, and Copilot CLI, then sort the dashboard by usage to spot and clean up skills you no longer use
@@ -95,17 +95,17 @@ swift test
 |-------|-----------------|-----------|------------------------|
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `~/.claude/skills/` | `claude` binary + `~/.claude/` dir | Own directory only |
 | [Codex](https://github.com/openai/codex) | `~/.codex/skills/` | `codex` binary | Own → `~/.agents/skills/` (shared global) |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/skills/` | `gemini` binary + `~/.gemini/` dir | Own directory only |
 | [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line) | `~/.copilot/skills/` | `gh` binary | Own → `~/.claude/skills/` |
 | [OpenCode](https://opencode.ai) | `~/.config/opencode/skills/` | `opencode` binary | Own → `~/.claude/skills/` → `~/.agents/skills/` |
-| [Antigravity](https://antigravity.google) | `~/.gemini/antigravity/skills/` | `antigravity` binary | Own directory only |
+| [Pi](https://pi.dev) | `~/.pi/agent/skills/` | `pi` binary | Own → `~/.agents/skills/` (Agent Skills location) |
 | [Cursor](https://cursor.com) | `~/.cursor/skills/` | `cursor` binary | Own → `~/.claude/skills/` |
 | [Kiro](https://kiro.dev) | `~/.kiro/skills/` | `kiro` binary | Own directory only |
 | [CodeBuddy](https://www.codebuddy.ai) | `~/.codebuddy/skills/` | `codebuddy` binary | Own directory only |
-| [OpenClaw](https://openclaw.ai) | `~/.openclaw/skills/` | `openclaw` binary | Own directory only |
 | [Trae](https://www.trae.ai) | `~/.trae/skills/` | `trae` binary | Own directory only |
 | [Qoder](https://qoder.ai) | `~/.qoder/skills/` | `qoder` binary | Own → `~/.agents/skills/` (legacy compat) |
-| [Pi](https://pi.dev) | `~/.pi/agent/skills/` | `pi` binary | Own → `~/.agents/skills/` (Agent Skills location) |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/skills/` | `gemini` binary + `~/.gemini/` dir | Own directory only |
+| [Antigravity](https://antigravity.google) | `~/.gemini/antigravity/skills/` | `antigravity` binary | Own directory only |
+| [OpenClaw](https://openclaw.ai) | `~/.openclaw/skills/` | `openclaw` binary | Own directory only |
 
 ## Architecture
 

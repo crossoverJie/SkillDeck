@@ -33,7 +33,7 @@
 
 ## 功能特性
 
-- **多代理支持** — Claude Code、Codex、Gemini CLI、Copilot CLI、OpenCode、Antigravity、Cursor、Kiro、CodeBuddy、OpenClaw、Trae、Qoder
+- **多代理支持** — Claude Code、Codex、Copilot CLI、OpenCode、Pi、Cursor、Kiro、CodeBuddy、Trae、Qoder、QClaw、WorkBuddy、Gemini CLI、Antigravity、OpenClaw
 - **技能市场浏览** — 浏览 [skills.sh](https://skills.sh) 排行榜，并针对 OpenClaw 浏览 ClawHub 市场，支持搜索、排序和筛选
 - **统一仪表盘** — 所有技能集中在一个 macOS 原生三栏视图中
 - **技能使用统计** — 统计每个技能在 Codex、Claude Code 和 Copilot CLI 中的调用次数，并支持按使用量排序，快速找出并清理长期不用的技能
@@ -95,17 +95,17 @@ swift test
 |------|---------|---------|---------------|
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `~/.claude/skills/` | `claude` 二进制文件 + `~/.claude/` 目录 | 仅自身目录 |
 | [Codex](https://github.com/openai/codex) | `~/.codex/skills/` | `codex` 二进制文件 | 自身 → `~/.agents/skills/`（共享全局） |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/skills/` | `gemini` 二进制文件 + `~/.gemini/` 目录 | 仅自身目录 |
 | [Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line) | `~/.copilot/skills/` | `gh` 二进制文件 | 自身 → `~/.claude/skills/` |
 | [OpenCode](https://opencode.ai) | `~/.config/opencode/skills/` | `opencode` 二进制文件 | 自身 → `~/.claude/skills/` → `~/.agents/skills/` |
-| [Antigravity](https://antigravity.google) | `~/.gemini/antigravity/skills/` | `antigravity` 二进制文件 | 仅自身目录 |
+| [Pi](https://pi.dev) | `~/.pi/agent/skills/` | `pi` 二进制文件 | 自身 → `~/.agents/skills/`（Agent Skills 共享位置） |
 | [Cursor](https://cursor.com) | `~/.cursor/skills/` | `cursor` 二进制文件 | 自身 → `~/.claude/skills/` |
 | [Kiro](https://kiro.dev) | `~/.kiro/skills/` | `kiro` 二进制文件 | 仅自身目录 |
 | [CodeBuddy](https://www.codebuddy.ai) | `~/.codebuddy/skills/` | `codebuddy` 二进制文件 | 仅自身目录 |
-| [OpenClaw](https://openclaw.ai) | `~/.openclaw/skills/` | `openclaw` 二进制文件 | 仅自身目录 |
 | [Trae](https://www.trae.ai) | `~/.trae/skills/` | `trae` 二进制文件 | 仅自身目录 |
 | [Qoder](https://qoder.ai) | `~/.qoder/skills/` | `qoder` 二进制文件 | 自身 → `~/.agents/skills/`（历史兼容） |
-| [Pi](https://pi.dev) | `~/.pi/agent/skills/` | `pi` 二进制文件 | 自身 → `~/.agents/skills/`（Agent Skills 共享位置） |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/skills/` | `gemini` 二进制文件 + `~/.gemini/` 目录 | 仅自身目录 |
+| [Antigravity](https://antigravity.google) | `~/.gemini/antigravity/skills/` | `antigravity` 二进制文件 | 仅自身目录 |
+| [OpenClaw](https://openclaw.ai) | `~/.openclaw/skills/` | `openclaw` 二进制文件 | 仅自身目录 |
 
 ## 架构
 

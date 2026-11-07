@@ -447,6 +447,38 @@ footer.foot {
     <p class="tagline">Every version, every fix, every feature. SkillDeck follows semantic versioning — patch for fixes, minor for new agents and capabilities.</p>
   </header>
 
+  <!-- ============ v0.1.3 ============ -->
+  <!-- When v0.1.3 is released, link the heading to its release tag and replace "Unreleased"
+       with the release date, matching the older entries below. -->
+  <article class="version">
+    <div class="version-head">
+      <h2>v0.1.3</h2>
+      <span class="version-date">Unreleased</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Pi support</strong>: added Pi as the 15th supported agent. Pi reads the Agent Skills location <code>~/.agents/skills/</code> natively, so managed skills show as native support instead of needing a per-agent symlink.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/71">#71</a>
+      </li>
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Pi usage statistics</strong>: Pi skill activations now appear in the dashboard usage column. Pi pastes a skill's <code>SKILL.md</code> straight into the conversation instead of loading it with a tool call, so both activation paths are counted.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/71">#71</a>
+      </li>
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Agent order</strong>: the sidebar and every agent picker now list daily-driver agents first, with Gemini CLI, Antigravity and OpenClaw moved to the bottom.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/71">#71</a>
+      </li>
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>Native support detection</strong>: skills in <code>~/.agents/skills/</code> are recognized as native support even when that directory did not exist yet at launch, instead of being shown as inherited from another agent.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/71">#71</a>
+      </li>
+    </ol>
+  </article>
+
   <!-- ============ v0.1.2 ============ -->
   <article class="version">
     <div class="version-head">

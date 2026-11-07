@@ -3,21 +3,25 @@ import Foundation
 /// AgentType represents supported AI code assistant types
 /// Similar to Java enum, but Swift enum is more powerful, supporting associated values and methods
 enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
+    // Declaration order IS the display order: `CaseIterable.allCases` drives the sidebar,
+    // install sheets, import sheets and Agent toggles, so daily-driver agents come first and
+    // rarely used / standalone agents are pushed to the bottom. Reorder here to reorder the UI.
     case claudeCode = "claude-code"
     case codex = "codex"
-    case geminiCLI = "gemini-cli"
     case copilotCLI = "copilot-cli"
     case openCode = "opencode"       // OpenCode: Open source AI programming CLI tool
-    case antigravity = "antigravity"   // Antigravity: Google's AI coding agent (https://antigravity.google)
+    case pi = "pi"                           // Pi: terminal coding agent (https://pi.dev)
     case cursor = "cursor"               // Cursor: AI-powered code editor (https://cursor.com)
     case kiro = "kiro"                     // Kiro: AWS AI IDE built on Code OSS (https://kiro.dev)
     case codeBuddy = "codebuddy"           // CodeBuddy: Tencent Cloud AI coding assistant (https://www.codebuddy.ai)
-    case openClaw = "openclaw"             // OpenClaw: AI coding assistant with ClawHub registry (https://openclaw.ai)
     case trae = "trae"                       // Trae: ByteDance's AI IDE (https://trae.ai)
     case qoder = "qoder"                     // Qoder: AI coding agent (https://qoder.ai)
     case qclaw = "qclaw"                     // QClaw: AI coding assistant (skills in ~/.qclaw/skills)
     case workbuddy = "workbuddy"             // WorkBuddy: AI coding assistant (skills in ~/.workbuddy/skills)
-    case pi = "pi"                           // Pi: terminal coding agent (https://pi.dev)
+    // Bottom group: standalone or less frequently used agents.
+    case geminiCLI = "gemini-cli"
+    case antigravity = "antigravity"   // Antigravity: Google's AI coding agent (https://antigravity.google)
+    case openClaw = "openclaw"             // OpenClaw: AI coding assistant with ClawHub registry (https://openclaw.ai)
 
     // Identifiable protocol requirement (similar to Java's Comparable), needed for SwiftUI list rendering
     var id: String { rawValue }
