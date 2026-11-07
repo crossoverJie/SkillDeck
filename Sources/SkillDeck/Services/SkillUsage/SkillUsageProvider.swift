@@ -20,6 +20,7 @@ enum SkillUsageProviderFactory {
             CodeBuddySkillUsageService(),
             QoderSkillUsageService(),
             OpenCodeSkillUsageService(),
+            PiSkillUsageService(),
         ]
     }
 }

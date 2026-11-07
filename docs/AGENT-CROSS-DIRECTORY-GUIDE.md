@@ -34,9 +34,10 @@ Kiro         → ~/.kiro/skills/
 CodeBuddy    → ~/.codebuddy/skills/
 OpenClaw     → ~/.openclaw/skills/
 Qoder        → ~/.qoder/skills/
+Pi           → ~/.pi/agent/skills/
 ```
 
-但某些 Agent 会额外读取其他 Agent 的目录。例如 Copilot CLI 同时读取 `~/.copilot/skills/` 和 `~/.claude/skills/`，Cursor 同时读取 `~/.cursor/skills/` 和 `~/.claude/skills/`，Qoder 默认还会读取 `~/.agents/skills/`（`skills.loadFromAgentsDirectory` 默认为 `true`）。
+但某些 Agent 会额外读取其他 Agent 的目录。例如 Copilot CLI 同时读取 `~/.copilot/skills/` 和 `~/.claude/skills/`，Cursor 同时读取 `~/.cursor/skills/` 和 `~/.claude/skills/`，Qoder 默认还会读取 `~/.agents/skills/`（`skills.loadFromAgentsDirectory` 默认为 `true`），Pi 还原生读取 Agent Skills 规范位置 `~/.agents/skills/` 与项目级 `.agents/skills/`。
 
 ### 继承安装的定义
 

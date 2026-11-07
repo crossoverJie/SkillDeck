@@ -11,7 +11,7 @@ allowed-tools: Bash, Read, Write
 
 Manage AI coding agent skills through natural language. This skill teaches you how to install, update, delete, and assign skills using SkillDeck's filesystem conventions.
 
-SkillDeck is a macOS GUI app that manages skills across 14 AI agents. Skills are stored as directories containing `SKILL.md` files. This skill lets you perform the same operations from the terminal.
+SkillDeck is a macOS GUI app that manages skills across 15 AI agents. Skills are stored as directories containing `SKILL.md` files. This skill lets you perform the same operations from the terminal.
 
 ## Filesystem Layout
 
@@ -39,6 +39,7 @@ SkillDeck is a macOS GUI app that manages skills across 14 AI agents. Skills are
 ~/.qoder/skills/               # Qoder skills (also reads ~/.agents/skills/ by default)
 ~/.qclaw/skills/               # QClaw skills
 ~/.workbuddy/skills/           # WorkBuddy skills
+~/.pi/agent/skills/            # Pi skills (also reads ~/.agents/skills/ natively)
 ~/.gemini/antigravity/skills/  # Antigravity skills
 ```
 
@@ -52,6 +53,7 @@ SkillDeck is a macOS GUI app that manages skills across 14 AI agents. Skills are
   - **OpenCode** reads `~/.claude/skills/` and `~/.agents/skills/`
   - **Cursor** reads `~/.claude/skills/`
   - **Qoder** reads `~/.agents/skills/` by default (`skills.loadFromAgentsDirectory`)
+  - **Pi** reads `~/.agents/skills/` and project `.agents/skills/` natively (Agent Skills locations)
 
 ## Default Agent Configuration
 
@@ -78,6 +80,7 @@ declare -A AGENT_DIRS=(
   ["qoder"]="$HOME/.qoder/skills"
   ["qclaw"]="$HOME/.qclaw/skills"
   ["workbuddy"]="$HOME/.workbuddy/skills"
+  ["pi"]="$HOME/.pi/agent/skills"
 )
 
 # Detect which agents are installed
@@ -140,7 +143,7 @@ These reusable snippets are referenced in the operations below.
 ### List all agent skills directories
 
 ```bash
-# All 14 agent skills directories (for symlink scanning)
+# All 15 agent skills directories (for symlink scanning)
 ALL_AGENT_SKILLS=(
   "$HOME/.claude/skills"
   "$HOME/.codex/skills"
@@ -156,6 +159,7 @@ ALL_AGENT_SKILLS=(
   "$HOME/.qoder/skills"
   "$HOME/.qclaw/skills"
   "$HOME/.workbuddy/skills"
+  "$HOME/.pi/agent/skills"
 )
 ```
 

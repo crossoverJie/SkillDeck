@@ -22,7 +22,7 @@ final class AgentIconTests: XCTestCase {
     }
 
     func testOnlyMonochromeIconsUseTemplateRendering() {
-        let monochromeAgents: Set<AgentType> = [.copilotCLI, .openCode, .cursor, .qoder]
+        let monochromeAgents: Set<AgentType> = [.copilotCLI, .openCode, .cursor, .qoder, .pi]
 
         for agent in AgentType.allCases {
             XCTAssertEqual(

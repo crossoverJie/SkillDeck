@@ -106,6 +106,7 @@ The app supports HTTPS and SOCKS5 proxies (configured in Settings). Key componen
 | Qoder | `~/.qoder/skills/` | `qoder` binary | Own → `~/.agents/skills/` (legacy compat) |
 | QClaw | `~/.qclaw/skills/` | `qclaw` binary | Own directory only |
 | WorkBuddy | `~/.workbuddy/skills/` | `workbuddy` binary | Own directory only |
+| Pi | `~/.pi/agent/skills/` | `pi` binary | Own → `~/.agents/skills/` (Agent Skills location) |
 
 ## Testing
 

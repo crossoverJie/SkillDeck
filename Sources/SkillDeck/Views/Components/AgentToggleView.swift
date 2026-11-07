@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// One Toggle per Agent (switch), creates symlink when on, deletes when off
 /// Toggle for inherited installation (isInherited) shows as ON but disabled, with source hint
-/// For Codex: skill in ~/.agents/skills/ is native support, always ON and disabled
+/// For shared-directory Agents (Codex, Pi, ...): skill in ~/.agents/skills/ is native support, always ON and disabled
 struct AgentToggleView: View {
 
     let skillID: String
@@ -57,13 +57,10 @@ private struct AgentToggleRow: View {
         installation?.isTrulyInherited ?? false
     }
 
-    /// Check if this is Codex native support (skill in ~/.agents/skills/)
-    /// Native support means the skill is in Codex's official user-level directory
-    private var isCodexNativeSupport: Bool {
-        guard agentType == .codex else { return false }
-        guard let installation = installation else { return false }
-        // Native support: skill is in ~/.agents/skills/ (Codex's official directory)
-        return installation.inheritedFrom == .codex
+    /// Check if this is native shared-directory support (skill read from ~/.agents/skills/)
+    /// Any Agent that natively reads the canonical store shows "Native support", not "via ..."
+    private var isNativeSharedSupport: Bool {
+        installation?.accessesCanonicalDirectoryNatively ?? false
     }
 
     /// Whether the Agent is available (installed or config exists)
@@ -77,8 +74,8 @@ private struct AgentToggleRow: View {
         // Disabled conditions:
         // - Inherited installation (need to modify at source Agent)
         // - Agent not installed and skill not installed
-        // - Codex native support (always on, cannot be toggled)
-        isInherited || isCodexNativeSupport || (!isAgentAvailable && !isInstalled)
+        // - Native shared-directory support (always on, cannot be toggled)
+        isInherited || isNativeSharedSupport || (!isAgentAvailable && !isInstalled)
     }
 
     var body: some View {
@@ -95,8 +92,8 @@ private struct AgentToggleRow: View {
             Spacer()
 
             // Hint text for special states
-            if isCodexNativeSupport {
-                // Codex native support: skill is in ~/.agents/skills/
+            if isNativeSharedSupport {
+                // Agent natively reads ~/.agents/skills/: always available
                 Text("Native support").appFont(.caption)
                     .foregroundStyle(.secondary)
             } else if isInherited, let installation {

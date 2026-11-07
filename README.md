@@ -105,6 +105,7 @@ swift test
 | [OpenClaw](https://openclaw.ai) | `~/.openclaw/skills/` | `openclaw` binary | Own directory only |
 | [Trae](https://www.trae.ai) | `~/.trae/skills/` | `trae` binary | Own directory only |
 | [Qoder](https://qoder.ai) | `~/.qoder/skills/` | `qoder` binary | Own → `~/.agents/skills/` (legacy compat) |
+| [Pi](https://pi.dev) | `~/.pi/agent/skills/` | `pi` binary | Own → `~/.agents/skills/` (Agent Skills location) |
 
 ## Architecture
 

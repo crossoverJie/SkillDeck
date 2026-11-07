@@ -86,7 +86,7 @@
 
 ### v0.1 MVP (Done)
 
-- [x] **F01 — Agent Detection**: Auto-detect installed agents (Claude Code, Codex, Gemini CLI, Copilot CLI, Antigravity, Cursor, Kiro, CodeBuddy, OpenClaw, Trae, Qoder) by checking config directories and CLI binaries
+- [x] **F01 — Agent Detection**: Auto-detect installed agents (Claude Code, Codex, Gemini CLI, Copilot CLI, Antigravity, Cursor, Kiro, CodeBuddy, OpenClaw, Trae, Qoder, Pi) by checking config directories and CLI binaries
 - [x] **F02 — Unified Dashboard**: Single view of all skills across agents and scopes, with symlink deduplication
 - [x] **F03 — Skill Detail View**: Parse and render SKILL.md (YAML frontmatter + markdown body)
 - [x] **F04 — Skill Deletion**: Delete skill directory + remove symlinks + update `.skill-lock.json`

@@ -67,7 +67,8 @@ final class AgentTypeTests: XCTestCase {
         // Codex also reads the shared canonical directory ~/.agents/skills/
         let additionalDirs = agent.additionalReadableSkillsDirectories
         XCTAssertEqual(additionalDirs.count, 1)
-        XCTAssertEqual(additionalDirs[0].sourceAgent, .codex)
+        XCTAssertNil(additionalDirs[0].sourceAgent)
+        XCTAssertTrue(agent.readsSharedCanonicalDirectory)
     }
 
     // MARK: - Kiro Agent Properties
@@ -166,7 +167,8 @@ final class AgentTypeTests: XCTestCase {
         // Qoder loads the legacy ~/.agents/skills/ compatibility directory by default
         let additionalDirs = agent.additionalReadableSkillsDirectories
         XCTAssertEqual(additionalDirs.count, 1)
-        XCTAssertEqual(additionalDirs[0].sourceAgent, .codex)
+        XCTAssertNil(additionalDirs[0].sourceAgent)
+        XCTAssertTrue(agent.readsSharedCanonicalDirectory)
     }
 
     // MARK: - QClaw Agent Properties
@@ -209,12 +211,37 @@ final class AgentTypeTests: XCTestCase {
         XCTAssertTrue(agent.additionalReadableSkillsDirectories.isEmpty)
     }
 
+    // MARK: - Pi Agent Properties
+
+    /// Verify all computed properties of the Pi agent type
+    /// Pi keeps skills in its agent directory and natively reads the Agent Skills
+    /// shared location ~/.agents/skills/, which is also SkillDeck's canonical store.
+    func testPiProperties() {
+        let agent = AgentType.pi
+
+        // rawValue is used as the Codable key in lock file JSON
+        XCTAssertEqual(agent.rawValue, "pi")
+        XCTAssertEqual(agent.displayName, "Pi")
+        XCTAssertEqual(agent.detectCommand, "pi")
+        XCTAssertEqual(agent.skillsDirectoryPath, "~/.pi/agent/skills")
+        XCTAssertEqual(agent.configDirectoryPath, "~/.pi/agent")
+        XCTAssertEqual(agent.iconName, "p.circle")
+        XCTAssertEqual(agent.brandColor, "slate")
+
+        // Pi reads the shared canonical directory natively (no per-agent symlink needed)
+        let additionalDirs = agent.additionalReadableSkillsDirectories
+        XCTAssertEqual(additionalDirs.count, 1)
+        XCTAssertEqual(additionalDirs[0].url, AgentType.sharedSkillsDirectoryURL)
+        XCTAssertNil(additionalDirs[0].sourceAgent)
+        XCTAssertTrue(agent.readsSharedCanonicalDirectory)
+    }
+
     // MARK: - CaseIterable Count
 
     /// Verify the total number of supported agents
     /// This test catches accidental removal of agent cases
     func testAllCasesCount() {
-        // 14 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor, kiro, codeBuddy, openClaw, trae, qoder, qclaw, workbuddy
-        XCTAssertEqual(AgentType.allCases.count, 14)
+        // 15 agents: claudeCode, codex, geminiCLI, copilotCLI, openCode, antigravity, cursor, kiro, codeBuddy, openClaw, trae, qoder, qclaw, workbuddy, pi
+        XCTAssertEqual(AgentType.allCases.count, 15)
     }
 }

@@ -29,17 +29,21 @@ struct SkillInstallation: Identifiable, Hashable {
         return NSString(string: parent).abbreviatingWithTildeInPath
     }
 
+    /// Whether this installation exists only because the Agent natively reads SkillDeck's
+    /// canonical store (~/.agents/skills/). That is native support, not inheritance from
+    /// another Agent, and it applies to every shared-directory Agent (Codex, Pi, Qoder, OpenCode).
+    var accessesCanonicalDirectoryNatively: Bool {
+        isInherited
+        && agentType.readsSharedCanonicalDirectory
+        && AgentType.isCanonicalSharedDirectory(path.deletingLastPathComponent())
+    }
+
     /// Whether this installation is truly inherited (UI should treat as read-only)
     ///
-    /// For Codex: reading from ~/.agents/skills/ is native support, not inheritance
-    /// even though findInstallations marks it as inheritedFrom: .codex
+    /// Reading from ~/.agents/skills/ is native support, not inheritance.
     /// This ensures consistent behavior across all UI components
     var isTrulyInherited: Bool {
-        // Codex accessing ~/.agents/skills/ is native support, not inheritance
-        if agentType == .codex && inheritedFrom == .codex {
-            return false
-        }
-        return isInherited
+        isInherited && !accessesCanonicalDirectoryNatively
     }
 
     /// Convenience initializer: create direct installation (non-inherited), keeping backward compatibility

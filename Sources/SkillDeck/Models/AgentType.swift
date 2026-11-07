@@ -17,6 +17,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
     case qoder = "qoder"                     // Qoder: AI coding agent (https://qoder.ai)
     case qclaw = "qclaw"                     // QClaw: AI coding assistant (skills in ~/.qclaw/skills)
     case workbuddy = "workbuddy"             // WorkBuddy: AI coding assistant (skills in ~/.workbuddy/skills)
+    case pi = "pi"                           // Pi: terminal coding agent (https://pi.dev)
 
     // Identifiable protocol requirement (similar to Java's Comparable), needed for SwiftUI list rendering
     var id: String { rawValue }
@@ -37,6 +38,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
         case .qoder: "Qoder"
         case .qclaw: "QClaw"
         case .workbuddy: "WorkBuddy"
+        case .pi: "Pi"
         }
     }
 
@@ -58,6 +60,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
         case .qoder: "orange"
         case .qclaw: "mint"
         case .workbuddy: "yellow"
+        case .pi: "slate"
         }
     }
 
@@ -79,6 +82,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
         case .qoder: "q.circle"                     // Letter Q icon for Qoder
         case .qclaw: "hand.raised.circle"            // Hand/claw icon for QClaw
         case .workbuddy: "w.circle"                 // Letter W icon for WorkBuddy
+        case .pi: "p.circle"                        // Letter P icon for Pi
         }
     }
 
@@ -100,13 +104,14 @@ enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
         case .qoder: "AgentQoder"
         case .qclaw: nil
         case .workbuddy: "AgentWorkBuddy"
+        case .pi: "AgentPi"
         }
     }
 
     /// Monochrome logos are drawn as template images so they follow the SwiftUI tint.
     var usesTemplateIcon: Bool {
         switch self {
-        case .copilotCLI, .openCode, .cursor, .qoder: true
+        case .copilotCLI, .openCode, .cursor, .qoder, .pi: true
         default: false
         }
     }
@@ -148,6 +153,8 @@ enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
             return "~/.qclaw/skills"                        // QClaw AI assistant skills directory
         case .workbuddy:
             return "~/.workbuddy/skills"                    // WorkBuddy AI assistant skills directory
+        case .pi:
+            return "~/.pi/agent/skills"                     // Pi agent-directory skills (https://pi.dev/docs/latest/configuration)
         }
     }
 
@@ -174,6 +181,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
         case .qoder: "~/.qoder"
         case .qclaw: "~/.qclaw"
         case .workbuddy: "~/.workbuddy"
+        case .pi: "~/.pi/agent"
         }
     }
 
@@ -194,6 +202,7 @@ enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
         case .qoder: "qoder"
         case .qclaw: "qclaw"
         case .workbuddy: "workbuddy"
+        case .pi: "pi"
         }
     }
 
@@ -214,17 +223,21 @@ enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
     ///   (See: https://opencode.ai/docs/skills/#place-files)
     /// - Qoder loads the legacy ~/.agents/skills/ compatibility directory by default
     ///   (skills.loadFromAgentsDirectory defaults to true)
+    /// - Pi natively reads the Agent Skills locations ~/.agents/skills/ and .agents/skills/
+    ///   (See: https://pi.dev/docs/latest/skills#add-it-to-pi)
     /// - Other Agents currently do not have cross-directory reading behavior
     ///
     /// Returns an array of tuples: (Directory URL, Source Agent Type)
+    /// `sourceAgent` is nil for the shared canonical directory: it is SkillDeck's own store,
+    /// not another Agent's directory, so reading it is native support rather than inheritance.
     /// Similar to Java's Pair<URL, AgentType>, Swift uses named tuples for better clarity
-    var additionalReadableSkillsDirectories: [(url: URL, sourceAgent: AgentType)] {
+    var additionalReadableSkillsDirectories: [(url: URL, sourceAgent: AgentType?)] {
         switch self {
         case .codex:
             // Codex also reads the shared canonical directory ~/.agents/skills/
             // See: https://developers.openai.com/codex/skills/#where-to-save-skills
             // $HOME/.agents/skills is the user-level skills directory for Codex
-            return [(Self.sharedSkillsDirectoryURL, .codex)]
+            return [(Self.sharedSkillsDirectoryURL, nil)]
         case .copilotCLI:
             // Copilot CLI can also read Claude Code's skills directory
             return [(AgentType.claudeCode.skillsDirectoryURL, .claudeCode)]
@@ -233,16 +246,32 @@ enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
             // See: https://opencode.ai/docs/skills/#place-files
             return [
                 (AgentType.claudeCode.skillsDirectoryURL, .claudeCode),
-                (Self.sharedSkillsDirectoryURL, .codex)
+                (Self.sharedSkillsDirectoryURL, nil)
             ]
         case .cursor:
             // Cursor can also read Claude Code's skills directory
             return [(AgentType.claudeCode.skillsDirectoryURL, .claudeCode)]
         case .qoder:
             // Qoder CLI loads ~/.agents/skills/ by default via the legacy compatibility path
-            return [(Self.sharedSkillsDirectoryURL, .codex)]
+            return [(Self.sharedSkillsDirectoryURL, nil)]
+        case .pi:
+            // Pi scans the Agent Skills shared location natively. This is also SkillDeck's
+            // canonical store, so Pi sees every managed skill without a per-agent symlink.
+            return [(Self.sharedSkillsDirectoryURL, nil)]
         default:
             return []
         }
+    }
+
+    /// Whether this Agent natively reads SkillDeck's canonical store (~/.agents/skills/).
+    /// Agents answering true show canonical-directory skills as "Native support" instead of
+    /// an inherited installation, and their assignment toggles stay disabled (Codex, Pi, ...).
+    var readsSharedCanonicalDirectory: Bool {
+        additionalReadableSkillsDirectories.contains { Self.isCanonicalSharedDirectory($0.url) }
+    }
+
+    /// Whether a directory URL denotes the shared canonical skills directory.
+    static func isCanonicalSharedDirectory(_ url: URL) -> Bool {
+        url.standardizedFileURL == sharedSkillsDirectoryURL.standardizedFileURL
     }
 }
