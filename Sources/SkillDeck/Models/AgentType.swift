@@ -211,7 +211,11 @@ enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
     /// Defined here as a single source of truth to avoid duplicating the path string.
     static let sharedSkillsDirectoryURL: URL = {
         let path = NSString(string: "~/.agents/skills").expandingTildeInPath
-        return URL(fileURLWithPath: path)
+        // `isDirectory: true` marks this as a directory URL explicitly. Without it,
+        // `URL(fileURLWithPath:)` infers the flag from the filesystem, so the same constant
+        // would carry a different trailing-slash state depending on whether the directory
+        // already existed when this lazy `static let` was first evaluated.
+        return URL(fileURLWithPath: path, isDirectory: true)
     }()
 
     /// Skills directories of other Agents that this Agent can read in addition to its own skills directory
@@ -272,6 +276,18 @@ enum AgentType: String, CaseIterable, Identifiable, Codable, Sendable {
 
     /// Whether a directory URL denotes the shared canonical skills directory.
     static func isCanonicalSharedDirectory(_ url: URL) -> Bool {
-        url.standardizedFileURL == sharedSkillsDirectoryURL.standardizedFileURL
+        isSameDirectory(url, sharedSkillsDirectoryURL)
+    }
+
+    /// Whether two URLs point at the same directory, ignoring `/a/b` vs `/a/b/` spelling.
+    ///
+    /// `URL ==` also compares the `hasDirectoryPath` flag, and `URL(fileURLWithPath:)` infers
+    /// that flag from the filesystem at call time. So URL equality silently depends on whether
+    /// the directory already exists when the URL is built. That passed on a developer machine
+    /// (`~/.agents/skills` present) and failed on CI (absent), where canonical skills were
+    /// classified as inherited instead of native support. Comparing standardized path strings
+    /// removes both sources of instability, because `URL.path` never keeps a trailing slash.
+    static func isSameDirectory(_ lhs: URL, _ rhs: URL) -> Bool {
+        lhs.standardizedFileURL.path == rhs.standardizedFileURL.path
     }
 }

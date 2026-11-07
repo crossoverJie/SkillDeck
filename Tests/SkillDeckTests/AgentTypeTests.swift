@@ -236,6 +236,59 @@ final class AgentTypeTests: XCTestCase {
         XCTAssertTrue(agent.readsSharedCanonicalDirectory)
     }
 
+    // MARK: - Canonical Directory Matching
+
+    /// The canonical-directory check must not depend on whether the directory currently exists.
+    ///
+    /// `URL ==` compares the `hasDirectoryPath` flag as well, and that flag is inferred from the
+    /// filesystem by `URL(fileURLWithPath:)`. On CI `~/.agents/skills` did not exist yet, so the
+    /// inferred flag differed from a `deletingLastPathComponent()` URL and the shared-directory
+    /// skills were treated as inherited instead of native support.
+    func testCanonicalSharedDirectoryComparisonIgnoresTrailingSlashAndExistence() {
+        let shared = AgentType.sharedSkillsDirectoryURL
+
+        // Same directory, directory-style URL (trailing slash) — the flag `deletingLastPathComponent()` produces.
+        let withTrailingSlash = URL(fileURLWithPath: shared.path + "/", isDirectory: true)
+        XCTAssertTrue(AgentType.isCanonicalSharedDirectory(withTrailingSlash))
+
+        // Same directory, no trailing slash (how the constant may be built on a fresh machine).
+        let withoutTrailingSlash = URL(fileURLWithPath: shared.path)
+        XCTAssertTrue(AgentType.isCanonicalSharedDirectory(withoutTrailingSlash))
+
+        // A child path's parent resolves back to the canonical directory.
+        let childParent = shared
+            .appendingPathComponent("demo-skill")
+            .deletingLastPathComponent()
+        XCTAssertTrue(AgentType.isCanonicalSharedDirectory(childParent))
+
+        // Unrelated directories stay unrelated.
+        XCTAssertFalse(AgentType.isCanonicalSharedDirectory(URL(fileURLWithPath: "/tmp/skills")))
+        XCTAssertFalse(AgentType.isCanonicalSharedDirectory(shared.appendingPathComponent("demo-skill")))
+    }
+
+    /// Regression test for the CI-only failure: the compared directories must not exist, so
+    /// `URL(fileURLWithPath:)` has no filesystem hint to infer `hasDirectoryPath` from.
+    /// CI runs in a fresh home directory where `~/.agents/skills` is still absent.
+    func testIsSameDirectoryOnMissingPathsIgnoresTrailingSlash() {
+        let missing = FileManager.default.temporaryDirectory
+            .appendingPathComponent("missing-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("skills", isDirectory: true)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: missing.path))
+
+        let plain = URL(fileURLWithPath: missing.path)
+        let slashed = URL(fileURLWithPath: missing.path + "/", isDirectory: true)
+        XCTAssertTrue(AgentType.isSameDirectory(plain, slashed))
+        XCTAssertTrue(AgentType.isSameDirectory(slashed, plain))
+
+        // `deletingLastPathComponent()` always produces a trailing slash; the parent of a child
+        // built from the un-slashed URL must still match.
+        let childParent = plain.appendingPathComponent("demo-skill").deletingLastPathComponent()
+        XCTAssertTrue(AgentType.isSameDirectory(plain, childParent))
+
+        // Real prefixes must still differ.
+        XCTAssertFalse(AgentType.isSameDirectory(plain, missing.deletingLastPathComponent()))
+    }
+
     // MARK: - CaseIterable Count
 
     /// Verify the total number of supported agents
