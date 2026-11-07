@@ -218,10 +218,10 @@ final class SkillManagerToggleTests: XCTestCase {
         XCTAssertNil(copilotAfter, "Copilot inherited installation should also be removed")
     }
 
-    /// 测试 Codex 的 ~/.agents/skills/ 不被视为继承安装
+    /// 测试共享 canonical 目录对各 Agent 都不被视为继承安装
     ///
-    /// 场景：Codex 原生支持 ~/.agents/skills/，虽然 findInstallations 返回 isInherited=true，
-    /// 但 inheritedFrom=.codex，在 UI 层和 SkillManager 层会被视为非继承
+    /// 场景：Codex/Pi 等原生支持 ~/.agents/skills/，虽然 findInstallations 返回 isInherited=true，
+    /// 但 inheritedFrom=nil，isTrulyInherited 为 false（属于原生支持而非继承）
     func testCodexAgentsSkillsIsNotInherited() async throws {
         // Given: 在 ~/.agents/skills/ 创建 skill（模拟 Codex 原生读取）
         let agentsSkillsDir = AgentType.sharedSkillsDirectoryURL
@@ -247,15 +247,19 @@ final class SkillManagerToggleTests: XCTestCase {
         // Then: 验证 installations 可以正常获取（没有 crash）
         XCTAssertNotNil(installations)
 
-        // 验证 Codex 的 installation 的 inheritedFrom 是 .codex
-        // 这允许 UI 层和 SkillManager 将其视为非继承安装
-        let codexInstallation = installations.first { $0.agentType == .codex }
-        XCTAssertNotNil(codexInstallation, "Should find Codex installation")
-        XCTAssertEqual(codexInstallation?.inheritedFrom, .codex,
-                       "Codex installation from ~/.agents/skills/ should have inheritedFrom=.codex")
+        // Codex 和 Pi 都原生读取 canonical 目录：inheritedFrom=nil，且不算真正继承
+        for agent in [AgentType.codex, AgentType.pi] {
+            let installation = installations.first { $0.agentType == agent }
+            XCTAssertNotNil(installation, "Should find \(agent.displayName) installation")
+            XCTAssertNil(installation?.inheritedFrom,
+                         "Canonical directory access should not borrow an \(agent.displayName) source agent")
+            XCTAssertTrue(installation?.accessesCanonicalDirectoryNatively ?? false,
+                          "\(agent.displayName) reading ~/.agents/skills/ is native support")
+            XCTAssertFalse(installation?.isTrulyInherited ?? true,
+                           "\(agent.displayName) canonical installation should not be truly inherited")
+        }
 
-        // 注意：findInstallations 返回的 isInherited 为 true，但 UI/SkillManager 会特殊处理 inheritedFrom=.codex 的情况
-        // 这是 isTrulyInherited 逻辑的一部分
+        // 注意：findInstallations 返回的 isInherited 为 true，但 isTrulyInherited 基于目录判断将其归为原生支持
     }
 
     // MARK: - Edge Cases

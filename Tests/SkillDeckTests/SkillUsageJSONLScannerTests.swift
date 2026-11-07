@@ -299,7 +299,9 @@ final class SkillUsageJSONLScannerTests: XCTestCase {
             cacheURL: cacheURL,
             fileManager: .default,
             parse: { _ in [SkillUsageEvent(skillID: "actual-skill", timestamp: nil)] },
-            parserVersion: 2
+            // Relative to the current default so this test survives future bumps of the
+            // shared parser version.
+            parserVersion: SkillUsageLogCache.currentParserVersion + 1
         )
         let result = newParser.scan()
 
@@ -307,7 +309,7 @@ final class SkillUsageJSONLScannerTests: XCTestCase {
         XCTAssertEqual(result.records["actual-skill"]?.detectedInvocationCount, 1)
 
         let saved = try JSONDecoder().decode(SkillUsageLogCache.self, from: Data(contentsOf: cacheURL))
-        XCTAssertEqual(saved.parserVersion, 2)
+        XCTAssertEqual(saved.parserVersion, SkillUsageLogCache.currentParserVersion + 1)
     }
 
     private func makeScanner(

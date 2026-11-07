@@ -5,10 +5,16 @@
 Agent brand logos under `Sources/SkillDeck/Resources/AgentIcons` are trademarks
 of their respective owners and are used only to identify the corresponding Agent.
 
-All Agent icons except WorkBuddy come from
-[lobehub/icons](https://github.com/lobehub/lobe-icons). The WorkBuddy icon is taken
+All bundled Agent logos except WorkBuddy come from
+[lobehub/icons](https://github.com/lobehub/lobe-icons), including `AgentPi.svg`
+(lobehub's "Pi Agent" icon for https://pi.dev). The WorkBuddy icon is taken
 from [magpie](https://github.com/yetone/magpie), so the magpie notice below applies
-only to `Resources/AgentIcons/AgentWorkBuddy.svg`.
+only to `Resources/AgentIcons/AgentWorkBuddy.svg`. Agents without a bundled logo
+(currently QClaw) fall back to an SF Symbol and use no third-party asset.
+
+The `docs/agent-icons/` copies used by the landing page are recoloured derivatives
+of these same icons (the WorkBuddy copy is derived from the magpie artwork) and are
+covered by the notices below.
 
 Overview icons under `Sources/SkillDeck/Resources/SidebarIcons` are monochrome
 adaptations used only to identify the corresponding destination:

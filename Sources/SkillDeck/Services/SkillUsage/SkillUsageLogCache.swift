@@ -14,8 +14,10 @@ struct SkillUsageLogCache: Codable, Sendable {
     /// Increment when the cache shape or matching semantics change.
     static let currentVersion = 3
 
-    /// Increment when a provider's parsing semantics change. Only providers whose parser
-    /// version differs rescan; other caches (notably large Codex histories) stay valid.
+    /// Increment when a provider's parsing semantics change. Each provider writes its own cache
+    /// file, so bumping this shared default rescans every history; a single provider should
+    /// instead pass its own `parserVersion:` to `SkillUsageJSONLScanner` (see
+    /// `CodeBuddySkillUsageService` and `PiSkillUsageService`), leaving other caches untouched.
     static let currentParserVersion = 1
 
     /// Version 2 used the same on-disk shape for Codex. Accepting it avoids forcing a full

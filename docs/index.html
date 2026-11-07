@@ -10,15 +10,15 @@
 <meta charset="utf-8">
 <title>SkillDeck · Manage AI Agent Skills</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="The native macOS desktop app for managing AI code agent skills across 14 agents. One-click install, symlink orchestration, live updates.">
+<meta name="description" content="The native macOS desktop app for managing AI code agent skills across 15 agents. One-click install, symlink orchestration, live updates.">
 <meta property="og:title" content="SkillDeck · Manage AI Agent Skills">
-<meta property="og:description" content="The native macOS desktop app for managing AI code agent skills across 14 agents.">
+<meta property="og:description" content="The native macOS desktop app for managing AI code agent skills across 15 agents.">
 <meta property="og:image" content="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/imagesdashboard.png">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://crossoverjie.github.io/SkillDeck/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="SkillDeck · Manage AI Agent Skills">
-<meta name="twitter:description" content="The native macOS desktop app for managing AI code agent skills across 14 agents.">
+<meta name="twitter:description" content="The native macOS desktop app for managing AI code agent skills across 15 agents.">
 <meta name="twitter:image" content="https://cdn.jsdelivr.net/gh/crossoverJie/images@main/images/imagesdashboard.png">
 <link rel="icon" type="image/svg+xml" href="./AppIcon.svg">
 <link rel="canonical" href="https://crossoverjie.github.io/SkillDeck/">
@@ -31,7 +31,7 @@
   "name": "SkillDeck",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "macOS 14+",
-  "description": "The native macOS desktop app for managing AI code agent skills across 14 agents.",
+  "description": "The native macOS desktop app for managing AI code agent skills across 15 agents.",
   "url": "https://crossoverjie.github.io/SkillDeck/",
   "author": {
     "@type": "Person",
@@ -762,7 +762,7 @@ footer.foot {
     <p class="tagline">The native macOS app for managing AI code agent skills. Install once, symlink everywhere, update in one click.</p>
 
     <div class="hero-tokens">
-      <span><b>14</b> agents supported</span>
+      <span><b>15</b> agents supported</span>
       <span><b>1-click</b> install</span>
       <span><b>macOS 14+</b> native</span>
       <span><b>MIT</b> licensed</span>
@@ -815,7 +815,7 @@ footer.foot {
     <ol class="features">
       <li>
         <p class="name">Multi-Agent<small>One skill, every agent</small></p>
-        <p class="what">Claude Code, Codex, Gemini CLI, Copilot CLI, OpenCode, Antigravity, Cursor, Kiro, CodeBuddy, OpenClaw, Trae, Qoder, QClaw, and WorkBuddy. Install a skill once; SkillDeck creates the right symlinks for each agent directory automatically.</p>
+        <p class="what">Claude Code, Codex, Copilot CLI, OpenCode, Pi, Cursor, Kiro, CodeBuddy, Trae, Qoder, QClaw, WorkBuddy, Gemini CLI, Antigravity, and OpenClaw. Install a skill once; SkillDeck creates the right symlinks for each agent directory automatically.</p>
       </li>
       <li>
         <p class="name">Registry Browser<small>Discover community skills</small></p>
@@ -866,10 +866,6 @@ footer.foot {
         <span class="agent-name">Codex</span>
       </li>
       <li>
-        <span class="agent-icon"><img src="agent-icons/AgentGeminiCLI.svg" alt="" aria-hidden="true" decoding="async"></span>
-        <span class="agent-name">Gemini CLI</span>
-      </li>
-      <li>
         <span class="agent-icon"><img src="agent-icons/AgentCopilotCLI.svg" alt="" aria-hidden="true" decoding="async"></span>
         <span class="agent-name">Copilot CLI</span>
       </li>
@@ -878,8 +874,8 @@ footer.foot {
         <span class="agent-name">OpenCode</span>
       </li>
       <li>
-        <span class="agent-icon"><img src="agent-icons/AgentAntigravity.svg" alt="" aria-hidden="true" decoding="async"></span>
-        <span class="agent-name">Antigravity</span>
+        <span class="agent-icon"><img src="agent-icons/AgentPi.svg" alt="" aria-hidden="true" decoding="async"></span>
+        <span class="agent-name">Pi</span>
       </li>
       <li>
         <span class="agent-icon"><img src="agent-icons/AgentCursor.svg" alt="" aria-hidden="true" decoding="async"></span>
@@ -892,10 +888,6 @@ footer.foot {
       <li>
         <span class="agent-icon"><img src="agent-icons/AgentCodeBuddy.svg" alt="" aria-hidden="true" decoding="async"></span>
         <span class="agent-name">CodeBuddy</span>
-      </li>
-      <li>
-        <span class="agent-icon"><img src="agent-icons/AgentOpenClaw.svg" alt="" aria-hidden="true" decoding="async"></span>
-        <span class="agent-name">OpenClaw</span>
       </li>
       <li>
         <span class="agent-icon"><img src="agent-icons/AgentTrae.svg" alt="" aria-hidden="true" decoding="async"></span>
@@ -912,6 +904,18 @@ footer.foot {
       <li>
         <span class="agent-icon"><img src="agent-icons/AgentWorkBuddy.svg" alt="" aria-hidden="true" decoding="async"></span>
         <span class="agent-name">WorkBuddy</span>
+      </li>
+      <li>
+        <span class="agent-icon"><img src="agent-icons/AgentGeminiCLI.svg" alt="" aria-hidden="true" decoding="async"></span>
+        <span class="agent-name">Gemini CLI</span>
+      </li>
+      <li>
+        <span class="agent-icon"><img src="agent-icons/AgentAntigravity.svg" alt="" aria-hidden="true" decoding="async"></span>
+        <span class="agent-name">Antigravity</span>
+      </li>
+      <li>
+        <span class="agent-icon"><img src="agent-icons/AgentOpenClaw.svg" alt="" aria-hidden="true" decoding="async"></span>
+        <span class="agent-name">OpenClaw</span>
       </li>
     </ol>
   </section>
@@ -933,7 +937,7 @@ footer.foot {
         <dd>Canonical files live in <code>~/.agents/skills/&lt;name&gt;/SKILL.md</code>. Each agent gets a symlink to its own directory — for example, <code>~/.claude/skills/&lt;name&gt;</code> points to the canonical path. The lock file at <code>~/.agents/.skill-lock.json</code> tracks metadata.</dd>
       </div>
       <div class="faq-pair">
-        <dt>Do I need all 14 agents installed?</dt>
+        <dt>Do I need all 15 agents installed?</dt>
         <dd>No. SkillDeck detects which agents are installed by checking for CLI binaries and config directories. Only detected agents appear in the sidebar. You can still manage skills for agents you haven't installed yet.</dd>
       </div>
       <div class="faq-pair">

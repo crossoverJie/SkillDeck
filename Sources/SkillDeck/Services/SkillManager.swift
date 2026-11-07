@@ -708,15 +708,9 @@ final class SkillManager {
         let installation = latestSkill.installations.first { $0.agentType == agent }
 
         // Protection: inherited installations cannot be toggled (inherited installations are managed by source Agent)
-        // For Codex: reading from ~/.agents/skills/ is not truly "inherited" - it's native support
-        let isTrulyInherited: Bool = {
-            guard let installation = installation else { return false }
-            if agent == .codex && installation.inheritedFrom == .codex {
-                return false
-            }
-            return installation.isInherited
-        }()
-        if isTrulyInherited {
+        // isTrulyInherited already treats shared canonical directory access as native support
+        // for every shared-directory Agent (Codex, Pi, ...), so no per-Agent special case remains.
+        if installation?.isTrulyInherited == true {
             print("[SkillManager] toggleAssignment blocked: truly inherited installation")
             return
         }
