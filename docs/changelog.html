@@ -447,6 +447,21 @@ footer.foot {
     <p class="tagline">Every version, every fix, every feature. SkillDeck follows semantic versioning — patch for fixes, minor for new agents and capabilities.</p>
   </header>
 
+  <!-- ============ v0.1.4 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.1.4">v0.1.4</a></h2>
+      <span class="version-date">Nov 8, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>OpenCode usage counts</strong>: OpenCode keeps its history in a WAL-mode SQLite database, and once the app closes, a read-only connection can no longer rebuild the <code>-shm</code> index it needs. The scan failed against that database, so OpenCode usage stayed empty and every skill carried a &ldquo;usage may be incomplete&rdquo; warning. SkillDeck now verifies the connection with a cheap read and retries with a read-write handle when needed, so OpenCode counts — and the warning badge — are correct again.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/72">#72</a>
+      </li>
+    </ol>
+  </article>
+
   <!-- ============ v0.1.3 ============ -->
   <article class="version">
     <div class="version-head">
