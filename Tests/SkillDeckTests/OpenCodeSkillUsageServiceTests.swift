@@ -20,7 +20,13 @@ final class OpenCodeSkillUsageServiceTests: XCTestCase {
             Row(id: "p4", tool: "bash", skill: "ignored", status: "completed", timestamp: 1_790_000_300_000),
         ])
 
-        let result = await OpenCodeSkillUsageService(databaseURL: databaseURL).scan()
+        let service = OpenCodeSkillUsageService(databaseURL: databaseURL)
+        let result = await service.scan()
+
+        // Locks in the "prefer read-only" contract: a plain (non-WAL) database must never be
+        // opened read-write, because that handle can create sidecar files.
+        let openMode = await service.lastOpenMode
+        XCTAssertEqual(openMode, .readOnly)
 
         XCTAssertEqual(result.scannedLogCount, 1)
         XCTAssertEqual(result.failedLogCount, 0)
@@ -114,7 +120,13 @@ final class OpenCodeSkillUsageServiceTests: XCTestCase {
             ),
         ])
 
-        let result = await OpenCodeSkillUsageService(databaseURL: databaseURL).scan()
+        let service = OpenCodeSkillUsageService(databaseURL: databaseURL)
+        let result = await service.scan()
+
+        // A modern (non-WAL) database is readable with a strictly read-only handle, so the
+        // fallback must never be used here.
+        let openMode = await service.lastOpenMode
+        XCTAssertEqual(openMode, .readOnly)
 
         XCTAssertEqual(result.failedLogCount, 0)
         XCTAssertEqual(result.records["web-access"]?.detectedInvocationCount, 1)
@@ -127,16 +139,63 @@ final class OpenCodeSkillUsageServiceTests: XCTestCase {
         XCTAssertNil(result.records["legacy-only"])
     }
 
+    /// Regression test for the permanent OpenCode "usage unreadable" warning.
+    ///
+    /// OpenCode leaves `opencode.db` in WAL journal mode but deletes `-shm`/`-wal` when it shuts
+    /// down. A strictly read-only SQLite connection cannot create the missing wal-index, so the
+    /// plain `SQLITE_OPEN_READONLY` open failed with `SQLITE_CANTOPEN` and the scan reported a
+    /// failure. The provider must still be able to read such a database.
+    func testScanReadsWALDatabaseWhoseSidecarFilesWereRemoved() async throws {
+        let fixture = try TemporaryFixture()
+        defer { fixture.remove() }
+
+        let databaseURL = fixture.root.appendingPathComponent("opencode.db")
+        try makeDatabase(at: databaseURL, rows: [
+            Row(id: "p1", tool: "skill", skill: "web-access", status: "completed", timestamp: 1_790_000_000_000),
+        ])
+        try switchToWALAndDropSidecarFiles(at: databaseURL)
+
+        // Precondition of the bug: SQLite opens the file successfully but fails on the first
+        // read, because it cannot create the missing wal-index. Assert that state so this test
+        // keeps exercising the fallback instead of silently passing.
+        var probe: OpaquePointer?
+        XCTAssertEqual(sqlite3_open_v2(databaseURL.path, &probe, SQLITE_OPEN_READONLY, nil), SQLITE_OK)
+        if let probe {
+            var statement: OpaquePointer?
+            XCTAssertNotEqual(
+                sqlite3_prepare_v2(probe, "SELECT 1 FROM sqlite_master LIMIT 1", -1, &statement, nil),
+                SQLITE_OK,
+                "fixture no longer reproduces the WAL/-shm gap"
+            )
+            sqlite3_finalize(statement)
+            sqlite3_close(probe)
+        }
+
+        let service = OpenCodeSkillUsageService(databaseURL: databaseURL)
+        let result = await service.scan()
+
+        // The wal-index had to be recreated, so the read-write fallback must be the path taken.
+        let openMode = await service.lastOpenMode
+        XCTAssertEqual(openMode, .readWrite)
+
+        XCTAssertEqual(result.failedLogCount, 0)
+        XCTAssertEqual(result.scannedLogCount, 1)
+        XCTAssertEqual(result.records["web-access"]?.detectedInvocationCount, 1)
+    }
+
     func testScanReturnsNoCoverageWhenDatabaseIsMissing() async {
         let missing = FileManager.default.temporaryDirectory
             .appendingPathComponent("SkillDeckOpenCodeMissing-\(UUID().uuidString)", isDirectory: true)
             .appendingPathComponent("opencode.db")
 
-        let result = await OpenCodeSkillUsageService(databaseURL: missing).scan()
+        let service = OpenCodeSkillUsageService(databaseURL: missing)
+        let result = await service.scan()
 
         XCTAssertEqual(result.scannedLogCount, 0)
         XCTAssertEqual(result.failedLogCount, 0)
         XCTAssertTrue(result.records.isEmpty)
+        let openMode = await service.lastOpenMode
+        XCTAssertNil(openMode)
     }
 
     /// An existing but corrupt database is a read failure, not "no history".
@@ -147,11 +206,17 @@ final class OpenCodeSkillUsageServiceTests: XCTestCase {
         let databaseURL = fixture.root.appendingPathComponent("opencode.db")
         try "not a sqlite database".write(to: databaseURL, atomically: true, encoding: .utf8)
 
-        let result = await OpenCodeSkillUsageService(databaseURL: databaseURL).scan()
+        let service = OpenCodeSkillUsageService(databaseURL: databaseURL)
+        let result = await service.scan()
 
         XCTAssertEqual(result.scannedLogCount, 0)
         XCTAssertEqual(result.failedLogCount, 1)
         XCTAssertTrue(result.records.isEmpty)
+        // `SQLITE_NOTADB` is a permanent failure, so both open attempts must be rejected instead
+        // of handing a broken connection to the scan. Otherwise a whitelist/blacklist slip in
+        // `isReadable` would stay invisible: the result is `.failed` either way.
+        let openMode = await service.lastOpenMode
+        XCTAssertNil(openMode)
     }
 
     /// An unreadable parent must not be mistaken for a missing database.
@@ -176,11 +241,15 @@ final class OpenCodeSkillUsageServiceTests: XCTestCase {
             )
         }
 
-        let result = await OpenCodeSkillUsageService(databaseURL: databaseURL).scan()
+        let service = OpenCodeSkillUsageService(databaseURL: databaseURL)
+        let result = await service.scan()
 
         XCTAssertEqual(result.scannedLogCount, 0)
         XCTAssertEqual(result.failedLogCount, 1)
         XCTAssertTrue(result.records.isEmpty)
+        // Neither open mode can reach the file, so no strategy may be reported.
+        let openMode = await service.lastOpenMode
+        XCTAssertNil(openMode)
     }
 
     private struct Row {
@@ -275,6 +344,18 @@ final class OpenCodeSkillUsageServiceTests: XCTestCase {
                 throw NSError(domain: "OpenCodeSkillUsageServiceTests", code: 6)
             }
         }
+    }
+
+    /// Moves the fixture database into WAL mode, then removes `-shm`/`-wal` to mimic the state
+    /// OpenCode leaves behind after a clean shutdown (WAL header, no sidecar files).
+    private func switchToWALAndDropSidecarFiles(at url: URL) throws {
+        let database = try openDatabase(at: url)
+        try execute("PRAGMA journal_mode = WAL;", in: database)
+        // Closing checkpoints the WAL into the main file, so all rows stay readable.
+        sqlite3_close(database)
+        // The sidecar files may or may not survive the close depending on the SQLite build.
+        try? FileManager.default.removeItem(atPath: url.path + "-shm")
+        try? FileManager.default.removeItem(atPath: url.path + "-wal")
     }
 
     private func openDatabase(at url: URL) throws -> OpaquePointer {

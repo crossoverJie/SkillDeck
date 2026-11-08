@@ -26,6 +26,10 @@ actor OpenCodeSkillUsageService: SkillUsageProvider {
     }
 
     func scan() -> SkillUsageScanResult {
+        // Reset before doing anything so a scan that never reaches an open (missing path, path
+        // probe failure, both open attempts failing) cannot report the previous attempt's strategy.
+        lastOpenMode = nil
+
         switch SkillUsagePathProbe.status(at: databaseURL) {
         case .missing:
             return SkillUsageScanResult(
@@ -39,11 +43,10 @@ actor OpenCodeSkillUsageService: SkillUsageProvider {
             break
         }
 
-        guard let database = openReadOnly() else {
+        guard let database = openForReading() else {
             return Self.failure
         }
         defer { sqlite3_close(database) }
-        sqlite3_busy_timeout(database, 2_000)
 
         let rows: [SkillRow]
         if tableExists("session_message", in: database),
@@ -92,9 +95,112 @@ actor OpenCodeSkillUsageService: SkillUsageProvider {
         records: [:], scannedLogCount: 0, preservedLogCount: 0, failedLogCount: 1
     )
 
-    private func openReadOnly() -> OpaquePointer? {
+    /// How the current connection was opened. Exposed for tests and diagnostics so the
+    /// "prefer read-only" contract stays observable instead of silently rotting.
+    ///
+    /// It records only the opening strategy of the last scan attempt, not its outcome: it is
+    /// `nil` while no scan ran and whenever both open attempts failed, but it stays set when the
+    /// handle opened fine and a *later* query (e.g. `readSessionMessageRows`) failed.
+    ///
+    /// `private(set)` keeps it read-only for everyone outside this actor (Swift's equivalent of a
+    /// getter-only property in Java), while the actor still mutates it in `openForReading()`.
+    private(set) var lastOpenMode: DatabaseOpenMode?
+
+    /// Journal-mode-safe opening strategy chosen for a scan.
+    enum DatabaseOpenMode: Equatable, Sendable {
+        /// Opened with `SQLITE_OPEN_READONLY`, which cannot create a `-shm` file.
+        case readOnly
+        /// Opened with `SQLITE_OPEN_READWRITE` (no CREATE) so SQLite may build the wal-index.
+        case readWrite
+    }
+
+    /// Opens the database for reading, degrading to a read-write handle only when SQLite refuses
+    /// a strictly read-only connection.
+    ///
+    /// Why the fallback is required: OpenCode keeps `opencode.db` in WAL journal mode (the header
+    /// records `read/write version 2`). A WAL database needs its `-shm` wal-index file before any
+    /// page can be read, and a connection opened with `SQLITE_OPEN_READONLY` is not permitted to
+    /// create that file. When OpenCode shuts down cleanly, SQLite checkpoints the WAL and deletes
+    /// `-shm`/`-wal`; the very next read-only open then fails with `SQLITE_CANTOPEN` ("unable to
+    /// open database file") even though the file is perfectly readable. Result: every OpenCode
+    /// usage scan reported a read failure and the UI showed a permanent warning triangle.
+    ///
+    /// The `SQLITE_OPEN_READWRITE` retry (deliberately *without* `SQLITE_OPEN_CREATE`) lets SQLite
+    /// recreate the wal-index, which is the same thing any OpenCode or `sqlite3` process does.
+    ///
+    /// Side effects of the fallback, stated explicitly because they are not "zero writes": the
+    /// `-shm` wal-index appears in `~/.local/share/opencode/`, and when this handle is the last
+    /// connection to close, SQLite may checkpoint the WAL back into `opencode.db`. Neither touches
+    /// stored rows, both are ordinary SQLite behaviour, and OpenCode simply reuses or recreates
+    /// those files on its next start — but nothing here should be described as read-only.
+    ///
+    /// Note that `sqlite3_open_v2` reports success for such a database and only fails later, on the
+    /// first page read, so the handle is probed with a trivial query before being trusted.
+    private func openForReading() -> OpaquePointer? {
+        // Preferred path: strictly read-only, used whenever `-shm` already exists. This is the
+        // only path that is safe on a database the current user cannot write to.
+        if let database = open(flags: SQLITE_OPEN_READONLY) {
+            if isReadable(database) {
+                lastOpenMode = .readOnly
+                return database
+            }
+            // Opened but unusable (missing wal-index); free the handle before retrying.
+            sqlite3_close(database)
+        }
+
+        // Fallback path: read-write (no CREATE) so the `-shm` wal-index can be recreated.
+        guard let database = open(flags: SQLITE_OPEN_READWRITE) else {
+            return nil
+        }
+        // Verify both paths the same way: an unusable fallback handle must become a reported
+        // failure instead of a stream of confusing errors from the individual queries.
+        guard isReadable(database) else {
+            sqlite3_close(database)
+            return nil
+        }
+        lastOpenMode = .readWrite
+        return database
+    }
+
+    /// Forces a page read to prove the connection can be used for the upcoming queries.
+    ///
+    /// `SELECT 1 FROM sqlite_master LIMIT 1` only needs the schema page, so it is cheap even for a
+    /// multi-gigabyte database, but preparing it already triggers the page read that a read-only
+    /// WAL connection cannot perform without a wal-index.
+    ///
+    /// The check is a whitelist, not a blacklist: only `SQLITE_OK` and the temporary
+    /// `SQLITE_BUSY`/`SQLITE_LOCKED` states count as usable. Every other error
+    /// (`CANTOPEN`, `READONLY`, `IOERR`, `NOTADB`, `CORRUPT`, …) is treated as a permanent failure
+    /// of this handle, so the caller retries with the other open mode. Do not invert this into
+    /// "unusable == CANTOPEN": the error SQLite reports for a WAL database without a wal-index
+    /// varies by SQLite version, file system and permissions (observed `CANTOPEN` on 3.51.0, no
+    /// error at all on 3.53.4, `READONLY` for a write-protected directory), and any unlisted code
+    /// would then silently skip the fallback and reintroduce the permanent warning triangle.
+    ///
+    /// `SQLITE_BUSY`/`SQLITE_LOCKED` are the exception because another process (a running OpenCode)
+    /// holds a transient lock: downgrading to read-write just to create sidecar files would not
+    /// help, and the queries that follow already wait for the busy timeout.
+    private func isReadable(_ database: OpaquePointer) -> Bool {
+        var statement: OpaquePointer?
+        let status = sqlite3_prepare_v2(
+            database, "SELECT 1 FROM sqlite_master LIMIT 1", -1, &statement, nil
+        )
+        sqlite3_finalize(statement)
+        return status == SQLITE_OK || status == SQLITE_BUSY || status == SQLITE_LOCKED
+    }
+
+    /// Thin wrapper around `sqlite3_open_v2` that applies the busy timeout and releases the handle
+    /// on failure.
+    ///
+    /// The timeout is set here, immediately after a successful open, so the availability probe in
+    /// `openForReading()` also waits for a short-lived writer lock instead of reporting a spurious
+    /// failure.
+    ///
+    /// `flags` is `Int32` because the C API declares the parameter as `int`; Swift imports C
+    /// `int` as `Int32` (not the platform-sized `Int` used by most Swift APIs).
+    private func open(flags: Int32) -> OpaquePointer? {
         var database: OpaquePointer?
-        guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,
+        guard sqlite3_open_v2(databaseURL.path, &database, flags, nil) == SQLITE_OK,
               let database else {
             // SQLite may allocate a handle even when opening fails; close it to avoid leaking
             // one connection per refresh attempt against a corrupt or unreadable database.
@@ -103,6 +209,8 @@ actor OpenCodeSkillUsageService: SkillUsageProvider {
             }
             return nil
         }
+        // Give any competing writer (a running OpenCode) a chance to finish before failing.
+        sqlite3_busy_timeout(database, 2_000)
         return database
     }
 
