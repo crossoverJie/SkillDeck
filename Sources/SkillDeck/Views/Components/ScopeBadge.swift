@@ -31,3 +31,27 @@ struct ScopeBadge: View {
         }
     }
 }
+
+/// Compact status badge for a disabled / broken skill, shown next to `ScopeBadge`.
+///
+/// Reuses the same padding / background / cornerRadius recipe as `ScopeBadge` so both read as one
+/// visual family, but with a caller-supplied tint and SF Symbol. Shared by the detail header and
+/// the Dashboard row so the disabled / broken state is rendered with one small view.
+struct SkillStatusBadge: View {
+    let text: String
+    let systemImage: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: systemImage).appFont(.caption2)
+            Text(text).appFont(.caption)
+                .fontWeight(.medium)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(color.opacity(0.12))
+        .foregroundStyle(color)
+        .cornerRadius(4)
+    }
+}

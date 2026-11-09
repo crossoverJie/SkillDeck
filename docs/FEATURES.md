@@ -22,6 +22,7 @@
 | Multi-Agent Support | Claude Code, Codex, Copilot CLI, OpenCode, Pi, Cursor, Kiro, CodeBuddy, Trae, Qoder, QClaw, WorkBuddy, Gemini CLI, Antigravity, OpenClaw |
 | Agent Status Indicators | Sidebar shows skill count per agent; uninstalled agents shown dimmed |
 | Agent Assignment | Toggle switches to install/uninstall a skill to specific agents (auto-manages symlinks) |
+| Global Disable / Enable | One switch hides a skill from **all 15 agents** at once (renames `SKILL.md` → `.SKILL.md.disabled`), keeps it visible/greyed in the list for quick A/B testing, and fully restores it on re-enable |
 | Inherited Installation Protection | Inherited cross-agent installations are labeled with their source and toggle-disabled |
 
 ### Skill Detail & Editing
@@ -80,6 +81,20 @@
 | General Settings | Displays shared skills path and lock file path (Cmd+, to open) |
 | About | Shows app name, version, and description |
 
+### Global Disable / Enable — v1 Limitations
+
+- **Admission**: only shared global skills whose real directory is exactly `~/.agents/skills/<id>/` can be disabled. The following are refused with a localized reason and an alternative:
+  - an external symlink target (e.g. `~/.agents/skills/foo -> ~/dev/foo`) → rename `SKILL.md` inside that external directory manually;
+  - a real directory inside an agent's own folder (even if inherited by several agents and therefore shown as `.sharedGlobal`) → not canonical, so no global disable;
+  - `.agentLocal` / `.project` skills;
+  - a skill that also has a real duplicate copy in an agent directory → remove that copy first, otherwise disabling the shared copy would not hide it.
+- **Marker is the only copy**: `.SKILL.md.disabled` is hidden and not a `.md` file; it is the sole copy of a disabled skill's content. Do not open, rename, or delete it with an editor / `rm`. If it is deleted, the content is unrecoverable and the row becomes a visible "SKILL.md Missing" broken row that you can delete or (with a github lock entry) reinstall from the source repository.
+- **No symlink / lock changes**: disabling leaves every symlink and `~/.agents/.skill-lock.json` byte-for-byte intact; re-enabling needs no snapshot. Disabled skills still participate in sidebar counts and search.
+- **Watcher blind spot**: `FileSystemWatcher` watches the *parent* skill directories, so a rename INSIDE `<id>/` (which is exactly what disable/enable does) emits no FSEvents event. The GUI's own switch calls `refresh()` explicitly and is fine, but if you disable/enable via the shell (`mv`), **click the sidebar refresh button or relaunch** before using the GUI on that skill. Service-layer guards also re-check the filesystem directly, so an external disable cannot cause a stale model to resurrect the skill or delete its marker.
+- **Recovery is direction-aware**: a real duplicate copy that appears while a skill is disabled must NOT strand it — re-enabling only renames the marker back inside the canonical store and cannot affect any other directory, so the Enable control stays available even when disabling would be refused.
+- **`npx skills` interop is not verified**: while disabled the lock entry still lists `<id>` but `SKILL.md` is absent, so the behavior of `npx skills list` / `npx skills update <id>` is unknown. Do not run `npx skills update` while a skill is disabled; if such a tool removes the marker, recover via the GUI's reinstall / delete actions.
+- **Out of scope for v1**: no mutual-exclusion one-click swap between two skills, no batch disable UI.
+
 ---
 
 ## Roadmap
@@ -101,6 +116,7 @@
 - [x] **F10 — One-Click Install**: Clone from GitHub, place in `~/.agents/skills/`, create symlinks, update lock file
 - [ ] **F11 — Project Skills**: Open a project directory, manage its `.agents/skills/`
 - [x] **F12 — Update Checker**: Compare local `skillFolderHash` against remote repo HEAD
+- [x] **F12.1 — Global Skill Disable/Enable**: A/B switch that hides one skill from every agent by renaming `SKILL.md`; assignments preserved and restored on re-enable (see limitations below)
 - [ ] **F13 — Create Skill Wizard**: Scaffold new skill with SKILL.md template
 - [ ] **F14 — Search & Filter**: Filter by agent, scope, author; full-text search across skill content
 - [ ] **F15 — Menu Bar Quick Access**: Menu bar icon for quick skill management actions

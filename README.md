@@ -41,6 +41,7 @@
 - **Update Checker** — Detect remote changes and pull updates with one click
 - **SKILL.md Editor** — Split-pane form + markdown editor with live preview
 - **Agent Assignment** — Toggle which agents a skill is installed to via symlink management
+- **Global Disable / Enable** — One switch hides a skill from all 15 agents at once (renames `SKILL.md` → `.SKILL.md.disabled`), preserving assignments for quick A/B testing and fully restoring them on re-enable. v1 limits: only canonical `~/.agents/skills/<id>` skills (external symlink targets, agent-directory skills, and real duplicate copies are refused); the hidden marker is the only copy of the content — don't delete it; avoid `npx skills update` while disabled. See [docs/FEATURES.md](docs/FEATURES.md#global-disable--enable--v1-limitations).
 - **App Settings** — Configure global app fonts and proxy networking (HTTPS / SOCKS5, Keychain-backed credentials, bypass list)
 - **Localization** — Full English and Simplified Chinese interface support with in-app language switching
 - **Inline Translation** — Automatic Chinese translation of skill documentation paragraphs when UI language is set to Chinese (requires macOS 26+)

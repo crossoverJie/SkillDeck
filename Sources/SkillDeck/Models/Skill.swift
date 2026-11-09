@@ -28,6 +28,16 @@ struct Skill: Identifiable, Hashable {
     /// Entry in lock file (can be nil, indicating not installed via package manager)
     var lockEntry: LockEntry?
 
+    /// Whether the skill is globally disabled (its `SKILL.md` was renamed to the hidden marker).
+    /// Derived by `SkillScanner` from the filesystem on every scan — NOT persisted state.
+    /// A default value is required because `Skill` uses the compiler-synthesized memberwise init
+    /// and many call sites (scanner + tests) construct `Skill(...)` without these two fields.
+    var isDisabled: Bool = false
+
+    /// Whether the skill content is unrecoverable: BOTH `SKILL.md` and the disabled marker are
+    /// missing. Derived by `SkillScanner` from the filesystem on every scan.
+    var isBroken: Bool = false
+
     /// F12: Whether a remote update is available
     /// Set to true when checkForUpdate detects remote tree hash differs from local
     var hasUpdate: Bool = false

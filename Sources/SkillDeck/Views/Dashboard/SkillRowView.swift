@@ -22,6 +22,12 @@ struct SkillRowView: View {
     @Environment(\.localizationBundle) private var localizationBundle
     @Environment(\.locale) private var locale
 
+    /// `Skill ==` compares only `id`, so the `skill` argument this row was built with can be a
+    /// stale snapshot after a watcher refresh. Always read the flags from the manager's current
+    /// array (same `latest(id:)` path used by every other view).
+    private var isDisabled: Bool { skillManager.latest(id: skill.id)?.isDisabled ?? false }
+    private var isBroken: Bool { skillManager.latest(id: skill.id)?.isBroken ?? false }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // First row: name + badges
@@ -30,8 +36,28 @@ struct SkillRowView: View {
 
                 ScopeBadge(scope: skill.scope)
 
-                // F12: Display different indicator icons based on update check status
-                updateStatusIndicator
+                // Disabled / broken badge. Broken takes priority over disabled (a broken skill
+                // has no marker, so it is never `isDisabled`).
+                if isBroken {
+                    SkillStatusBadge(
+                        text: localized(L10nKeys.skillBrokenBadge),
+                        systemImage: "exclamationmark.triangle.fill",
+                        color: .orange
+                    )
+                } else if isDisabled {
+                    SkillStatusBadge(
+                        text: localized(L10nKeys.skillDisabledBadge),
+                        systemImage: "eye.slash",
+                        color: .gray
+                    )
+                }
+
+                // F12: Display different indicator icons based on update check status.
+                // Hidden while disabled / broken so a stale "has update" arrow cannot imply the
+                // skill is active (updateStatuses is also reset to .notChecked on toggle).
+                if !isDisabled && !isBroken {
+                    updateStatusIndicator
+                }
 
                 usageBadge
 
@@ -52,6 +78,9 @@ struct SkillRowView: View {
                                 : installation.agentType.displayName)
                     }
                 }
+                // The whole row is already dimmed to 0.5 below; do NOT add a second opacity here.
+                // Stacking 0.5 × 0.3 would leave the icons at ~15% — effectively invisible.
+                // Row-level dimming alone still reads as "frozen assignments".
             }
 
             // Second row: description (max 2 lines)
@@ -80,6 +109,8 @@ struct SkillRowView: View {
             }
         }
         .padding(.vertical, 4)
+        // A disabled / broken skill stays in the list (for quick A/B) but is visually de-emphasized.
+        .opacity(isDisabled || isBroken ? 0.5 : 1)
     }
 
     // MARK: - Update Status Indicator

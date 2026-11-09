@@ -109,3 +109,21 @@
 "usage.agent.unreadable" = "本地历史无法读取";
 "usage.agent.unavailable" = "无本地历史记录";
 "usage.stale.help" = "最近一次刷新无法读取历史记录，当前显示上次扫描的计数。";
+
+"skill.availability.section" = "可用状态";
+"skill.availability.enabled" = "已启用";
+"skill.availability.help" = "禁用后所有 Agent 都无法读取该技能；已有分配保留，重新启用后自动恢复。禁用期间请勿运行 `npx skills update`。";
+"skill.disabled.badge" = "已禁用";
+"skill.disable.action" = "禁用";
+"skill.enable.action" = "启用";
+"skill.broken.badge" = "SKILL.md 缺失";
+"skill.broken.help" = "内容文件已丢失，请删除或重新安装以恢复。";
+"skill.broken.reinstall" = "重新安装";
+"skill.broken.manualReinstall" = "未找到关联的仓库，请删除该技能或手动重新安装。";
+"skill.disable.error.conflict" = "SKILL.md 与禁用标记同时存在，请手动处理。";
+"skill.disable.error.disabled" = "该技能已被禁用，请先重新启用。";
+"skill.disable.error.installOnDisabled" = "已存在同名禁用技能，请先重新启用再安装。";
+"skill.disable.error.unsupportedScope" = "只能禁用 ~/.agents/skills 中的全局技能。";
+"skill.disable.error.agentDirectory" = "该技能位于 Agent 目录内，无法全局禁用。";
+"skill.disable.error.externalLocation" = "该技能指向外部目录 %@，请在该目录内重命名 SKILL.md。";
+"skill.disable.error.duplicateRealCopy" = "%@ 目录里还有一份真实副本，禁用共享副本无法隐藏它，请先移除该副本。";
