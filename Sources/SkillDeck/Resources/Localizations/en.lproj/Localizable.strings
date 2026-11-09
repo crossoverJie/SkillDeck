@@ -109,3 +109,21 @@
 "usage.agent.unreadable" = "Local history could not be read";
 "usage.agent.unavailable" = "No local history";
 "usage.stale.help" = "The latest refresh could not read history; showing counts from the previous scan.";
+
+"skill.availability.section" = "Availability";
+"skill.availability.enabled" = "Enabled";
+"skill.availability.help" = "Disabled skills are hidden from all agents. Assignments are preserved and restored when re-enabled. Do not run `npx skills update` while disabled.";
+"skill.disabled.badge" = "Disabled";
+"skill.disable.action" = "Disable";
+"skill.enable.action" = "Enable";
+"skill.broken.badge" = "SKILL.md Missing";
+"skill.broken.help" = "The content file is gone. Delete or reinstall this skill to recover.";
+"skill.broken.reinstall" = "Reinstall";
+"skill.broken.manualReinstall" = "No linked repository found. Delete this skill or install it again manually.";
+"skill.disable.error.conflict" = "Both SKILL.md and the disabled marker exist; resolve manually.";
+"skill.disable.error.disabled" = "This skill is disabled; re-enable it first.";
+"skill.disable.error.installOnDisabled" = "A disabled skill with this name exists; re-enable it before reinstalling.";
+"skill.disable.error.unsupportedScope" = "Only global skills in ~/.agents/skills can be disabled.";
+"skill.disable.error.agentDirectory" = "This skill lives in an agent directory and cannot be globally disabled.";
+"skill.disable.error.externalLocation" = "This skill points to an external directory at %@. Rename SKILL.md there instead.";
+"skill.disable.error.duplicateRealCopy" = "A real copy also exists in %@. Disabling the shared copy would not hide that one; remove the copy first.";

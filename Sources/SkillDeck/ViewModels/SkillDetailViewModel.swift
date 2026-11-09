@@ -46,7 +46,48 @@ final class SkillDetailViewModel {
     /// Gets the latest data for a specific skill
     /// Since skills may be modified externally, always fetch the latest version from SkillManager
     func skill(id: String) -> Skill? {
-        skillManager.skills.first { $0.id == id }
+        skillManager.latest(id: id)
+    }
+
+    // MARK: - Global Disable / Enable
+
+    /// Applies an explicit on/off direction to the main availability switch.
+    ///
+    /// This is the ONE place that passes a direction derived from a `Binding`'s `newValue` (a
+    /// direct user action). All other toggles must go through `toggleSkillDisabled(id:)` so the
+    /// direction is decided inside `SkillManager` from the freshest state.
+    func setSkillDisabled(_ skill: Skill, disabled: Bool) async {
+        do {
+            try await skillManager.setSkillDisabled(skill, disabled: disabled)
+            // Close the editor: leaving it open while disabling would make a later save() hit the
+            // `.skillIsDisabled` guard and surface a confusing error.
+            isEditing = false
+            feedbackMessage = nil
+        } catch {
+            feedbackMessage = error.localizedDescription
+        }
+    }
+
+    /// Toggle disable/enable for the toolbar eye button / keyboard shortcut.
+    /// The VM deliberately does NOT compute `!skill.isDisabled`; it forwards only the id so the
+    /// `@MainActor` SkillManager derives the direction from `latest(id:)` in one atomic call.
+    func toggleSkillDisabled(id: String) async {
+        do {
+            try await skillManager.toggleSkillDisabled(id: id)
+            isEditing = false
+            feedbackMessage = nil
+        } catch {
+            feedbackMessage = error.localizedDescription
+        }
+    }
+
+    /// Rebuild a broken skill from its github source (detail-page "Reinstall" button).
+    func reinstallBrokenSkill(_ skill: Skill) async {
+        do {
+            try await skillManager.reinstallBrokenSkill(skill)
+        } catch {
+            feedbackMessage = error.localizedDescription
+        }
     }
 
     /// Toggle Agent assignment status

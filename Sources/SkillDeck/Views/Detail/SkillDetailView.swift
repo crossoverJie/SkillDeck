@@ -24,11 +24,41 @@ struct SkillDetailView: View {
     /// Copy path button feedback state: shows green checkmark when true, auto-resets after 1.5 seconds
     @State private var pathCopied = false
 
+    /// Controls the confirmation dialog for deleting a broken skill from the detail page.
+    @State private var showsDeleteConfirmation = false
+
     var body: some View {
         // SwiftUI version of guard-let: show empty state if skill doesn't exist
         if let skill = viewModel.skill(id: skillID) {
+            // Read freshest @Observable state ONCE. `Skill ==` is id-only, so the view's `skill`
+            // snapshot can be stale; every decision below uses these current values.
+            let current = skillManager.latest(id: skillID)
+            let disabled = current?.isDisabled ?? false
+            let broken = current?.isBroken ?? false
+            let canDisable = skillManager.canToggleDisabled(id: skillID)
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    // Operation feedback (e.g. a disable rejection such as duplicateRealCopy).
+                    // The VM writes here; without this banner those localized errors were invisible.
+                    if let feedback = viewModel.feedbackMessage {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .foregroundStyle(.orange)
+                            Text(feedback).appFont(.caption)
+                            Spacer()
+                            Button {
+                                viewModel.feedbackMessage = nil
+                            } label: {
+                                Image(systemName: "xmark")
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(8)
+                        .background(.orange.opacity(0.1))
+                        .cornerRadius(6)
+                    }
+
                     // Header info
                     headerSection(skill)
 
@@ -37,9 +67,18 @@ struct SkillDetailView: View {
                     Divider()
                     if let lockEntry = skill.lockEntry {
                         lockFileSection(skill, lockEntry)
+                            // Disabled / broken skills must not offer Check / Update / Compare
+                            // actions: their status is frozen until re-enabled or rebuilt.
+                            .disabled(disabled || broken)
                     } else {
                         linkToRepoSection(skill)
+                            .disabled(disabled || broken)
                     }
+
+                    Divider()
+
+                    // Availability (global disable / enable) + broken-state recovery actions
+                    availabilitySection(skill)
 
                     Divider()
 
@@ -62,6 +101,19 @@ struct SkillDetailView: View {
             }
             .toolbar {
                 ToolbarItemGroup {
+                    // Global Disable / Enable toggle (quick A/B). The direction is decided inside
+                    // SkillManager from latest(id:) — this view only forwards the id.
+                    Button {
+                        Task { await viewModel.toggleSkillDisabled(id: skillID) }
+                    } label: {
+                        Image(systemName: disabled ? "eye" : "eye.slash")
+                    }
+                    .help(disabled
+                          ? localized(L10nKeys.skillEnableAction)
+                          : localized(L10nKeys.skillDisableAction))
+                    .keyboardShortcut("d", modifiers: [.command, .shift])
+                    .disabled(!canDisable || broken)
+
                     // Reveal in Finder
                     Button {
                         viewModel.revealInFinder(skill: skill)
@@ -78,7 +130,8 @@ struct SkillDetailView: View {
                     }
                     .help("Open in Terminal")
 
-                    // Edit button
+                    // Edit button — a disabled skill has no SKILL.md to edit (save() would create
+                    // a second SKILL.md alongside the marker), and a broken skill has none either.
                     Button {
                         let vm = SkillEditorViewModel(skillManager: skillManager)
                         vm.load(skill: skill)
@@ -88,6 +141,7 @@ struct SkillDetailView: View {
                         Image(systemName: "pencil")
                     }
                     .help("Edit SKILL.md")
+                    .disabled(disabled || broken)
                 }
             }
             // sheet is macOS modal dialog (slides in from top)
@@ -99,6 +153,19 @@ struct SkillDetailView: View {
                     )
                     .frame(minWidth: 700, minHeight: 500)
                 }
+            }
+            // Confirmation for the "Delete" action on a broken skill. Deletion is otherwise only
+            // reachable from the Dashboard row context menu, so the detail page needs its own.
+            .alert("Delete Skill", isPresented: $showsDeleteConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    Task {
+                        do { try await skillManager.deleteSkill(skill) }
+                        catch { viewModel.feedbackMessage = error.localizedDescription }
+                    }
+                }
+            } message: {
+                Text("Are you sure you want to delete \"\(skill.displayName)\"? This action cannot be undone.")
             }
         } else {
             EmptyStateView(
@@ -115,6 +182,77 @@ struct SkillDetailView: View {
 
     // MARK: - Sections
 
+    /// Availability section: the global Enable/Disable switch, or the broken-state recovery UI.
+    ///
+    /// All state reads go through `skillManager.latest(id:)` / `canToggleDisabled(id:)` so a watcher
+    /// refresh is always reflected. A broken skill gets a completely separate variant (no switch),
+    /// because there is no content file to disable/enable — only delete or reinstall.
+    @ViewBuilder
+    private func availabilitySection(_ skill: Skill) -> some View {
+        // Read @Observable state once to avoid repeated access inside the deep ViewBuilder.
+        let current = skillManager.latest(id: skillID)
+        let canDisable = skillManager.canToggleDisabled(id: skillID)
+        let hasGithubSource = current?.lockEntry?.sourceType == "github"
+        let broken = current?.isBroken == true
+
+        VStack(alignment: .leading, spacing: 8) {
+            Text(localized(L10nKeys.skillAvailabilitySection)).appFont(.headline)
+
+            if broken {
+                brokenAvailabilitySection(skill, hasGithubSource: hasGithubSource)
+            } else {
+                // macOS convention: ON = available. `get` reads the freshest isDisabled; the
+                // `set` direction comes from `newValue` (an explicit user action), which is the
+                // one legitimate exception to "never infer direction from a snapshot".
+                Toggle(isOn: Binding(
+                    get: { !(skillManager.latest(id: skillID)?.isDisabled ?? false) },
+                    set: { newValue in
+                        Task { await viewModel.setSkillDisabled(skill, disabled: !newValue) }
+                    }
+                )) {
+                    Text(localized(L10nKeys.skillAvailabilityEnabled))
+                }
+                .toggleStyle(.switch)
+                .disabled(!canDisable)
+
+                Text(localized(L10nKeys.skillAvailabilityHelp)).appFont(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// Broken variant: badge + explanation + Delete / Reinstall (or manual-reinstall hint).
+    @ViewBuilder
+    private func brokenAvailabilitySection(_ skill: Skill, hasGithubSource: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text(localized(L10nKeys.skillBrokenBadge)).appFont(.subheadline)
+                    .fontWeight(.medium)
+            }
+
+            Text(localized(L10nKeys.skillBrokenHelp)).appFont(.subheadline)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                Button("Delete", role: .destructive) {
+                    showsDeleteConfirmation = true
+                }
+
+                if hasGithubSource {
+                    Button(localized(L10nKeys.skillBrokenReinstall)) {
+                        Task { await viewModel.reinstallBrokenSkill(skill) }
+                    }
+                } else {
+                    // No github lockEntry ⇒ SkillManager cannot rebuild it. Only show the hint.
+                    Text(localized(L10nKeys.skillBrokenManualReinstall)).appFont(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
     /// Header info section
     @ViewBuilder
     private func headerSection(_ skill: Skill) -> some View {
@@ -124,6 +262,16 @@ struct SkillDetailView: View {
                     .fontWeight(.bold)
 
                 ScopeBadge(scope: skill.scope)
+
+                // Broken state is shown at-a-glance in the header. The recovery actions live in
+                // availabilitySection's broken variant — this header only carries the badge.
+                if skillManager.latest(id: skillID)?.isBroken == true {
+                    SkillStatusBadge(
+                        text: localized(L10nKeys.skillBrokenBadge),
+                        systemImage: "exclamationmark.triangle.fill",
+                        color: .orange
+                    )
+                }
             }
 
             if !skill.metadata.description.isEmpty {

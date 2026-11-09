@@ -55,7 +55,7 @@ final class SkillEditorViewModel {
     /// Save edited content
     func save() async {
         guard let skillID = editingSkillID,
-              let skill = skillManager.skills.first(where: { $0.id == skillID }) else {
+              let skill = skillManager.latest(id: skillID) else {
             saveError = "Skill not found"
             return
         }

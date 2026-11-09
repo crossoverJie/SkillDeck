@@ -335,4 +335,29 @@ final class DashboardViewModel {
         skillToDelete = nil
         showDeleteConfirmation = false
     }
+
+    // MARK: - Global Disable / Enable (context menu)
+
+    /// Toggle disable/enable from the row's right-click menu.
+    /// Only the id is forwarded — the direction is decided by `SkillManager` from `latest(id:)`,
+    /// never from the view's `skill` snapshot. Errors go to `skillManager.errorMessage` so the
+    /// Dashboard's bottom overlay shows them (same channel as `confirmDelete`).
+    func toggleSkillDisabled(id: String) async {
+        do {
+            try await skillManager.toggleSkillDisabled(id: id)
+        } catch {
+            skillManager.errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Reinstall a broken skill from the row's right-click menu.
+    /// The broken-row menu lives in DashboardView, so it needs this VM method (the detail VM's
+    /// `reinstallBrokenSkill` is not reachable from here).
+    func reinstallBrokenSkill(_ skill: Skill) async {
+        do {
+            try await skillManager.reinstallBrokenSkill(skill)
+        } catch {
+            skillManager.errorMessage = error.localizedDescription
+        }
+    }
 }

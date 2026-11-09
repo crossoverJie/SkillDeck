@@ -55,9 +55,43 @@ struct DashboardView: View {
                                     inFileViewerRootedAtPath: skill.canonicalURL.path
                                 )
                             }
-                            Divider()  // Menu separator
-                            Button("Delete", role: .destructive) {
-                                viewModel.requestDelete(skill: skill)
+
+                            // Branch on the freshest state, not the row's `skill` snapshot.
+                            // A broken skill has no content file, so it gets Delete + (conditional)
+                            // Reinstall instead of a Disable/Enable toggle.
+                            if skillManager.latest(id: skill.id)?.isBroken == true {
+                                Divider()
+                                Button("Delete", role: .destructive) {
+                                    viewModel.requestDelete(skill: skill)
+                                }
+                                // Keep visibility consistent with SkillManager.reinstallBrokenSkill:
+                                // only a github lockEntry can be auto-rebuilt. Otherwise the detail
+                                // page shows the manual-reinstall hint instead of a dead button.
+                                if skillManager.latest(id: skill.id)?.lockEntry?.sourceType == "github" {
+                                    Button {
+                                        Task { await viewModel.reinstallBrokenSkill(skill) }
+                                    } label: {
+                                        LText(key: L10nKeys.skillBrokenReinstall)
+                                    }
+                                }
+                            } else {
+                                Divider()
+                                let isDisabled = skillManager.latest(id: skill.id)?.isDisabled ?? false
+                                // Only the id is forwarded; SkillManager derives the direction
+                                // from latest(id:). We intentionally do NOT disable this item:
+                                // clicking an ineligible skill surfaces a precise localized reason
+                                // (externalLocation / duplicateRealCopy / ...) in the overlay.
+                                Button {
+                                    Task { await viewModel.toggleSkillDisabled(id: skill.id) }
+                                } label: {
+                                    LText(key: isDisabled
+                                          ? L10nKeys.skillEnableAction
+                                          : L10nKeys.skillDisableAction)
+                                }
+                                Divider()
+                                Button("Delete", role: .destructive) {
+                                    viewModel.requestDelete(skill: skill)
+                                }
                             }
                         }
                 }

@@ -20,6 +20,8 @@ SkillDeck is a macOS GUI app that manages skills across 15 AI agents. Skills are
 ├── skills/                    # Canonical storage (real files live here)
 │   ├── my-skill/
 │   │   ├── SKILL.md           # Skill definition (YAML frontmatter + markdown)
+│   │   │                     # When GLOBALLY DISABLED this file is renamed to:
+│   │   │                     #   .SKILL.md.disabled  (hidden, NOT a .md file)
 │   │   └── ...                # Other files (scripts, templates, etc.)
 │   └── another-skill/
 │       └── SKILL.md
@@ -45,6 +47,7 @@ SkillDeck is a macOS GUI app that manages skills across 15 AI agents. Skills are
 
 **Key rules:**
 - The real copy of every skill lives in `~/.agents/skills/<name>/`
+- There is exactly ONE real `SKILL.md` per shared skill. A globally disabled skill has **no** `SKILL.md`; its content is in the hidden `.SKILL.md.disabled` marker (the ONLY copy — see "Disable / Enable a Skill").
 - Each agent gets a **symlink** pointing to the canonical directory
 - Example: `~/.claude/skills/my-skill` → `~/.agents/skills/my-skill`
 - Some agents can read other agents' directories (cross-directory inheritance):
@@ -636,9 +639,37 @@ curl -s "https://skills.sh/api/search?q=your-query" | python3 -m json.tool
 curl -s "https://api.clawhub.com/v1/skills/search?q=your-query" | python3 -m json.tool
 ```
 
+### 7. Disable / Enable a Skill (global A/B switch)
+
+A single atomic rename hides one shared skill from **all 15 agents** at once, including Codex / OpenCode / Qoder / Pi which read `~/.agents/skills/` natively (they have no symlink to remove). This is how the SkillDeck GUI's "Enabled" switch works.
+
+```bash
+SKILL_NAME="my-skill"
+CANONICAL="$HOME/.agents/skills/$SKILL_NAME"
+
+# Disable — rename the ONE real SKILL.md to a hidden marker
+mv "$CANONICAL/SKILL.md" "$CANONICAL/.SKILL.md.disabled"
+
+# Enable — fully reversible, no snapshot needed
+mv "$CANONICAL/.SKILL.md.disabled" "$CANONICAL/SKILL.md"
+```
+
+What this does and does not touch:
+
+- Renames only `SKILL.md`. **No symlink** is created or removed and **`~/.agents/.skill-lock.json` is not modified**, so all per-agent assignments are preserved and restored automatically on re-enable.
+- The state is self-describing on disk (the marker's existence == disabled), so it survives app restarts with no database/flag.
+- The marker filename starts with a dot (hidden under `skipsHiddenFiles`) and ends in `.disabled` (not a `.md` file), so no agent or `npx skills` treats it as a skill document.
+
+Cautions:
+
+- **The GUI will NOT auto-detect these `mv` commands.** `FileSystemWatcher` watches the *parent* skills directories, and a rename INSIDE `<name>/` produces no FSEvents event for them (verified: renaming `skills/foo/SKILL.md` → `skills/foo/.SKILL.md.disabled` fires 0 events, while renaming `skills/foo` → `skills/foo2` fires 1). After using the shell, **click the sidebar refresh button (or relaunch the app)** so the GUI re-scans and shows the new state. Until then the GUI still believes the skill is active, so do not edit/update/link that skill from the GUI.
+- `.SKILL.md.disabled` is the **only copy** of the content while disabled. **Never open, rename, or delete it with an editor or `rm`** — if it is deleted the content is unrecoverable. Recovery is then "**Reinstall**" from the source repository (GUI, requires a github lock entry) or delete the broken row and install again manually.
+- Only skills whose real directory is exactly `~/.agents/skills/<name>/` can be disabled this way. External symlink targets, skills that live in an agent's own directory, and skills with a real duplicate copy elsewhere must be handled manually (rename `SKILL.md` in that directory / remove the duplicate first). A real duplicate that appears while a skill is already disabled does **not** prevent re-enabling it — the GUI's Enable control stays available.
+- **`npx skills` interop is not verified**: while disabled the lock entry still lists `<name>` but `SKILL.md` is absent, so the behavior of `npx skills list` / `npx skills update <name>` is unknown. Do **not** run `npx skills update` while a skill is disabled.
+
 ## Important Notes
 
-1. **SkillDeck auto-refreshes**: The GUI watches `~/.agents/skills/` and all agent directories. Changes via shell are reflected in the GUI within 0.5s.
+1. **SkillDeck auto-refreshes**: The GUI watches `~/.agents/skills/` and all agent directories (the *parent* directories), so changes at that level via shell are reflected within 0.5s. **Exception:** a rename INSIDE a skill directory — e.g. the `SKILL.md` → `.SKILL.md.disabled` disable switch — emits no event on those watched FDs; click the sidebar refresh button or relaunch to pick it up. See "Disable / Enable a Skill" above.
 
 2. **Lock file compatibility**: Format is v3 (shared with `npx skills`). Always preserve `version: 3` and existing entries.
 
@@ -646,4 +677,6 @@ curl -s "https://api.clawhub.com/v1/skills/search?q=your-query" | python3 -m jso
 
 4. **Codex special case**: Reads `~/.agents/skills/` natively. Symlink in `~/.codex/skills/` is optional but consistent.
 
-5. **Never modify**: `~/.agents/.skilldeck-cache.json` (SkillDeck private cache)
+5. **Global disable**: A disabled skill has `SKILL.md` renamed to `.SKILL.md.disabled` — the hidden marker is the ONLY copy of its content. Never open, edit, rename, or delete it by hand; if it disappears, recover via the GUI's "Reinstall" (github lock entry) or delete + manual install. See "Disable / Enable a Skill" above. Do not run `npx skills update` while a skill is disabled.
+
+6. **Never modify**: `~/.agents/.skilldeck-cache.json` (SkillDeck private cache), `~/.agents/skills/*/.SKILL.md.disabled` (disabled marker — the sole copy of that skill's content), or any agent symlink while a skill is disabled. Always prefer the `mv` commands in "Disable / Enable a Skill" over editing the marker contents.

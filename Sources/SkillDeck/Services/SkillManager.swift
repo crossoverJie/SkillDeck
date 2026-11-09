@@ -571,6 +571,24 @@ final class SkillManager {
                 }
             }
 
+            // Drop "ghost" broken rows: a broken skill with no lock entry AND no direct
+            // installation is just an unreferenced leftover directory (or a skill whose marker
+            // was deleted) — indistinguishable from an empty folder, so it should not clutter
+            // the list. Genuine recoverable skills survive: they have a lockEntry (npx/github) or
+            // are referenced by at least one agent via a direct symlink / real directory.
+            //
+            // NOTE: operate on the local `var allSkills`, NOT `skills`. `skills` is only assigned
+            // on the line right below; filtering it here would be silently overwritten by
+            // `skills = allSkills`, making this a no-op. We must NOT check `installations.isEmpty`:
+            // the scanner's second pass gives every real directory under ~/.agents/skills/ an
+            // `isInherited: true` entry from the 4 native-reading agents, so it is never empty.
+            // The correct signal is "no DIRECT installation" (`!isInherited`).
+            allSkills.removeAll { skill in
+                skill.isBroken
+                && skill.lockEntry == nil
+                && !skill.installations.contains { !$0.isInherited }
+            }
+
             skills = allSkills
 
             // Restore transient fields that are lost when the skills array is replaced
@@ -620,6 +638,146 @@ final class SkillManager {
             paths.append(agent.skillsDirectoryURL)
         }
         watcher.startWatching(paths: paths)
+    }
+
+    // MARK: - Global Disable / Enable (A/B switching)
+
+    /// Return the freshest `Skill` for an id from the authoritative `skills` array.
+    ///
+    /// `Skill ==` compares only `id`, so a view holding a stale struct can look "equal" while its
+    /// `isDisabled` / `isBroken` flags are out of date. Every read → decide → write sequence must
+    /// go through this accessor (on `@MainActor`) so the state is always the current one. The
+    /// external label `id:` reads naturally at call sites and matches `canToggleDisabled(id:)` /
+    /// `toggleSkillDisabled(id:)`.
+    func latest(id: String) -> Skill? {
+        skills.first { $0.id == id }
+    }
+
+    /// Whether the global disable/enable TOGGLE is currently available, read from the current
+    /// `skills` array.
+    ///
+    /// Deliberately takes an id rather than a `Skill`: admission depends on `installations` and
+    /// `isDisabled`, and a stale view copy could otherwise leave the switch disabled while the
+    /// service would allow it (or vice versa). `canToggle` is direction-aware — enabling must stay
+    /// available even when a real duplicate copy exists, otherwise a disabled skill could be
+    /// stranded with no UI path back. Sharing the `latest(id:)` path with `setSkillDisabled`
+    /// keeps the UI admission check and the service guard consistent.
+    func canToggleDisabled(id: String) -> Bool {
+        guard let current = latest(id: id) else { return false }
+        return SkillDisableManager.canToggle(current)
+    }
+
+    /// Globally disable or enable a skill by atomically renaming its single content file.
+    ///
+    /// Every guard re-reads `latest(id:)` — never trust the caller's snapshot. Batch updates
+    /// capture old structs, which is exactly how a race could otherwise win.
+    func setSkillDisabled(_ skill: Skill, disabled: Bool) async throws {
+        let current = self.latest(id: skill.id) ?? skill
+
+        // `updateAllSkills()` is TWO-phase: the check phase (and the pre-swap guard) intentionally
+        // keeps `isUpdatingAllSkills == false` so `checkAllUpdates()` can run, and only sets it
+        // true at the swap. Guard BOTH flags so the entire window is covered. `skillsToUpdate`
+        // there is a pre-check snapshot, so a per-id check alone would miss it.
+        guard !isUpdatingAllSkills && !isCheckingUpdates else {
+            throw SkillUpdateError.batchUpdateInProgress
+        }
+        // Mutual exclusion with a single-skill update, aligned with deleteSkill / updateSkill.
+        guard !updatingSkillIDs.contains(current.id) else {
+            throw SkillUpdateError.individualUpdateInProgress
+        }
+        guard !current.isBroken else {
+            throw SkillDisableManager.DisableError.skillIsBroken
+        }
+        // Admission is DIRECTION-AWARE. `canDisable` includes `!hasRealDuplicate`, which is
+        // essential when turning a skill OFF (a real copy elsewhere would stay visible) but
+        // WRONG when turning it back ON: renaming the marker back inside the canonical store
+        // cannot affect any other directory. Gating BOTH directions on `canDisable` would strand
+        // a skill in the disabled state forever if a duplicate appears while it is off — the
+        // detail switch, toolbar eye button and context menu all gate on `canToggleDisabled(id:)`,
+        // so there would be no UI path back to `SKILL.md` except a manual `mv` (and the error
+        // message would nonsensically talk about "Disabling the shared copy").
+        if disabled {
+            guard SkillDisableManager.canDisable(current) else {
+                // `canDisable` is a single boolean, so classify here to give the user a precise,
+                // actionable error instead of a generic refusal.
+                if current.scope != .sharedGlobal {
+                    throw SkillDisableManager.DisableError.unsupportedScope
+                }
+                switch SkillDisableManager.classifyLocation(current.canonicalURL) {
+                case .canonicalShared:
+                    // Canonical + still rejected ⇒ the only remaining reason is a real duplicate.
+                    // `hasRealDuplicate` is true here, so `first(where:)` always finds an agent;
+                    // the fallback only satisfies the compiler for an impossible branch.
+                    let duplicateAgent = current.installations
+                        .first(where: { !$0.isSymlink && !$0.isInherited })?.agentType ?? .claudeCode
+                    throw SkillDisableManager.DisableError.duplicateRealCopy(duplicateAgent)
+                case .agentDirectory(let agent):
+                    throw SkillDisableManager.DisableError.agentDirectoryLocation(agent)
+                case .external:
+                    throw SkillDisableManager.DisableError.externalLocation(current.canonicalURL)
+                }
+            }
+        } else {
+            // Enabling: ONLY require the marker to live in the canonical store. No scope / no
+            // duplicate / no isBroken check (broken has no marker and is handled by the earlier
+            // guard; a duplicate must not block recovery).
+            guard SkillDisableManager.canEnable(current) else {
+                // `canEnable` fails only when the canonical parent left the shared store
+                // (external symlink target, agent directory, or a moved folder).
+                if case .agentDirectory(let agent) = SkillDisableManager.classifyLocation(current.canonicalURL) {
+                    throw SkillDisableManager.DisableError.agentDirectoryLocation(agent)
+                }
+                throw SkillDisableManager.DisableError.externalLocation(current.canonicalURL)
+            }
+        }
+
+        // Reserve the id so a concurrent update cannot recreate this skill mid-operation. Same
+        // `insert` + `defer remove` pattern as `deleteSkill`.
+        updatingSkillIDs.insert(current.id)
+        defer { updatingSkillIDs.remove(current.id) }
+
+        try SkillDisableManager.setDisabled(disabled, at: current.canonicalURL)
+
+        // Clear the cached "has update" status: `restoreTransientSkillFields()` rebuilds
+        // `hasUpdate` from this dictionary, so merely hiding the icon is not enough. We
+        // deliberately keep the two cached remote-* hashes: `updateSkill` ignores its remoteHash
+        // argument and recomputes/clears them, so a stale value here is harmless.
+        updateStatuses[current.id] = .notChecked
+
+        // The rename happens INSIDE <skill>/, but the watcher monitors the parent directory FD,
+        // so it may not fire. Refresh explicitly, like every other write operation.
+        await refresh()
+    }
+
+    /// Toggle disable/enable based on the freshest state, all within one `@MainActor` call.
+    ///
+    /// This MUST live in SkillManager (not a ViewModel): computing `disabled: !skill.isDisabled`
+    /// from a view snapshot lets a watcher refresh invert the direction right before a click
+    /// (re-enabling a skill the user just disabled). Here the direction comes only from
+    /// `latest(id:)`, and both reads happen in the same actor call with no `await` between them,
+    /// so they always agree. The main-switch `Binding` is the one exception: its direction comes
+    /// straight from `newValue` (an explicit user action), not from an inferred snapshot.
+    func toggleSkillDisabled(id: String) async throws {
+        guard let current = latest(id: id) else { return }
+        try await setSkillDisabled(current, disabled: !current.isDisabled)
+    }
+
+    /// Rebuild a broken skill from its github source by reusing the existing `updateSkill` path.
+    ///
+    /// `updateSkill` → `applySkillUpdate` moves the whole broken canonical directory to backup and
+    /// swaps in freshly cloned files, so `SKILL.md` is recreated and the next `refresh()` reports
+    /// `isBroken: false`. No new install API is needed.
+    ///
+    /// > Do NOT reserve `updatingSkillIDs` here. `updateSkill` owns that reservation
+    /// > (insert + defer remove). Reserving here as well would make `updateSkill`'s own guard
+    /// > `!updatingSkillIDs.contains(id)` fire and deadlock the ONLY recovery path.
+    func reinstallBrokenSkill(_ skill: Skill) async throws {
+        let current = self.latest(id: skill.id) ?? skill
+        guard current.isBroken else { return }
+        guard current.lockEntry?.sourceType == "github" else {
+            throw SkillDisableManager.DisableError.brokenNeedsManualReinstall
+        }
+        try await updateSkill(current)  // remoteHash defaults to nil; resolved directly from repoDir
     }
 
     // MARK: - F04: Skill Deletion
@@ -674,8 +832,23 @@ final class SkillManager {
 
     /// Save edited skill (update SKILL.md)
     func saveSkill(_ skill: Skill, metadata: SkillMetadata, markdownBody: String) async throws {
+        // A disabled skill has NO `SKILL.md` (its content lives in the hidden marker). Writing
+        // `canonicalURL/SKILL.md` directly would create a SECOND `SKILL.md` alongside the marker,
+        // i.e. the `.conflict` state, which the scanner's branch 1 would then show as active.
+        //
+        // Two independent checks are required:
+        //  - model-level `latest(id:)`: covers a disable performed by the GUI;
+        //  - filesystem-level `isDisabled(at:)`: covers a disable performed OUTSIDE the app
+        //    (CLI `mv` / Finder). `FileSystemWatcher` watches the PARENT directories, so a
+        //    rename INSIDE `<skill>/` emits no FSEvent and the model can still say "active".
+        //    Without this FS check, saveSkill is the easiest path to hit "external disable +
+        //    GUI edit" and silently create the conflict state.
+        guard (self.latest(id: skill.id)?.isDisabled ?? false) == false,
+              !SkillDisableManager.isDisabled(at: skill.canonicalURL) else {
+            throw SkillDisableManager.DisableError.skillIsDisabled
+        }
         let content = try SkillMDParser.serialize(metadata: metadata, markdownBody: markdownBody)
-        let skillMDURL = skill.canonicalURL.appendingPathComponent("SKILL.md")
+        let skillMDURL = skill.canonicalURL.appendingPathComponent(SkillDisableManager.skillFilename)
         try content.write(to: skillMDURL, atomically: true, encoding: .utf8)
         await refresh()
     }
@@ -684,12 +857,16 @@ final class SkillManager {
 
     /// Install skill to specified Agent (create symlink)
     func assignSkill(_ skill: Skill, to agent: AgentType) async throws {
+        // Globally disabled skills keep their assignments frozen. Silent return mirrors the
+        // inherited-installation handling in toggleAssignment below.
+        guard (self.latest(id: skill.id)?.isDisabled ?? false) == false else { return }
         try SymlinkManager.createSymlink(from: skill.canonicalURL, to: agent)
         await refresh()
     }
 
     /// Uninstall skill from specified Agent (delete symlink)
     func unassignSkill(_ skill: Skill, from agent: AgentType) async throws {
+        guard (self.latest(id: skill.id)?.isDisabled ?? false) == false else { return }
         print("[SkillManager] unassignSkill called for \(skill.id) from \(agent.displayName)")
         try SymlinkManager.removeSymlink(skillName: skill.id, from: agent)
         print("[SkillManager] unassignSkill: symlink removed, refreshing...")
@@ -702,8 +879,11 @@ final class SkillManager {
     /// Protection logic: if inherited installation (isInherited), return directly without any operation
     /// This is Service layer defense - even if UI layer disables Toggle, it ensures inherited installations won't be mistakenly operated
     func toggleAssignment(_ skill: Skill, agent: AgentType) async throws {
-        // Get latest skill data from self.skills to ensure we have current installations
-        let latestSkill = self.skills.first { $0.id == skill.id } ?? skill
+        // Get latest skill data from self.skills to ensure we have current installations.
+        // Re-read the disable flag from the same fresh struct so a disabled skill's assignments
+        // stay frozen even if a stale view copy triggered this call.
+        let latestSkill = self.latest(id: skill.id) ?? skill
+        guard !latestSkill.isDisabled else { return }
 
         let installation = latestSkill.installations.first { $0.agentType == agent }
 
@@ -944,6 +1124,13 @@ final class SkillManager {
     /// - Parameter skill: Skill to check (must have lockEntry)
     /// - Returns: Tuple (has update, remote tree hash, remote commit hash)
     func checkForUpdate(skill: Skill) async throws -> (hasUpdate: Bool, remoteHash: String?, remoteCommitHash: String?) {
+        // Disabled / broken skills must not show "update available" or contact the remote.
+        // Re-read from the authoritative array: `skill` may be a stale view snapshot.
+        let current = self.latest(id: skill.id)
+        guard (current?.isDisabled ?? false) == false,
+              (current?.isBroken ?? false) == false else {
+            return (false, nil, nil)
+        }
         guard let lockEntry = skill.lockEntry else {
             return (false, nil, nil)
         }
@@ -1005,6 +1192,9 @@ final class SkillManager {
         // and trying to git-clone a local filesystem path would cause errors
         // Dictionary(grouping:by:) is similar to Java Stream's Collectors.groupingBy()
         let skillsWithLock = skills.filter { skill in
+            // Disabled / broken skills are excluded from update checks (defense in depth on top
+            // of `checkForUpdate`'s entry guard). `skills` here is the current manager array.
+            guard !skill.isDisabled, !skill.isBroken else { return false }
             guard let sourceType = skill.lockEntry?.sourceType else { return false }
             return sourceType == "github"
         }
@@ -1118,6 +1308,17 @@ final class SkillManager {
         remoteHash: String,
         newCommitHash: String
     ) async throws {
+        // Service-layer defense: a whole-directory swap would "resurrect" a disabled skill and
+        // silently drop its marker (moved to backup, then deleted). Broken skills
+        // (isBroken == true, isDisabled == false) are allowed through — that is exactly the
+        // reinstallBrokenSkill recovery path.
+        // The FS-level check covers an external CLI/Finder disable that the watcher cannot see;
+        // a broken directory has neither file, so `isDisabled(at:)` is false and recovery still
+        // works. This also protects the batch path (updateAllSkills calls this method directly).
+        guard (self.latest(id: skill.id)?.isDisabled ?? false) == false,
+              !SkillDisableManager.isDisabled(at: skill.canonicalURL) else {
+            throw SkillDisableManager.DisableError.skillIsDisabled
+        }
         guard let lockEntry = skill.lockEntry else {
             throw SkillUpdateError.invalidLockEntry
         }
@@ -1234,6 +1435,15 @@ final class SkillManager {
         guard !updatingSkillIDs.contains(skill.id) else {
             throw SkillUpdateError.individualUpdateInProgress
         }
+        // Only `!isDisabled` is checked here — a broken skill MUST be allowed through, because
+        // reinstallBrokenSkill reuses this method. Writing `!isDisabled && !isBroken` would make
+        // the only recovery path block itself. The FS-level check has the same property: a broken
+        // directory has no marker, so `isDisabled(at:)` is false. Guarding here (before the
+        // network clone) also avoids a pointless shallow clone for an externally-disabled skill.
+        guard (self.latest(id: skill.id)?.isDisabled ?? false) == false,
+              !SkillDisableManager.isDisabled(at: skill.canonicalURL) else {
+            throw SkillDisableManager.DisableError.skillIsDisabled
+        }
         guard let lockEntry = skill.lockEntry else { return }
         guard lockEntry.sourceType == "github" else { return }
 
@@ -1288,6 +1498,9 @@ final class SkillManager {
         // 1. Check if any skills have pending updates; if not, run checkAllUpdates() first.
         // NOTE: isUpdatingAllSkills is kept false here so checkAllUpdates() can run without being blocked.
         var skillsToUpdate = skills.filter { skill in
+            // Disabled / broken skills never enter a batch update: swapping their directory
+            // would resurrect them. Filter on the current `skills` value.
+            guard !skill.isDisabled, !skill.isBroken else { return false }
             guard let sourceType = skill.lockEntry?.sourceType, sourceType == "github" else { return false }
             return updateStatuses[skill.id] == .hasUpdate || skill.hasUpdate
         }
@@ -1295,6 +1508,7 @@ final class SkillManager {
         if skillsToUpdate.isEmpty {
             await checkAllUpdates()
             skillsToUpdate = skills.filter { skill in
+                guard !skill.isDisabled, !skill.isBroken else { return false }
                 guard let sourceType = skill.lockEntry?.sourceType, sourceType == "github" else { return false }
                 return updateStatuses[skill.id] == .hasUpdate || skill.hasUpdate
             }
@@ -1639,6 +1853,16 @@ final class SkillManager {
         let fm = FileManager.default
         let canonicalDir = SkillScanner.sharedSkillsURL.appendingPathComponent(skillName)
 
+        // A disabled skill of the same name still owns a `.SKILL.md.disabled` marker inside this
+        // directory. The removal loop below would delete that content, so refuse the reinstall
+        // and ask the user to re-enable first. This is a filesystem-level check (not a model
+        // snapshot) so it covers all three install paths in one place: installSkill,
+        // importLocalSkill, installClawHubSkill. A broken skill has no marker, so
+        // `isDisabled(at:)` is false and a reinstall is correctly allowed through.
+        if SkillDisableManager.isDisabled(at: canonicalDir) {
+            throw SkillDisableManager.DisableError.installOnDisabled
+        }
+
         // Remove existing directory if it exists - use aggressive retry logic
         var removalAttempts = 0
         let maxRemovalAttempts = 5
@@ -1807,6 +2031,14 @@ final class SkillManager {
     ///   - skill: Skill to link (must have no lockEntry)
     ///   - repoInput: User input repository address (supports "owner/repo" or full URL)
     func linkSkillToRepository(_ skill: Skill, repoInput: String) async throws {
+        // Step 5 below does `removeItem` + `copyItem` on canonicalDir, which would DELETE the
+        // disabled marker — the only copy of the content — and write back a fresh `SKILL.md`.
+        // The FS-level check is essential: an external CLI/Finder disable produces no watcher
+        // event for a rename inside `<skill>/`, so the model may still say "active".
+        guard (self.latest(id: skill.id)?.isDisabled ?? false) == false,
+              !SkillDisableManager.isDisabled(at: skill.canonicalURL) else {
+            throw SkillDisableManager.DisableError.skillIsDisabled
+        }
         // 1. Validate and normalize URL
         let (repoURL, source) = try GitService.normalizeRepoURL(repoInput)
 

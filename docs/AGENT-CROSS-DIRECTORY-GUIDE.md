@@ -191,6 +191,10 @@ Swift 的 `switch` 穷举检查会确保你不遗漏任何 case。如果编译�
 | Toggle OFF 继承安装 | UI 禁用 + Service 层 `return` 防护 | `AgentToggleView` + `SkillManager.toggleAssignment` |
 | 删除有继承安装的 skill | 跳过继承 symlink，删 canonical 目录后自然消失 | `SkillManager.deleteSkill` |
 | 源 Agent 未安装 | 继承安装仍然显示（基于目录存在性，非 Agent 安装状态） | `SymlinkManager` 只检查文件存在 |
+| 全局禁用某 skill | 重命名 canonical `SKILL.md` → `.SKILL.md.disabled`；**Codex / OpenCode / Qoder / Pi 也一起看不到**（它们直接读共享目录，没有软链可取消）；软链与 `.skill-lock.json` 均不变 | `SkillDisableManager` + `SkillScanner.parseSkillDirectory`（产出 `isDisabled` 可见行） |
+| 标记文件被外部删除 | 扫描器产出可见的 `isBroken` 行（删除 / 重新安装），`refresh()` 过滤无引用空目录 | `SkillScanner.parseSkillDirectory` 第 3 分支 + `SkillManager.refresh()` |
+
+> **跨目录继承 ≠ canonical 全局 skill**：若某个真实目录位于某个 Agent 自己的目录（如 `~/.claude/skills/foo`）并被多个 Agent 继承，`scanAll()` 会把它的 `scope` 升级为 `.sharedGlobal`。但它**不属于** `~/.agents/skills/`，重命名它只会影响该 Agent 及其继承者，还会写进别的 Agent 的目录，因此 **禁止全局禁用**（`SkillDisableManager.canDisable` 用 `AgentType.isCanonicalSharedDirectory(parent)` 精确拒绝，错误提示 `agentDirectoryLocation`）。外部软链目标同理被拒绝（`externalLocation`）。
 
 ---
 
@@ -317,9 +321,9 @@ return url.resolvingSymlinksInPath()
 #### 4. `Views/Components/AgentToggleView.swift` — UI 层
 
 ```swift
-// 查找安装记录以获取 isInherited 信息
+// 查找安装记录以获取「真正继承」信息（原生读取 ~/.agents/skills/ 属原生支持，不算继承）
 let installation = skill.installations.first { $0.agentType == agentType }
-let isInherited = installation?.isInherited ?? false
+let isInherited = installation?.isTrulyInherited ?? false
 
 // 继承安装显示来源提示
 if isInherited, let sourceAgent = installation?.inheritedFrom {
@@ -333,10 +337,14 @@ if isInherited, let sourceAgent = installation?.inheritedFrom {
 #### 5. `Services/SkillManager.swift` — 防护逻辑
 
 ```swift
-// toggleAssignment: 继承安装直接返回
-if let installation, installation.isInherited { return }
+// toggleAssignment: 真正继承的安装直接返回
+// 注意用 isTrulyInherited：原生读取 ~/.agents/skills/ 的 4 个 Agent 是 isSymlink==false,
+// isInherited==true，但 isTrulyInherited==false，不能被误拦。
+if let installation, installation.isTrulyInherited { return }
 
 // deleteSkill: 跳过继承安装的 symlink
+// 这里保留 isInherited（而非 isTrulyInherited）：删除时需要跳过所有带继承标记的软链，
+// 由源 Agent 的软链一并处理，语义与 toggle 的准入判断不同。
 for installation in skill.installations where installation.isSymlink && !installation.isInherited { ... }
 ```
 

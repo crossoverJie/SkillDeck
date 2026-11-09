@@ -38,7 +38,7 @@ private struct AgentToggleRow: View {
     /// Get the latest skill data from SkillManager to ensure real-time updates
     /// Accessing skillManager.skills here ensures SwiftUI tracks this dependency
     private var skill: Skill? {
-        skillManager.skills.first { $0.id == skillID }
+        skillManager.latest(id: skillID)
     }
 
     /// Find installation record for this Agent
@@ -75,7 +75,10 @@ private struct AgentToggleRow: View {
         // - Inherited installation (need to modify at source Agent)
         // - Agent not installed and skill not installed
         // - Native shared-directory support (always on, cannot be toggled)
-        isInherited || isNativeSharedSupport || (!isAgentAvailable && !isInstalled)
+        // - Globally disabled / broken skill: assignments are frozen (Service layer also guards)
+        let globallyUnavailable = skill?.isDisabled == true || skill?.isBroken == true
+        return isInherited || isNativeSharedSupport || (!isAgentAvailable && !isInstalled)
+            || globallyUnavailable
     }
 
     var body: some View {
@@ -111,7 +114,7 @@ private struct AgentToggleRow: View {
                 set: { _ in
                     Task {
                         // Pass the current skill from SkillManager, not the captured value
-                        if let skill = skillManager.skills.first(where: { $0.id == skillID }) {
+                        if let skill = skillManager.latest(id: skillID) {
                             await viewModel.toggleAgent(agentType, for: skill)
                         }
                     }

@@ -108,6 +108,25 @@ enum L10nKeys {
     static let usageAgentUnavailable = "usage.agent.unavailable"
     static let usageStaleHelp = "usage.stale.help"
 
+    // MARK: - Global Disable / Enable (17 keys)
+    static let skillAvailabilitySection = "skill.availability.section"
+    static let skillAvailabilityEnabled = "skill.availability.enabled"
+    static let skillAvailabilityHelp = "skill.availability.help"
+    static let skillDisabledBadge = "skill.disabled.badge"
+    static let skillDisableAction = "skill.disable.action"
+    static let skillEnableAction = "skill.enable.action"
+    static let skillBrokenBadge = "skill.broken.badge"
+    static let skillBrokenHelp = "skill.broken.help"
+    static let skillBrokenReinstall = "skill.broken.reinstall"
+    static let skillBrokenManualReinstall = "skill.broken.manualReinstall"
+    static let skillDisableErrorConflict = "skill.disable.error.conflict"
+    static let skillDisableErrorDisabled = "skill.disable.error.disabled"
+    static let skillDisableErrorInstallOnDisabled = "skill.disable.error.installOnDisabled"
+    static let skillDisableErrorUnsupportedScope = "skill.disable.error.unsupportedScope"
+    static let skillDisableErrorAgentDirectory = "skill.disable.error.agentDirectory"
+    static let skillDisableErrorExternalLocation = "skill.disable.error.externalLocation"
+    static let skillDisableErrorDuplicateRealCopy = "skill.disable.error.duplicateRealCopy"
+
     static let allKeys: [String] = [
         appName,
         settingsTabGeneral,
@@ -197,5 +216,22 @@ enum L10nKeys {
         usageAgentUnreadable,
         usageAgentUnavailable,
         usageStaleHelp,
+        skillAvailabilitySection,
+        skillAvailabilityEnabled,
+        skillAvailabilityHelp,
+        skillDisabledBadge,
+        skillDisableAction,
+        skillEnableAction,
+        skillBrokenBadge,
+        skillBrokenHelp,
+        skillBrokenReinstall,
+        skillBrokenManualReinstall,
+        skillDisableErrorConflict,
+        skillDisableErrorDisabled,
+        skillDisableErrorInstallOnDisabled,
+        skillDisableErrorUnsupportedScope,
+        skillDisableErrorAgentDirectory,
+        skillDisableErrorExternalLocation,
+        skillDisableErrorDuplicateRealCopy,
     ]
 }

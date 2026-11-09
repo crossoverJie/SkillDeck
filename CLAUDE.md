@@ -63,11 +63,13 @@ Views → ViewModels (@Observable) → SkillManager (@Observable) → Services (
 
 **Deduplication**: `SkillScanner` resolves all symlinks to canonical paths, then merges installations for the same canonical skill into a single `Skill` model.
 
+**Global disable** (A/B switch): disabling renames the one real `SKILL.md` → `.SKILL.md.disabled` (hidden marker = the only content copy). There is NO stored flag / snapshot: state is self-describing on the filesystem and `SkillScanner.parseSkillDirectory` re-derives `isDisabled` / `isBroken` on every scan (so it survives restarts). `SkillScanner` parses the marker when `SKILL.md` is absent, keeping disabled skills visible; if BOTH files are missing it emits a visible `isBroken` row instead of dropping the skill. Symlinks and `~/.agents/.skill-lock.json` are never touched, so re-enabling restores everything. All views read state through `SkillManager.latest(id:)` (`Skill ==` is id-only, so a stale snapshot can silently miss a refresh), and every read→decide→write toggle goes through `SkillManager.toggleSkillDisabled(id:)` in one `@MainActor` call. See `docs/plans/global-skill-disable.md`.
+
 ## Localization
 
 The app supports English and Simplified Chinese. All user-facing strings go through the localization system:
-- Define keys in `L10nKeys.swift`
-- Add translations in `L10n.swift`
+- Define keys in `L10nKeys.swift` and register them in `L10nKeys.allKeys`
+- Add translations in `Resources/Localizations/{en,zh-Hans}.lproj/Localizable.strings` (`L10n.swift` only holds lookup functions — it has NO key table)
 - Use `LText("key")` in SwiftUI views (custom view, not Text)
 - Language switching via `LanguageSettings` (persisted in UserDefaults)
 - `LocalizationResolver` resolves keys at runtime based on current language
