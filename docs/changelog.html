@@ -447,6 +447,31 @@ footer.foot {
     <p class="tagline">Every version, every fix, every feature. SkillDeck follows semantic versioning — patch for fixes, minor for new agents and capabilities.</p>
   </header>
 
+  <!-- ============ v0.1.5 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.1.5">v0.1.5</a></h2>
+      <span class="version-date">Nov 9, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Global skill disable / enable</strong>: A/B-testing two similar skills now takes a single switch. SkillDeck renames the one canonical <code>SKILL.md</code> to a hidden <code>.SKILL.md.disabled</code> marker, which hides that skill from all 15 agents at once &mdash; including Codex, OpenCode, Qoder and Pi, which read <code>~/.agents/skills/</code> natively and have no symlink to remove. No symlink and no <code>.skill-lock.json</code> entry are touched, so every assignment is preserved and re-enabling restores the skill with no snapshot. The state is derived from the filesystem on every scan, so it survives restarts.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/73">#73</a>
+      </li>
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Disabled state in the dashboard</strong>: a disabled skill stays in the list, greyed out with a &ldquo;Disabled&rdquo; badge, instead of disappearing. Its per-agent switches, editor, update actions and repository linking are frozen until it is re-enabled, and the detail page gains an availability switch plus a <code>Cmd+Shift+D</code> shortcut for fast toggling.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/73">#73</a>
+      </li>
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Broken skill recovery</strong>: if the hidden marker is deleted by hand or by another tool, the skill no longer silently vanishes. It stays visible as a &ldquo;SKILL.md Missing&rdquo; row offering Delete or Reinstall, the latter rebuilding <code>SKILL.md</code> from the linked GitHub repository.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/73">#73</a>
+      </li>
+    </ol>
+  </article>
+
   <!-- ============ v0.1.4 ============ -->
   <article class="version">
     <div class="version-head">
