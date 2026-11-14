@@ -84,6 +84,10 @@
 "sidebar.help.checkAllUpdates" = "检查所有技能更新";
 "sidebar.help.updateAllSkills" = "更新所有技能";
 "sidebar.help.refreshSkills" = "刷新技能";
+"sidebar.menu.refreshSkills" = "刷新技能";
+"sidebar.menu.checkAllUpdates" = "检查更新";
+"sidebar.menu.updateAllSkills" = "更新全部技能";
+"sidebar.help.syncMenu" = "检查更新或更新全部技能";
 
 "skill.update.error.batchInProgress" = "批量更新正在进行中，请等待完成。";
 "skill.update.error.individualInProgress" = "该技能正在更新中。";

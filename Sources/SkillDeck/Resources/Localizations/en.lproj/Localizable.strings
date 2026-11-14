@@ -84,6 +84,10 @@
 "sidebar.help.checkAllUpdates" = "Check all skills for updates";
 "sidebar.help.updateAllSkills" = "Update all skills";
 "sidebar.help.refreshSkills" = "Refresh skills";
+"sidebar.menu.refreshSkills" = "Refresh Skills";
+"sidebar.menu.checkAllUpdates" = "Check for Updates";
+"sidebar.menu.updateAllSkills" = "Update All Skills";
+"sidebar.help.syncMenu" = "Check for updates or update all skills";
 
 "skill.update.error.batchInProgress" = "Batch update is currently in progress. Please wait for it to complete.";
 "skill.update.error.individualInProgress" = "An update is already in progress for this skill.";

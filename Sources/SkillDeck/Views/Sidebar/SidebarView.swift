@@ -101,6 +101,46 @@ struct SidebarView: View {
         FontSettings.font(family: appFontFamily, baseSize: appFontBaseSize, textStyle: .headline)
     }
 
+    /// Label of the sidebar "sync" menu button.
+    ///
+    /// `@ViewBuilder` lets one computed property return different view types per branch
+    /// (the compiler resolves `some View` to a concrete `_ConditionalContent` type).
+    /// This reuses the exact progress rendering the two former standalone buttons had, so merging
+    /// them into a menu does not lose the "3/12 checked" / "2/5 updated" feedback.
+    @ViewBuilder
+    private var syncMenuLabel: some View {
+        if skillManager.isCheckingUpdates {
+            HStack(spacing: 4) {
+                ProgressView()
+                    .controlSize(.small)
+                // Progress = finished checks / skills eligible for update checks.
+                // `.checking` and `.notChecked` are still pending, everything else counts as done.
+                let total = skillManager.skills.filter { skill in
+                    guard let sourceType = skill.lockEntry?.sourceType else { return false }
+                    return sourceType != "local" && sourceType != "clawhub"
+                }.count
+                let checked = skillManager.updateStatuses.values.filter {
+                    $0 != .checking && $0 != .notChecked
+                }.count
+                Text("\(checked)/\(total)").appFont(.caption)
+                    .monospacedDigit()  // Monospaced digits: avoids horizontal jitter as numbers change
+                    .foregroundStyle(.secondary)
+            }
+        } else if skillManager.isUpdatingAllSkills {
+            HStack(spacing: 4) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("\(skillManager.batchUpdateCompleted)/\(skillManager.batchUpdateTotal)")
+                    .appFont(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            // Idle: a refresh glyph, because the button's primary (one-click) action is Refresh.
+            Image(systemName: "arrow.clockwise")
+        }
+    }
+
     var body: some View {
         List(selection: $selection) {
             // Section creates groups (shown as collapsible groups in macOS sidebar)
@@ -202,8 +242,16 @@ struct SidebarView: View {
         .listStyle(.sidebar)
         .navigationTitle(L10n.string(L10nKeys.appName, bundle: localizationBundle, locale: locale))
         // Sidebar top toolbar action buttons (native macOS toolbar style)
-        // Works with .navigationSplitViewColumnWidth(min: 180) minimum width constraint in ContentView,
-        // ensures sidebar won't be too narrow when window state is restored, preventing ToolbarItem overflow/hiding
+        //
+        // IMPORTANT layout fact (measured with the Accessibility API): items attached to the
+        // sidebar are laid out INSIDE the sidebar column band, not across the whole window
+        // title bar, so the band available to them is
+        //     sidebarWidth - ~117pt (traffic lights + leading inset) - ~47pt (collapse button)
+        // It grows with the column, not with the window: widening the window never gives the
+        // sidebar room for one more item. A plain icon button costs 44pt, a split menu 65pt.
+        // Keep the item count small and make sure it fits at the column's MINIMUM width
+        // (280pt in ContentView) — anything that does not fit is silently swallowed by the
+        // system "more toolbar items" chevron at the far right of the window.
         .toolbar {
             // App update reminder button: shows orange upward arrow when new version is available
             // Opens settings window when clicked (by sending system notification showSettingsWindow)
@@ -257,78 +305,78 @@ struct SidebarView: View {
                 .help(L10n.string(L10nKeys.sidebarHelpInstallSkill, bundle: localizationBundle, locale: locale))
             }
 
-            // F12: Batch check updates for all skills
+            // F12 + F19 + refresh: ONE "sync" split button replacing the former three icon
+            // buttons (check-all-updates, update-all-skills and refresh).
+            //
+            // Why this shape: back when all four sidebar items were separate icon buttons the band
+            // needed ~353pt, more than the old 300pt maximum column width, so the last one (Refresh)
+            // was ALWAYS pushed into the system overflow chevron — dragging the sidebar as wide as
+            // it would go never revealed it. Measured item costs now: the install split menu is
+            // 65pt, this split menu is 65pt, the collapse button 47pt, so ~118pt of app items fit
+            // comfortably from a 280pt sidebar.
+            //
+            // A split button (`Menu(primaryAction:)`, same pattern as the install button above)
+            // keeps Refresh as a ONE-CLICK action on the main button — the batch jobs move into the
+            // dropdown. The label still renders live progress for the running batch job.
             ToolbarItem {
-                Button {
-                    Task { await skillManager.checkAllUpdates() }
-                } label: {
-                    // When checking, shows spinning progress indicator (ProgressView) + progress count (e.g., 3/12),
-                    // otherwise shows static icon
-                    if skillManager.isCheckingUpdates {
-                        HStack(spacing: 4) {
-                            ProgressView()
-                                .controlSize(.small)
-                            // Progress count: counts number of skills that have completed checking / total pending check count
-                            // Skills in .checking state are still being checked, others (.hasUpdate/.upToDate/.error) indicate completed
-                            let total = skillManager.skills.filter { skill in
-                                guard let sourceType = skill.lockEntry?.sourceType else { return false }
-                                return sourceType != "local" && sourceType != "clawhub"
-                            }.count
-                            // compactMap is similar to Java Stream's filter+map combination:
-                            // first get value from dictionary (may be nil), then filter out .checking state
-                            let checked = skillManager.updateStatuses.values.filter {
-                                $0 != .checking && $0 != .notChecked
-                            }.count
-                            Text("\(checked)/\(total)").appFont(.caption)
-                                .monospacedDigit()  // Monospaced digit font, avoids width jumping when numbers change
-                                .foregroundStyle(.secondary)
+                Menu {
+                    // Refresh row: the same action as the primary click, listed so the action is
+                    // discoverable from the menu too.
+                    Button {
+                        Task { await skillManager.refresh() }
+                    } label: {
+                        Label {
+                            LText(key: L10nKeys.sidebarMenuRefreshSkills)
+                        } icon: {
+                            Image(systemName: "arrow.clockwise")
                         }
-                    } else {
-                        Image(systemName: "arrow.triangle.2.circlepath")
                     }
-                }
-                .help(L10n.string(L10nKeys.sidebarHelpCheckAllUpdates, bundle: localizationBundle, locale: locale))
-                .disabled(
-                    skillManager.isCheckingUpdates
-                        || skillManager.isUpdatingAllSkills
-                        || !skillManager.updatingSkillIDs.isEmpty
-                )
-            }
+                    .disabled(
+                        skillManager.isCheckingUpdates
+                            || skillManager.isUpdatingAllSkills
+                            || !skillManager.updatingSkillIDs.isEmpty
+                    )
 
-            // F19: Batch update all skills with available updates
-            ToolbarItem {
-                Button {
-                    Task { await skillManager.updateAllSkills() }
-                } label: {
-                    if skillManager.isUpdatingAllSkills {
-                        HStack(spacing: 4) {
-                            ProgressView()
-                                .controlSize(.small)
-                            Text("\(skillManager.batchUpdateCompleted)/\(skillManager.batchUpdateTotal)")
-                                .appFont(.caption)
-                                .monospacedDigit()
-                                .foregroundStyle(.secondary)
+                    Divider()
+
+                    // Former standalone "check all updates" button, now a menu row.
+                    Button {
+                        Task { await skillManager.checkAllUpdates() }
+                    } label: {
+                        Label {
+                            LText(key: L10nKeys.sidebarMenuCheckAllUpdates)
+                        } icon: {
+                            Image(systemName: "arrow.triangle.2.circlepath")
                         }
-                    } else {
-                        Image(systemName: "arrow.down.circle")
                     }
-                }
-                .help(L10n.string(L10nKeys.sidebarHelpUpdateAllSkills, bundle: localizationBundle, locale: locale))
-                .disabled(
-                    skillManager.isUpdatingAllSkills
-                        || skillManager.isCheckingUpdates
-                        || !skillManager.updatingSkillIDs.isEmpty
-                )
-            }
+                    .disabled(
+                        skillManager.isCheckingUpdates
+                            || skillManager.isUpdatingAllSkills
+                            || !skillManager.updatingSkillIDs.isEmpty
+                    )
 
-            // Refresh button: rescan file system
-            ToolbarItem {
-                Button {
+                    // Former standalone "update all skills" button, now a menu row.
+                    Button {
+                        Task { await skillManager.updateAllSkills() }
+                    } label: {
+                        Label {
+                            LText(key: L10nKeys.sidebarMenuUpdateAllSkills)
+                        } icon: {
+                            Image(systemName: "arrow.down.circle")
+                        }
+                    }
+                    .disabled(
+                        skillManager.isUpdatingAllSkills
+                            || skillManager.isCheckingUpdates
+                            || !skillManager.updatingSkillIDs.isEmpty
+                    )
+                } label: {
+                    syncMenuLabel
+                } primaryAction: {
+                    // Primary click: refresh the skill list (the most frequent of the three actions).
                     Task { await skillManager.refresh() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
                 }
-                .help(L10n.string(L10nKeys.sidebarHelpRefreshSkills, bundle: localizationBundle, locale: locale))
+                .help(L10n.string(L10nKeys.sidebarHelpSyncMenu, bundle: localizationBundle, locale: locale))
             }
         }
         // F10: Install sheet modal
