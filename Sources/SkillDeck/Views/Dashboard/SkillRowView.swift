@@ -22,6 +22,14 @@ struct SkillRowView: View {
     @Environment(\.localizationBundle) private var localizationBundle
     @Environment(\.locale) private var locale
 
+    /// Maximum number of Agent icons rendered inline before the rest collapse into a "+N" counter.
+    ///
+    /// `static` (not an instance property) on purpose: instance stored properties take part in the
+    /// synthesized memberwise initializer, and a `private` one would make that initializer private,
+    /// breaking `SkillRowView(...)` calls from DashboardView. A `private static let` is never part of
+    /// the memberwise init, so it is safe here.
+    private static let maxVisibleAgentIcons = 5
+
     /// `Skill ==` compares only `id`, so the `skill` argument this row was built with can be a
     /// stale snapshot after a watcher refresh. Always read the flags from the manager's current
     /// array (same `latest(id:)` path used by every other view).
@@ -32,7 +40,19 @@ struct SkillRowView: View {
         VStack(alignment: .leading, spacing: 6) {
             // First row: name + badges
             HStack {
-                Text(skill.displayName).appFont(.headline)
+                // `.lineLimit(1)` stops the name from wrapping onto a second line (the old
+                // behaviour without it: SwiftUI lets the flexible Text wrap when the row is tight).
+                // `.truncationMode(.middle)` keeps both the identifiable head and the meaningful
+                // tail (e.g. "test-driven-development") visible when the name must be shortened.
+                // `.help(...)` compensates for the truncation: hovering shows the full name.
+                // `.layoutPriority(1)` makes the name win the available width over the trailing
+                // badges/icon cluster instead of being the first thing squeezed.
+                Text(skill.displayName)
+                    .appFont(.headline)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(skill.displayName)
+                    .layoutPriority(1)
 
                 ScopeBadge(scope: skill.scope)
 
@@ -66,16 +86,32 @@ struct SkillRowView: View {
                 // Installed Agent icon row
                 // Use installations instead of installedAgents to get isTrulyInherited information
                 // Inherited installation icons have reduced opacity, hover tooltip shows source
+                //
+                // The cluster is capped at `Self.maxVisibleAgentIcons` icons: there are 14 Agent
+                // types today, and rendering all of them costs ~240pt, which used to squeeze the
+                // skill name into a second line even at a generous column width. Extras become a
+                // "+N" counter whose tooltip lists every hidden Agent.
                 HStack(spacing: 4) {
-                    ForEach(skill.installations) { installation in
+                    // `let` bindings inside a ViewBuilder are allowed (they are plain statements,
+                    // not views); SwiftUI just ignores them when building the view tree.
+                    let visible = skill.installations.prefix(Self.maxVisibleAgentIcons)
+                    let hiddenCount = skill.installations.count - visible.count
+
+                    // `visible` is an ArraySlice<SkillInstallation>; ForEach accepts any
+                    // RandomAccessCollection of Identifiable elements, not only Array.
+                    ForEach(visible) { installation in
                         AgentIconView(agentType: installation.agentType, size: 13)
                             .foregroundStyle(Constants.AgentColors.color(for: installation.agentType))
                             // Reduce opacity for inherited installation icons to visually distinguish from direct installations
                             .opacity(installation.isTrulyInherited ? 0.4 : 1.0)
-                            // Hover tooltip: inherited installation shows "Copilot CLI (via ~/.claude/skills)"
-                            .help(installation.isTrulyInherited
-                                ? "\(installation.agentType.displayName) (via \(installation.parentDirectoryDisplayPath))"
-                                : installation.agentType.displayName)
+                            .help(installationTooltip(installation))
+                    }
+
+                    if hiddenCount > 0 {
+                        Text("+\(hiddenCount)")
+                            .appFont(.caption2)
+                            .foregroundStyle(.secondary)
+                            .help(hiddenAgentsTooltip)
                     }
                 }
                 // The whole row is already dimmed to 0.5 below; do NOT add a second opacity here.
@@ -111,6 +147,26 @@ struct SkillRowView: View {
         .padding(.vertical, 4)
         // A disabled / broken skill stays in the list (for quick A/B) but is visually de-emphasized.
         .opacity(isDisabled || isBroken ? 0.5 : 1)
+    }
+
+    // MARK: - Agent Icon Helpers
+
+    /// Hover tooltip for a single Agent icon.
+    /// An inherited installation names the directory it actually reads from, e.g.
+    /// "Copilot CLI (via ~/.claude/skills)".
+    private func installationTooltip(_ installation: SkillInstallation) -> String {
+        installation.isTrulyInherited
+            ? "\(installation.agentType.displayName) (via \(installation.parentDirectoryDisplayPath))"
+            : installation.agentType.displayName
+    }
+
+    /// Hover tooltip for the "+N" counter: lists the Agents that were collapsed away,
+    /// one per line, using the same wording as the individual icons.
+    private var hiddenAgentsTooltip: String {
+        skill.installations
+            .dropFirst(Self.maxVisibleAgentIcons)
+            .map(installationTooltip)
+            .joined(separator: "\n")
     }
 
     // MARK: - Update Status Indicator

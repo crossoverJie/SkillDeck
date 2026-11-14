@@ -82,6 +82,15 @@ enum L10nKeys {
     static let sidebarHelpCheckAllUpdates = "sidebar.help.checkAllUpdates"
     static let sidebarHelpUpdateAllSkills = "sidebar.help.updateAllSkills"
     static let sidebarHelpRefreshSkills = "sidebar.help.refreshSkills"
+    // Menu titles for the merged sync menu (refresh / check-for-updates / update-all).
+    // Separate from the `sidebarHelp*` keys because those are full sentences used as tooltips,
+    // while menu rows need short verb phrases.
+    static let sidebarMenuRefreshSkills = "sidebar.menu.refreshSkills"
+    static let sidebarMenuCheckAllUpdates = "sidebar.menu.checkAllUpdates"
+    static let sidebarMenuUpdateAllSkills = "sidebar.menu.updateAllSkills"
+    // Tooltip for the merged sync menu button itself (it holds three actions, so none of the
+    // `sidebarHelp.*` strings describes it fully).
+    static let sidebarHelpSyncMenu = "sidebar.help.syncMenu"
 
     static let skillUpdateErrorBatchInProgress = "skill.update.error.batchInProgress"
     static let skillUpdateErrorIndividualInProgress = "skill.update.error.individualInProgress"
@@ -195,6 +204,10 @@ enum L10nKeys {
         sidebarHelpCheckAllUpdates,
         sidebarHelpUpdateAllSkills,
         sidebarHelpRefreshSkills,
+        sidebarMenuRefreshSkills,
+        sidebarMenuCheckAllUpdates,
+        sidebarMenuUpdateAllSkills,
+        sidebarHelpSyncMenu,
         skillUpdateErrorBatchInProgress,
         skillUpdateErrorIndividualInProgress,
         skillUpdateErrorInvalidLockEntry,

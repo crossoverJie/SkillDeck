@@ -41,10 +41,25 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             // Left column: sidebar navigation
-            // navigationSplitViewColumnWidth constrains sidebar width range,
-            // preventing content from being clipped when sidebar is too narrow after window restoration
+            //
+            // navigationSplitViewColumnWidth(min:ideal:max:) sets the range the user can DRAG the
+            // column splitter within. Important SwiftUI/macOS detail: this range is only enforced
+            // for user drags — a width restored from saved window state can fall outside it, so
+            // the toolbar below must tolerate widths down to `min` (see SidebarView.toolbar).
+            //
+            // Why min was raised 180 → 280: the sidebar's own toolbar items are laid out INSIDE
+            // the sidebar column band, and macOS reserves ~117pt (traffic lights + leading inset)
+            // plus ~47pt (the sidebar-collapse button), so the usable band is roughly
+            // (width - 164pt). The two split buttons in SidebarView.toolbar need ~118pt plus that
+            // fixed overhead, i.e. a sidebar of at least ~280pt; at the old 180pt minimum the band
+            // was ~16pt and NO toolbar item fit — that minimum was effectively meaningless.
+            //
+            // Why max was raised 300 → 400: the four old toolbar icons (three 44pt icons + the 57pt
+            // install menu + 47pt collapse button) needed ~353pt of the 300pt band, so the last icon
+            // (Refresh) was ALWAYS pushed into the overflow menu. The compacted toolbar (see
+            // SidebarView) needs ~118pt, leaving comfortable slack here for future additions.
             SidebarView(selection: $selectedSidebarItem)
-                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+                .navigationSplitViewColumnWidth(min: 280, ideal: 290, max: 400)
         } content: {
             // Middle column: content varies based on sidebar selection
             // F09: When "Registry" is selected, show RegistryBrowserView instead of DashboardView
@@ -64,9 +79,15 @@ struct ContentView: View {
                 // Default: show skill dashboard list
                 if let vm = dashboardVM {
                     DashboardView(viewModel: vm, selectedSkillID: $selectedSkillID)
-                        // Constrain middle column (skill list) width range,
-                        // preventing content from being squeezed when first opening
-                        .navigationSplitViewColumnWidth(min: 250, ideal: 320, max: 450)
+                        // Skill list column width range.
+                        // - `min` keeps the original intent of the old max-only clamping: the list
+                        //   must not be squeezed when the window is narrow or state is restored.
+                        // - `ideal` decides the width on first launch.
+                        // - `max` was 450, which users hit immediately and then could not drag past,
+                        //   forcing long skill names onto two lines. 720 gives them room while still
+                        //   stopping the Markdown detail pane (which has no min width of its own)
+                        //   from being squeezed to unreadable.
+                        .navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 720)
                 }
             }
         } detail: {
