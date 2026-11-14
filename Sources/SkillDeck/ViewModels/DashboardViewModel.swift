@@ -25,6 +25,21 @@ final class DashboardViewModel {
     /// Sort direction (ascending/descending)
     var sortDirection: SortDirection = .ascending
 
+    /// Product default: grouped view. Flipping this ONE line to `.none` restores the old
+    /// flat list, which is also the documented rollback path (see the plan's §6).
+    ///
+    /// Not persisted (neither is `sortOrder`), so every launch starts grouped.
+    var groupMode: GroupMode = .source
+
+    /// Section ids (`SkillGroup.id`) the user has collapsed.
+    ///
+    /// A `Set<String>` rather than a flag on `SkillGroup`: the groups themselves are recomputed
+    /// on every body evaluation, so state that must survive re-derivation belongs to the
+    /// ViewModel. Keyed by the stable group id (e.g. "github:obra/superpowers"), so collapsing
+    /// survives sorting changes and refreshes, and a group that disappears because of a filter
+    /// comes back collapsed.
+    var collapsedGroupIDs: Set<String> = []
+
     /// Currently selected skill (used for navigation to detail page)
     var selectedSkillID: String?
 
@@ -50,19 +65,29 @@ final class DashboardViewModel {
         var iconName: String {
             self == .ascending ? "arrowtriangle.up.fill" : "arrowtriangle.down.fill"
         }
-
-        /// Display text
-        var displayName: String {
-            self == .ascending ? "Ascending" : "Descending"
-        }
     }
 
     /// Sort order enum
-    enum SortOrder: String, CaseIterable {
-        case name = "Name"
-        case scope = "Scope"
-        case agent = "Agent Count"
-        case usage = "Usage Count"
+    ///
+    /// No `String` raw value any more: the display text now comes from localized keys
+    /// (`titleKey`) instead of a hard-coded English literal, and nothing read `rawValue`
+    /// (it was never `Codable`).
+    enum SortOrder: CaseIterable {
+        case name
+        case scope
+        case agent
+        case usage
+
+        /// Localization key for the menu row and the toolbar label. Same rationale as
+        /// `GroupMode.titleKey`: resolution happens in the View, which owns bundle + locale.
+        var titleKey: String {
+            switch self {
+            case .name: return L10nKeys.dashboardSortName
+            case .scope: return L10nKeys.dashboardSortScope
+            case .agent: return L10nKeys.dashboardSortAgentCount
+            case .usage: return L10nKeys.dashboardSortUsageCount
+            }
+        }
 
         /// Each sort order corresponds to an SF Symbol icon
         var iconName: String {
@@ -81,6 +106,93 @@ final class DashboardViewModel {
             default: return .ascending
             }
         }
+    }
+
+    /// How the Dashboard list is segmented.
+    ///
+    /// Orthogonal to `SortOrder`: grouping decides WHERE a skill appears, sorting decides the
+    /// order INSIDE a group (and, indirectly, the order of the groups themselves).
+    ///
+    /// Note for readers coming from Java/Go: this is a plain case-only enum (no raw values) —
+    /// Swift lets it still conform to `CaseIterable` and to `Equatable`/`Hashable` for free, so
+    /// it can be used directly as a `ForEach(id: \.self)` element.
+    enum GroupMode: CaseIterable {
+        /// One section per install source (repo / local path / ClawHub).
+        case source
+        /// Legacy flat list: exactly what the Dashboard rendered before grouping existed.
+        case none
+
+        /// SF Symbol shown next to the menu row.
+        var iconName: String {
+            switch self {
+            case .source: return "square.stack.3d.down.right"
+            case .none: return "list.bullet"
+            }
+        }
+
+        /// Localization key for the menu row. Kept as a *key* (not a resolved string) for the
+        /// same reason `unknownUsageHelpKey` is a key: the ViewModel has no bundle/locale
+        /// environment, so it cannot resolve localized text itself.
+        var titleKey: String {
+            switch self {
+            case .source: return L10nKeys.dashboardGroupSource
+            case .none: return L10nKeys.dashboardGroupNone
+            }
+        }
+    }
+
+    /// Where a section header's text comes from.
+    ///
+    /// An enum instead of two mutually exclusive optionals: the "exactly one of these is set"
+    /// invariant is expressed by the type itself, so no `assert` and no force-unwrap is needed.
+    /// `Equatable` is synthesized (neither case carries a non-Equatable payload), which lets
+    /// tests write `XCTAssertEqual(group.title, .literal("obra/superpowers"))`.
+    enum GroupTitle: Equatable {
+        /// Literal text taken from the data, e.g. "obra/superpowers" or "ClawHub".
+        case literal(String)
+        /// Localization key resolved by the View (e.g. the "no source recorded" bucket).
+        case localized(String)
+    }
+
+    /// One rendered section of the Dashboard list.
+    ///
+    /// `Identifiable` because `ForEach` needs stable identity: the string key derived from the
+    /// lock entry survives refreshes, whereas an array index would make SwiftUI animate rows
+    /// wrongly whenever the sort order changes.
+    struct SkillGroup: Identifiable {
+        /// Stable identity, e.g. "github:obra/superpowers", "path:/users/x/repo",
+        /// "marketplace:clawhub".
+        let id: String
+        let title: GroupTitle
+        /// Optional tooltip: full local path, marketplace hint, ...
+        let helpText: String?
+        /// Members, already ordered by the active SortOrder/SortDirection.
+        let skills: [Skill]
+        /// Browser-openable page for this source (GitHub repo today). `nil` when the source has
+        /// no meaningful web page (local path, ClawHub slug, unknown source).
+        ///
+        /// Held here rather than recomputed in the View so the SSH-vs-HTTPS normalization lives
+        /// next to the other `source` parsing and stays unit-testable.
+        let webURL: URL?
+    }
+
+    /// Where a single skill's section identity comes from.
+    ///
+    /// Internal (not `private`) so `@testable import` can drive `sourceDescriptor(for:)`
+    /// directly from tests.
+    struct SourceDescriptor {
+        /// Section identity, e.g. "github:obra/superpowers".
+        let key: String
+        /// Header derived from THIS skill alone. For github groups this is only a fallback: the
+        /// group-wide `preferredVariant(...)` vote replaces it once every member is known.
+        let title: GroupTitle
+        /// Optional tooltip (full local path, ...). Taken from the group's first member.
+        let helpText: String?
+        /// The raw casing of a github `source`, fed into `preferredVariant`. `nil` for every
+        /// other kind of group (there is nothing to vote on).
+        let variant: String?
+        /// Browser-openable page for this source, when one exists.
+        let webURL: URL?
     }
 
     /// Reference to global SkillManager (dependency injection)
@@ -310,6 +422,218 @@ final class DashboardViewModel {
         }
 
         return result
+    }
+
+    // MARK: - Source Grouping
+
+    /// Groups an already-sorted skill array into sections.
+    ///
+    /// Deterministic given (`groupMode`, input order): it deliberately does NOT read
+    /// `filteredSkills` internally, so the View can pass the ONE snapshot it already computed
+    /// for the empty-state check. Reading `filteredSkills` here instead would sort the whole
+    /// array twice per body evaluation (and, under `.usage`, precompute `usageSummary` twice).
+    ///
+    /// Implementation note for readers coming from Java/Go: this is a single pass with a
+    /// first-appearance list `order` plus two dictionaries. That is cheaper and simpler than
+    /// `Dictionary(grouping:)` followed by a second sort, and it DEFINES the group order as
+    /// "the position of the group's highest-ranked skill in the current sort". No extra
+    /// ordering knob to explain, persist, or get out of sync with `sortOrder`.
+    func sourceGroups(from skills: [Skill]) -> [SkillGroup] {
+        // Defensive only: the `.none` branch of the View keeps the untouched flat `List` and
+        // never calls this. Returning [] (rather than a fake single group) makes a future
+        // wiring mistake loud instead of silently rendering an ungrouped list through a
+        // section code path.
+        guard groupMode == .source else { return [] }
+
+        var order: [String] = []
+        var members: [String: [Skill]] = [:]
+        var variants: [String: [String: Int]] = [:]   // key -> (source casing -> occurrences)
+
+        for skill in skills {
+            let descriptor = Self.sourceDescriptor(for: skill)
+            if members[descriptor.key] == nil { order.append(descriptor.key) }
+            members[descriptor.key, default: []].append(skill)
+            if let variant = descriptor.variant {
+                variants[descriptor.key, default: [:]][variant, default: 0] += 1
+            }
+        }
+
+        return order.compactMap { key in
+            guard let groupSkills = members[key] else { return nil }
+            let first = Self.sourceDescriptor(for: groupSkills[0])
+
+            // Only `.literal` headers can be re-cased (the localized buckets carry no fallback
+            // text). WITHOUT this override the header is "whichever casing the currently first
+            // member happens to carry", i.e. it silently changes when the sort order changes —
+            // and the `variants` vote above would be a dead computation.
+            let title: GroupTitle
+            if case .literal(let fallback) = first.title {
+                title = .literal(Self.preferredVariant(variants[key] ?? [:], fallback: fallback))
+            } else {
+                title = first.title
+            }
+
+            return SkillGroup(
+                id: key,
+                title: title,
+                helpText: first.helpText,
+                skills: groupSkills,
+                webURL: first.webURL
+            )
+        }
+    }
+
+    /// Whether a section is currently collapsed.
+    func isGroupCollapsed(_ groupID: String) -> Bool {
+        collapsedGroupIDs.contains(groupID)
+    }
+
+    /// Flip one section between collapsed and expanded.
+    ///
+    /// Only updates the `Set`; the View derives the visible rows from it, so this stays a pure
+    /// state mutation (no fs/network work, safe to call from a tap gesture in `body`).
+    func toggleGroupCollapsed(_ groupID: String) {
+        if collapsedGroupIDs.contains(groupID) {
+            collapsedGroupIDs.remove(groupID)
+        } else {
+            collapsedGroupIDs.insert(groupID)
+        }
+    }
+
+    /// Where a single skill's section identity comes from.
+    ///
+    /// The FIRST dispatch is `sourceType`, never `source.contains("/")`: a ClawHub slug can
+    /// legitimately contain a slash, so sniffing the string would misfile it as a repo.
+    /// Every branch trims `source` first, and the final catch-all is what keeps a
+    /// `sourceType == "github"` entry with an empty `source` from falling through the cracks.
+    static func sourceDescriptor(for skill: Skill) -> SourceDescriptor {
+        guard let entry = skill.lockEntry else {
+            return SourceDescriptor(
+                key: "unknown:no-entry",
+                title: .localized(L10nKeys.dashboardGroupUnknownSource),
+                helpText: nil,
+                variant: nil,
+                webURL: nil
+            )
+        }
+
+        let trimmedSource = entry.source.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        switch entry.sourceType {
+        case "github" where !trimmedSource.isEmpty:
+            // Group key is case-insensitive (`crossoverJie/skills` and `crossoverjie/skills`
+            // must merge), while the header casing is decided by a group-wide vote in
+            // `sourceGroups(from:)`. Here we only supply the first-seen casing as fallback.
+            return SourceDescriptor(
+                key: "github:" + trimmedSource.lowercased(),
+                title: .literal(trimmedSource),
+                helpText: nil,
+                variant: trimmedSource,
+                webURL: githubWebURL(source: trimmedSource, sourceUrl: entry.sourceUrl)
+            )
+
+        case "local" where !trimmedSource.isEmpty:
+            // `standardizedFileURL` removes `./`, `..` and trailing slashes WITHOUT touching
+            // the disk. `resolvingSymlinksInPath()` would do I/O, and this runs on every body
+            // evaluation, so it is out of the question here.
+            let normalizedPath = URL(fileURLWithPath: trimmedSource).standardizedFileURL.path
+            return SourceDescriptor(
+                // Lower-cased key: macOS filesystems are case-insensitive by default, so
+                // `/Users/x/repo-a` and `/users/x/repo-a` are the same directory. The tooltip
+                // keeps the original casing because it is meant for a human to read.
+                key: "path:" + normalizedPath.lowercased(),
+                title: .literal(URL(fileURLWithPath: normalizedPath).lastPathComponent),
+                helpText: normalizedPath,
+                variant: nil,
+                // A local repository may have a remote, but resolving it would need git I/O on
+                // every body evaluation. No button is better than a wrong guess.
+                webURL: nil
+            )
+
+        case "clawhub":
+            // ClawHub writes one source per skill (the slug), so grouping by source would give
+            // every ClawHub skill its own section titled with its own name. One fixed bucket.
+            return SourceDescriptor(
+                key: "marketplace:clawhub",
+                title: .literal("ClawHub"),
+                helpText: nil,
+                variant: nil,
+                webURL: nil
+            )
+
+        case _ where !trimmedSource.isEmpty:
+            // Unknown `sourceType` may come from historical / hand-edited CommitHashCache JSON
+            // (`SkillManager` copies `linked.sourceType` verbatim). Keeping each source in its
+            // own group preserves its tooltip instead of swallowing it into the fallback bucket.
+            return SourceDescriptor(
+                key: "unknown:" + trimmedSource.lowercased(),
+                title: .literal(trimmedSource),
+                helpText: nil,
+                // Also vote on casing: two unknown sources differing only in case collapse
+                // into one group, and without a variant the header would be "whichever member
+                // ranks first", i.e. it would change when the sort order changes.
+                variant: trimmedSource,
+                // Not known to be a repo, so do not offer a "open on the web" button.
+                webURL: nil
+            )
+
+        default:
+            // Catch-all: `github`/`local` with an empty source, a known type with an empty
+            // source, or anything else unforeseen.
+            return SourceDescriptor(
+                key: "unknown:no-entry",
+                title: .localized(L10nKeys.dashboardGroupUnknownSource),
+                helpText: nil,
+                variant: nil,
+                webURL: nil
+            )
+        }
+    }
+
+    /// Browser-openable GitHub URL for a `source` such as `crossoverJie/skills`.
+    ///
+    /// The lock file stores whatever git used: `https://github.com/o/r.git` most of the time,
+    /// but SSH (`git@github.com:o/r.git`) also appears in real data, and that form cannot be
+    /// opened in a browser. So: accept `sourceUrl` only when it is HTTP(S), otherwise rebuild
+    /// the canonical web URL from `owner/repo`, stripping any `.git` suffix.
+    static func githubWebURL(source: String, sourceUrl: String) -> URL? {
+        /// Trim, drop a `.git` suffix, and keep the result only if it is a clean http(s) URL.
+        func normalized(_ raw: String) -> URL? {
+            var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.hasSuffix(".git") { text.removeLast(4) }
+            guard let url = URL(string: text),
+                  let scheme = url.scheme?.lowercased(),
+                  scheme == "https" || scheme == "http",
+                  url.host != nil,
+                  // Reject userinfo (`https://github.com@evil.example/x`): the tooltip claims
+                  // github.com while the browser would go somewhere else. A lock file is local
+                  // data, but a hand-edited or maliciously supplied entry must not be able to
+                  // turn this button into a mislabeled redirect.
+                  url.user == nil
+            else { return nil }
+            return url
+        }
+
+        return normalized(sourceUrl) ?? normalized("https://github.com/\(source)")
+    }
+
+    /// Deterministic tie-break for "the same repo, two casings":
+    /// most frequent → most uppercase letters (so `crossoverJie/skills` beats
+    /// `crossoverjie/skills`) → lexicographic.
+    ///
+    /// `static` (not `private`) on purpose: `@testable import` cannot see `private` members, and
+    /// this rule is exactly the kind of thing that should be pinned by a unit test.
+    static func preferredVariant(_ counts: [String: Int], fallback: String) -> String {
+        counts.max { lhs, rhs in
+            if lhs.value != rhs.value { return lhs.value < rhs.value }
+            let lhsUpper = lhs.key.reduce(0) { $1.isUppercase ? $0 + 1 : $0 }
+            let rhsUpper = rhs.key.reduce(0) { $1.isUppercase ? $0 + 1 : $0 }
+            if lhsUpper != rhsUpper { return lhsUpper < rhsUpper }
+            // `max(by:)` keeps the element for which the predicate is false, i.e. the
+            // "greater" one, so invert the comparison to make the lexicographically
+            // SMALLER key win on a full tie.
+            return lhs.key > rhs.key
+        }?.key ?? fallback
     }
 
     /// Requests skill deletion (shows confirmation dialog first)

@@ -15,6 +15,12 @@ struct SkillRowView: View {
     /// Locale key chosen by the ViewModel for the unknown placeholder
     /// (scanning / unreadable / no local history).
     var unknownUsageHelpKey: String = L10nKeys.usageAgentUnavailable
+    /// Whether the third row shows `lockEntry.source`.
+    ///
+    /// Set to `false` in grouped mode: the section header already states the source, and
+    /// repeating it inside every row is noise. The `= true` default keeps every other call site
+    /// source-compatible (a defaulted parameter does not break existing memberwise calls).
+    var showsSource: Bool = true
 
     /// Get SkillManager from environment for reading updateStatuses dictionary
     /// @Environment is SwiftUI's dependency injection mechanism (similar to Spring's @Autowired)
@@ -126,21 +132,32 @@ struct SkillRowView: View {
                     .lineLimit(2)
             }
 
-            // Third row: author + version + source
-            HStack(spacing: 12) {
-                if let author = skill.metadata.author {
-                    Label(author, systemImage: "person").appFont(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+            // Third row: author + version + source.
+            //
+            // The WHOLE row is conditional, not just the source label: when everything else is
+            // empty, an always-present `HStack` would still occupy one slot of the outer
+            // `VStack(spacing: 6)`, adding 6pt of dead space to every grouped row and making
+            // row heights uneven.
+            let hasSourceRow = skill.metadata.author != nil
+                || skill.metadata.version != nil
+                || (showsSource && skill.lockEntry != nil)
 
-                if let version = skill.metadata.version {
-                    Label("v\(version)", systemImage: "tag").appFont(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+            if hasSourceRow {
+                HStack(spacing: 12) {
+                    if let author = skill.metadata.author {
+                        Label(author, systemImage: "person").appFont(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
 
-                if let lockEntry = skill.lockEntry {
-                    Label(lockEntry.source, systemImage: "link").appFont(.caption)
-                        .foregroundStyle(.tertiary)
+                    if let version = skill.metadata.version {
+                        Label("v\(version)", systemImage: "tag").appFont(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    if showsSource, let lockEntry = skill.lockEntry {
+                        Label(lockEntry.source, systemImage: "link").appFont(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
         }

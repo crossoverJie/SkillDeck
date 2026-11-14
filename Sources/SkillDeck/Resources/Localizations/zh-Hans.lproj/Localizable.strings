@@ -101,6 +101,20 @@
 "dashboard.language.menuLabel" = "语言";
 "dashboard.language.menuHelp" = "切换应用语言";
 
+"dashboard.sort.section" = "排序";
+"dashboard.sort.name" = "名称";
+"dashboard.sort.scope" = "范围";
+"dashboard.sort.agentCount" = "Agent 数量";
+"dashboard.sort.usageCount" = "使用次数";
+"dashboard.group.section" = "分组";
+"dashboard.group.none" = "不分组";
+"dashboard.group.source" = "来源仓库";
+"dashboard.group.unknownSource" = "本地（未记录来源）";
+"dashboard.group.skillCountFormat" = "%d 个技能";
+"dashboard.group.collapse" = "折叠该分组";
+"dashboard.group.expand" = "展开该分组";
+"dashboard.group.openSource" = "在浏览器中打开来源仓库";
+
 "usage.scan.action" = "扫描历史";
 "usage.scanning" = "正在扫描本地 Agent 历史记录…";
 "usage.refresh.help" = "重新扫描 skill 使用记录";
