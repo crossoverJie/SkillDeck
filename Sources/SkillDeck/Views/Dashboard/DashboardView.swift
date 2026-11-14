@@ -358,6 +358,17 @@ struct DashboardView: View {
         }
         let isCollapsed = viewModel.isGroupCollapsed(group.id)
 
+        // ONE tooltip for the whole header, built here instead of stacking `.help` on both the
+        // parent and the child. The toggle button covers nearly the full header width (it ends
+        // in `Spacer(minLength: 0)`), so two overlapping `.help` regions would mean AppKit shows
+        // only one of them and the other becomes unreachable — which silently killed the local
+        // path tooltip (`group.helpText`).
+        var collapseHelpParts = [localized(isCollapsed
+                                           ? L10nKeys.dashboardGroupExpand
+                                           : L10nKeys.dashboardGroupCollapse)]
+        if let detail = group.helpText { collapseHelpParts.append(detail) }
+        let collapseHelp = collapseHelpParts.joined(separator: "\n")
+
         return HStack(spacing: 6) {
             Button {
                 viewModel.toggleGroupCollapsed(group.id)
@@ -383,9 +394,7 @@ struct DashboardView: View {
             // `.plain` removes the button chrome so the header still reads as a label rather
             // than a pushed button (`.borderless` would tint and inset it).
             .buttonStyle(.plain)
-            .help(localized(isCollapsed
-                            ? L10nKeys.dashboardGroupExpand
-                            : L10nKeys.dashboardGroupCollapse))
+            .help(collapseHelp)
 
             if let webURL = group.webURL {
                 Button {
@@ -401,7 +410,6 @@ struct DashboardView: View {
                 .help("\(localized(L10nKeys.dashboardGroupOpenSource))\n\(webURL.absoluteString)")
             }
         }
-        .help(group.helpText ?? title)
     }
 
     /// Same tiny wrapper as `SkillRowView.localized(_:)`: SwiftUI `@Environment` values are only

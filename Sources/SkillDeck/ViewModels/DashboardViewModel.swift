@@ -569,7 +569,10 @@ final class DashboardViewModel {
                 key: "unknown:" + trimmedSource.lowercased(),
                 title: .literal(trimmedSource),
                 helpText: nil,
-                variant: nil,
+                // Also vote on casing: two unknown sources differing only in case collapse
+                // into one group, and without a variant the header would be "whichever member
+                // ranks first", i.e. it would change when the sort order changes.
+                variant: trimmedSource,
                 // Not known to be a repo, so do not offer a "open on the web" button.
                 webURL: nil
             )
@@ -594,14 +597,19 @@ final class DashboardViewModel {
     /// opened in a browser. So: accept `sourceUrl` only when it is HTTP(S), otherwise rebuild
     /// the canonical web URL from `owner/repo`, stripping any `.git` suffix.
     static func githubWebURL(source: String, sourceUrl: String) -> URL? {
-        /// Trim, drop a `.git` suffix, and keep the result only if it is an http(s) URL.
+        /// Trim, drop a `.git` suffix, and keep the result only if it is a clean http(s) URL.
         func normalized(_ raw: String) -> URL? {
             var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             if text.hasSuffix(".git") { text.removeLast(4) }
             guard let url = URL(string: text),
                   let scheme = url.scheme?.lowercased(),
                   scheme == "https" || scheme == "http",
-                  url.host != nil
+                  url.host != nil,
+                  // Reject userinfo (`https://github.com@evil.example/x`): the tooltip claims
+                  // github.com while the browser would go somewhere else. A lock file is local
+                  // data, but a hand-edited or maliciously supplied entry must not be able to
+                  // turn this button into a mislabeled redirect.
+                  url.user == nil
             else { return nil }
             return url
         }

@@ -104,7 +104,7 @@ enum L10nKeys {
     static let dashboardLanguageMenuLabel = "dashboard.language.menuLabel"
     static let dashboardLanguageMenuHelp = "dashboard.language.menuHelp"
 
-    // MARK: - Dashboard Sort / Group Menus (10 keys)
+    // MARK: - Dashboard Sort / Group Menus (13 keys)
     // The sort predicates and the grouping logic live in `DashboardViewModel`; these keys only
     // carry the display text, because the ViewModel has no bundle/locale to resolve it.
     static let dashboardSortSection = "dashboard.sort.section"

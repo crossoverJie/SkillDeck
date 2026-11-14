@@ -290,6 +290,43 @@ final class DashboardGroupingTests: XCTestCase {
         XCTAssertTrue(groups.allSatisfy { $0.webURL == nil })
     }
 
+    func testUnknownGroupTitleVoteIsStable() {
+        // Two unknown sources differing only in case merge into one group; the header must not
+        // flip to "whichever member currently ranks first" when the sort order changes.
+        let viewModel = makeViewModel()
+        let upper = makeSkill(id: "a", name: "Alpha", source: "Some/Repo", sourceType: "weird")
+        let lower = makeSkill(id: "z", name: "Zulu", source: "some/repo", sourceType: "weird")
+
+        let forward = viewModel.sourceGroups(from: [upper, lower])
+        let reversed = viewModel.sourceGroups(from: [lower, upper])
+
+        XCTAssertEqual(forward.count, 1)
+        XCTAssertEqual(forward[0].id, "unknown:some/repo")
+        XCTAssertEqual(forward[0].title, .literal("Some/Repo"))
+        XCTAssertEqual(reversed[0].title, forward[0].title)
+    }
+
+    func testWebURLRejectsUserInfoRedirect() {
+        // `https://github.com@evil.example/x` is syntactically valid https with a host, so
+        // without the `user == nil` guard the button would open evil.example while the tooltip
+        // claims github.com.
+        let viewModel = makeViewModel()
+        let skills = [
+            makeSkill(
+                id: "sneaky",
+                source: "owner/repo",
+                sourceUrl: "https://github.com@evil.example/x"
+            ),
+        ]
+
+        let groups = viewModel.sourceGroups(from: skills)
+
+        XCTAssertEqual(
+            groups[0].webURL?.absoluteString,
+            "https://github.com/owner/repo"
+        )
+    }
+
     // MARK: - Collapse state
 
     func testToggleGroupCollapsed() {
