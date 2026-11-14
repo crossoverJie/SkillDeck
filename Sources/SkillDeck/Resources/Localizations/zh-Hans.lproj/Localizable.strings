@@ -111,6 +111,9 @@
 "dashboard.group.source" = "来源仓库";
 "dashboard.group.unknownSource" = "本地（未记录来源）";
 "dashboard.group.skillCountFormat" = "%d 个技能";
+"dashboard.group.collapse" = "折叠该分组";
+"dashboard.group.expand" = "展开该分组";
+"dashboard.group.openSource" = "在浏览器中打开来源仓库";
 
 "usage.scan.action" = "扫描历史";
 "usage.scanning" = "正在扫描本地 Agent 历史记录…";

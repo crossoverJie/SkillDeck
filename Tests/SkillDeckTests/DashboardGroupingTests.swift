@@ -233,6 +233,91 @@ final class DashboardGroupingTests: XCTestCase {
         )
     }
 
+    // MARK: - Source link ("open in browser") button
+
+    func testGitHubGroupExposesWebURL() {
+        let viewModel = makeViewModel()
+        let skills = [
+            makeSkill(
+                id: "agent-notifier",
+                source: "crossoverJie/skills",
+                sourceUrl: "https://github.com/crossoverJie/skills.git"
+            ),
+        ]
+
+        let groups = viewModel.sourceGroups(from: skills)
+
+        // `.git` is stripped: the browser URL is the repository page, not a clone URL.
+        XCTAssertEqual(
+            groups[0].webURL?.absoluteString,
+            "https://github.com/crossoverJie/skills"
+        )
+    }
+
+    func testSSHSourceUrlFallsBackToCanonicalWebURL() {
+        // Real lock files contain SSH clone URLs (`git@github.com:o/r.git`), which a browser
+        // cannot open. The canonical URL is rebuilt from `owner/repo` in that case.
+        let viewModel = makeViewModel()
+        let skills = [
+            makeSkill(
+                id: "disk-raccoon",
+                source: "orange2ai/disk-raccoon",
+                sourceUrl: "git@github.com:orange2ai/disk-raccoon.git"
+            ),
+        ]
+
+        let groups = viewModel.sourceGroups(from: skills)
+
+        XCTAssertEqual(
+            groups[0].webURL?.absoluteString,
+            "https://github.com/orange2ai/disk-raccoon"
+        )
+    }
+
+    func testNonGitHubGroupsHaveNoWebURL() {
+        // Local paths, ClawHub slugs and unrecorded sources have no page worth opening, so the
+        // header must not render a dead button.
+        let viewModel = makeViewModel()
+        let skills = [
+            makeSkill(id: "slidev", source: "/Users/x/slidev", sourceType: "local"),
+            makeSkill(id: "pdf", source: "pdf", sourceType: "clawhub"),
+            makeSkill(id: "orphan"),
+        ]
+
+        let groups = viewModel.sourceGroups(from: skills)
+
+        XCTAssertEqual(groups.count, 3)
+        XCTAssertTrue(groups.allSatisfy { $0.webURL == nil })
+    }
+
+    // MARK: - Collapse state
+
+    func testToggleGroupCollapsed() {
+        let viewModel = makeViewModel()
+        let groupID = "github:obra/superpowers"
+
+        XCTAssertFalse(viewModel.isGroupCollapsed(groupID))
+        viewModel.toggleGroupCollapsed(groupID)
+        XCTAssertTrue(viewModel.isGroupCollapsed(groupID))
+        viewModel.toggleGroupCollapsed(groupID)
+        XCTAssertFalse(viewModel.isGroupCollapsed(groupID))
+    }
+
+    func testCollapseStateDoesNotHideMembersFromTheModel() {
+        // The View decides what to render; `sourceGroups` still reports every member so the
+        // header's count stays correct while collapsed.
+        let viewModel = makeViewModel()
+        let skills = [
+            makeSkill(id: "alpha", source: "obra/superpowers"),
+            makeSkill(id: "zulu", source: "obra/superpowers"),
+        ]
+
+        viewModel.toggleGroupCollapsed("github:obra/superpowers")
+        let groups = viewModel.sourceGroups(from: skills)
+
+        XCTAssertEqual(groups[0].skills.count, 2)
+    }
+
     // MARK: - Helpers
 
     private func makeViewModel() -> DashboardViewModel {
@@ -254,6 +339,7 @@ final class DashboardGroupingTests: XCTestCase {
         name: String? = nil,
         source: String? = nil,
         sourceType: String = "github",
+        sourceUrl: String? = nil,
         agents: [AgentType] = []
     ) -> Skill {
         Skill(
@@ -273,7 +359,7 @@ final class DashboardGroupingTests: XCTestCase {
                 LockEntry(
                     source: $0,
                     sourceType: sourceType,
-                    sourceUrl: "https://example.com/\(id).git",
+                    sourceUrl: sourceUrl ?? "https://github.com/\($0).git",
                     skillPath: "skills/\(id)/SKILL.md",
                     skillFolderHash: "hash-\(id)",
                     installedAt: "2026-01-01T00:00:00Z",

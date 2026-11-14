@@ -111,6 +111,9 @@
 "dashboard.group.source" = "Source";
 "dashboard.group.unknownSource" = "Local / No Source";
 "dashboard.group.skillCountFormat" = "%d skills";
+"dashboard.group.collapse" = "Collapse this group";
+"dashboard.group.expand" = "Expand this group";
+"dashboard.group.openSource" = "Open the source repository in the browser";
 
 "usage.scan.action" = "Scan History";
 "usage.scanning" = "Scanning local Agent history...";

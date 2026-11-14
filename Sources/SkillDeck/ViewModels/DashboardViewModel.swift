@@ -31,6 +31,15 @@ final class DashboardViewModel {
     /// Not persisted (neither is `sortOrder`), so every launch starts grouped.
     var groupMode: GroupMode = .source
 
+    /// Section ids (`SkillGroup.id`) the user has collapsed.
+    ///
+    /// A `Set<String>` rather than a flag on `SkillGroup`: the groups themselves are recomputed
+    /// on every body evaluation, so state that must survive re-derivation belongs to the
+    /// ViewModel. Keyed by the stable group id (e.g. "github:obra/superpowers"), so collapsing
+    /// survives sorting changes and refreshes, and a group that disappears because of a filter
+    /// comes back collapsed.
+    var collapsedGroupIDs: Set<String> = []
+
     /// Currently selected skill (used for navigation to detail page)
     var selectedSkillID: String?
 
@@ -159,6 +168,12 @@ final class DashboardViewModel {
         let helpText: String?
         /// Members, already ordered by the active SortOrder/SortDirection.
         let skills: [Skill]
+        /// Browser-openable page for this source (GitHub repo today). `nil` when the source has
+        /// no meaningful web page (local path, ClawHub slug, unknown source).
+        ///
+        /// Held here rather than recomputed in the View so the SSH-vs-HTTPS normalization lives
+        /// next to the other `source` parsing and stays unit-testable.
+        let webURL: URL?
     }
 
     /// Where a single skill's section identity comes from.
@@ -176,6 +191,8 @@ final class DashboardViewModel {
         /// The raw casing of a github `source`, fed into `preferredVariant`. `nil` for every
         /// other kind of group (there is nothing to vote on).
         let variant: String?
+        /// Browser-openable page for this source, when one exists.
+        let webURL: URL?
     }
 
     /// Reference to global SkillManager (dependency injection)
@@ -460,8 +477,26 @@ final class DashboardViewModel {
                 id: key,
                 title: title,
                 helpText: first.helpText,
-                skills: groupSkills
+                skills: groupSkills,
+                webURL: first.webURL
             )
+        }
+    }
+
+    /// Whether a section is currently collapsed.
+    func isGroupCollapsed(_ groupID: String) -> Bool {
+        collapsedGroupIDs.contains(groupID)
+    }
+
+    /// Flip one section between collapsed and expanded.
+    ///
+    /// Only updates the `Set`; the View derives the visible rows from it, so this stays a pure
+    /// state mutation (no fs/network work, safe to call from a tap gesture in `body`).
+    func toggleGroupCollapsed(_ groupID: String) {
+        if collapsedGroupIDs.contains(groupID) {
+            collapsedGroupIDs.remove(groupID)
+        } else {
+            collapsedGroupIDs.insert(groupID)
         }
     }
 
@@ -477,7 +512,8 @@ final class DashboardViewModel {
                 key: "unknown:no-entry",
                 title: .localized(L10nKeys.dashboardGroupUnknownSource),
                 helpText: nil,
-                variant: nil
+                variant: nil,
+                webURL: nil
             )
         }
 
@@ -492,7 +528,8 @@ final class DashboardViewModel {
                 key: "github:" + trimmedSource.lowercased(),
                 title: .literal(trimmedSource),
                 helpText: nil,
-                variant: trimmedSource
+                variant: trimmedSource,
+                webURL: githubWebURL(source: trimmedSource, sourceUrl: entry.sourceUrl)
             )
 
         case "local" where !trimmedSource.isEmpty:
@@ -507,7 +544,10 @@ final class DashboardViewModel {
                 key: "path:" + normalizedPath.lowercased(),
                 title: .literal(URL(fileURLWithPath: normalizedPath).lastPathComponent),
                 helpText: normalizedPath,
-                variant: nil
+                variant: nil,
+                // A local repository may have a remote, but resolving it would need git I/O on
+                // every body evaluation. No button is better than a wrong guess.
+                webURL: nil
             )
 
         case "clawhub":
@@ -517,7 +557,8 @@ final class DashboardViewModel {
                 key: "marketplace:clawhub",
                 title: .literal("ClawHub"),
                 helpText: nil,
-                variant: nil
+                variant: nil,
+                webURL: nil
             )
 
         case _ where !trimmedSource.isEmpty:
@@ -528,7 +569,9 @@ final class DashboardViewModel {
                 key: "unknown:" + trimmedSource.lowercased(),
                 title: .literal(trimmedSource),
                 helpText: nil,
-                variant: nil
+                variant: nil,
+                // Not known to be a repo, so do not offer a "open on the web" button.
+                webURL: nil
             )
 
         default:
@@ -538,9 +581,32 @@ final class DashboardViewModel {
                 key: "unknown:no-entry",
                 title: .localized(L10nKeys.dashboardGroupUnknownSource),
                 helpText: nil,
-                variant: nil
+                variant: nil,
+                webURL: nil
             )
         }
+    }
+
+    /// Browser-openable GitHub URL for a `source` such as `crossoverJie/skills`.
+    ///
+    /// The lock file stores whatever git used: `https://github.com/o/r.git` most of the time,
+    /// but SSH (`git@github.com:o/r.git`) also appears in real data, and that form cannot be
+    /// opened in a browser. So: accept `sourceUrl` only when it is HTTP(S), otherwise rebuild
+    /// the canonical web URL from `owner/repo`, stripping any `.git` suffix.
+    static func githubWebURL(source: String, sourceUrl: String) -> URL? {
+        /// Trim, drop a `.git` suffix, and keep the result only if it is an http(s) URL.
+        func normalized(_ raw: String) -> URL? {
+            var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.hasSuffix(".git") { text.removeLast(4) }
+            guard let url = URL(string: text),
+                  let scheme = url.scheme?.lowercased(),
+                  scheme == "https" || scheme == "http",
+                  url.host != nil
+            else { return nil }
+            return url
+        }
+
+        return normalized(sourceUrl) ?? normalized("https://github.com/\(source)")
     }
 
     /// Deterministic tie-break for "the same repo, two casings":

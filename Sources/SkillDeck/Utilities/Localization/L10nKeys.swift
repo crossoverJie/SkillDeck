@@ -118,6 +118,10 @@ enum L10nKeys {
     static let dashboardGroupUnknownSource = "dashboard.group.unknownSource"
     /// `%d` placeholder, resolved with `String(format:)` (LText takes no arguments).
     static let dashboardGroupSkillCountFormat = "dashboard.group.skillCountFormat"
+    // Section header interaction (collapse toggle + "open source page" button).
+    static let dashboardGroupCollapse = "dashboard.group.collapse"
+    static let dashboardGroupExpand = "dashboard.group.expand"
+    static let dashboardGroupOpenSource = "dashboard.group.openSource"
 
     static let usageScanAction = "usage.scan.action"
     static let usageScanning = "usage.scanning"
@@ -242,6 +246,9 @@ enum L10nKeys {
         dashboardGroupSource,
         dashboardGroupUnknownSource,
         dashboardGroupSkillCountFormat,
+        dashboardGroupCollapse,
+        dashboardGroupExpand,
+        dashboardGroupOpenSource,
         usageScanAction,
         usageScanning,
         usageRefreshHelp,

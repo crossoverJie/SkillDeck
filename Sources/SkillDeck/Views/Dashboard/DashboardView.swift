@@ -51,10 +51,18 @@ struct DashboardView: View {
                         // `ForEach` over sections: each `SkillGroup` owns its own `Section`,
                         // so there is no index arithmetic anywhere.
                         ForEach(viewModel.sourceGroups(from: skills)) { group in
+                            // A collapsed group keeps its `Section` (and therefore its header,
+                            // which is the control the user clicks to expand it again) but
+                            // renders zero rows. `[Skill]()` is needed for type inference —
+                            // `[]` alone cannot tell SwiftUI which element type to use.
+                            let visibleSkills: [Skill] = viewModel.isGroupCollapsed(group.id)
+                                ? []
+                                : group.skills
+
                             Section {
                                 // `ForEach(group.skills)` needs `Skill: Identifiable`
                                 // (already true: its id is the directory name).
-                                ForEach(group.skills) { skill in
+                                ForEach(visibleSkills) { skill in
                                     skillRow(skill)
                                 }
                             } header: {
@@ -332,10 +340,13 @@ struct DashboardView: View {
         }
     }
 
-    /// Section header: source label + skill count.
+    /// Section header: disclosure chevron + source label + skill count, plus an "open source"
+    /// button for sources that have a web page.
     ///
-    /// Kept compact (caption font, single line) because the rows are already three lines tall —
-    /// a default-sized section header would cut the number of visible rows by roughly 20%.
+    /// Clicking the chevron/title/count area collapses or expands the section; the whole group is
+    /// one button so the hit target is the full header width (`.contentShape` makes the empty
+    /// gap between the labels clickable too). Font is `subheadline` — `caption` was too small to
+    /// read at a glance and this is the only structural label in the list.
     private func groupHeader(_ group: DashboardViewModel.SkillGroup) -> some View {
         // `switch` over the `GroupTitle` enum. Swift resolves the localized case here at render
         // time, so switching the app language re-renders headers like every other string.
@@ -345,18 +356,50 @@ struct DashboardView: View {
         case .literal(let text): text
         case .localized(let key): localized(key)
         }
+        let isCollapsed = viewModel.isGroupCollapsed(group.id)
 
         return HStack(spacing: 6) {
-            Text(title)
-                .appFont(.caption)
-                .fontWeight(.semibold)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            // `%d` needs `String(format:)`; `LText` only takes keys without arguments.
-            Text(String(format: localized(L10nKeys.dashboardGroupSkillCountFormat), group.skills.count))
-                .appFont(.caption2)
+            Button {
+                viewModel.toggleGroupCollapsed(group.id)
+            } label: {
+                HStack(spacing: 6) {
+                    // Chevron mirrors the state: pointing right = collapsed, down = expanded.
+                    Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                        .appFont(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(title)
+                        .appFont(.subheadline)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    // `%d` needs `String(format:)`; `LText` only takes keys without arguments.
+                    Text(String(format: localized(L10nKeys.dashboardGroupSkillCountFormat), group.skills.count))
+                        .appFont(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            // `.plain` removes the button chrome so the header still reads as a label rather
+            // than a pushed button (`.borderless` would tint and inset it).
+            .buttonStyle(.plain)
+            .help(localized(isCollapsed
+                            ? L10nKeys.dashboardGroupExpand
+                            : L10nKeys.dashboardGroupCollapse))
+
+            if let webURL = group.webURL {
+                Button {
+                    // `NSWorkspace.open` is the macOS "open with the default handler" call;
+                    // for an https URL that is the user's browser.
+                    NSWorkspace.shared.open(webURL)
+                } label: {
+                    Image(systemName: "arrow.up.right.square")
+                        .appFont(.caption)
+                }
+                .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-            Spacer()
+                .help("\(localized(L10nKeys.dashboardGroupOpenSource))\n\(webURL.absoluteString)")
+            }
         }
         .help(group.helpText ?? title)
     }
