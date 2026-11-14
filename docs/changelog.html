@@ -447,6 +447,36 @@ footer.foot {
     <p class="tagline">Every version, every fix, every feature. SkillDeck follows semantic versioning — patch for fixes, minor for new agents and capabilities.</p>
   </header>
 
+  <!-- ============ v0.2.0 ============ -->
+  <article class="version">
+    <div class="version-head">
+      <h2><a href="https://github.com/crossoverJie/SkillDeck/releases/tag/v0.2.0">v0.2.0</a></h2>
+      <span class="version-date">Nov 14, 2026</span>
+    </div>
+    <ol class="changes">
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Dashboard grouped by source repository</strong>: the skill list is now segmented by where each skill was installed from, so skills belonging to the same repo always sit together &mdash; the two <code>obra/superpowers</code> skills, the five <code>anthropics/skills</code> ones, and so on. Grouping is orthogonal to sorting: the existing Name / Scope / Agent Count / Usage Count orders still decide the order inside a section and the order of the sections themselves. Repo names that differ only in casing merge into one section with a deterministic header, local installs show their folder name, and skills with no recorded source fall into a single &ldquo;Local / No Source&rdquo; bucket. No lock file or filesystem change: the group key comes from the entry SkillDeck already had in memory.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/75">#75</a>
+      </li>
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Collapsible sections with a source link</strong>: clicking a section header folds or unfolds that repository's skills, and GitHub-backed groups get a button that opens the repository in your browser. Header state is keyed by the source, so it survives sorting, filtering and refreshes. A &ldquo;Group By&rdquo; menu switches back to the old flat list at any time.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/75">#75</a>
+      </li>
+      <li>
+        <span class="tag fix">Fix</span>
+        <span class="desc"><strong>Skill list width and sidebar toolbar</strong>: the middle column was capped at 450pt, and the sidebar's four toolbar icons needed more room than the column could ever offer, so &ldquo;Refresh skills&rdquo; was permanently exiled into the overflow menu. The middle column now grows to 720pt, and the sidebar's update actions collapsed into one split button &mdash; refresh stays a single click, check-for-updates and update-all moved into its menu. Long skill names are truncated to one line with a hover tooltip, and the agent icon cluster caps at five icons plus a &ldquo;+N&rdquo; counter, so the name no longer wraps.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/74">#74</a>
+      </li>
+      <li>
+        <span class="tag feat">Feat</span>
+        <span class="desc"><strong>Localized sort and group menus</strong>: the dashboard's sort menu and its toolbar button followed neither language setting &mdash; both stayed hard-coded English. Sort labels, the new grouping labels and section headers now follow the app language in English and Simplified Chinese.</span>
+        <a class="pr-link" href="https://github.com/crossoverJie/SkillDeck/pull/75">#75</a>
+      </li>
+    </ol>
+  </article>
+
   <!-- ============ v0.1.5 ============ -->
   <article class="version">
     <div class="version-head">
