@@ -101,6 +101,17 @@
 "dashboard.language.menuLabel" = "Language";
 "dashboard.language.menuHelp" = "Switch app language";
 
+"dashboard.sort.section" = "Sort By";
+"dashboard.sort.name" = "Name";
+"dashboard.sort.scope" = "Scope";
+"dashboard.sort.agentCount" = "Agent Count";
+"dashboard.sort.usageCount" = "Usage Count";
+"dashboard.group.section" = "Group By";
+"dashboard.group.none" = "None";
+"dashboard.group.source" = "Source";
+"dashboard.group.unknownSource" = "Local / No Source";
+"dashboard.group.skillCountFormat" = "%d skills";
+
 "usage.scan.action" = "Scan History";
 "usage.scanning" = "Scanning local Agent history...";
 "usage.refresh.help" = "Rescan skill usage history";

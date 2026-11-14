@@ -22,12 +22,17 @@ struct DashboardView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
+        // Single snapshot for this render pass: `filteredSkills` sorts (and, under `.usage`,
+        // precomputes every usage count) on each access, so reading it twice — once for the
+        // empty check and once for the `List` — would double that work on every body evaluation.
+        let skills = viewModel.filteredSkills
+
         Group {
             if skillManager.isLoading && skillManager.skills.isEmpty {
                 // Show progress indicator on first load
                 ProgressView("Scanning skills...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.filteredSkills.isEmpty {
+            } else if skills.isEmpty {
                 // Empty state
                 EmptyStateView(
                     icon: "magnifyingglass",
@@ -37,65 +42,33 @@ struct DashboardView: View {
                         : "No skills match your search"
                 )
             } else {
-                // Skill list
-                List(viewModel.filteredSkills, selection: $selectedSkillID) { skill in
-                    SkillRowView(
-                        skill: skill,
-                        usageSummary: viewModel.usageSummary(for: skill),
-                        showsUnknownUsage: viewModel.sortOrder == .usage,
-                        usageIsScanning: viewModel.isRelevantUsagePending,
-                        unknownUsageHelpKey: viewModel.unknownUsageHelpKey
-                    )
-                        .tag(skill.id)
-                        // contextMenu is macOS's right-click menu
-                        .contextMenu {
-                            Button("Open in Finder") {
-                                NSWorkspace.shared.selectFile(
-                                    nil,
-                                    inFileViewerRootedAtPath: skill.canonicalURL.path
-                                )
-                            }
-
-                            // Branch on the freshest state, not the row's `skill` snapshot.
-                            // A broken skill has no content file, so it gets Delete + (conditional)
-                            // Reinstall instead of a Disable/Enable toggle.
-                            if skillManager.latest(id: skill.id)?.isBroken == true {
-                                Divider()
-                                Button("Delete", role: .destructive) {
-                                    viewModel.requestDelete(skill: skill)
+                // Skill list. Two shapes on purpose:
+                // - `.source` renders one `Section` per install source;
+                // - `.none` keeps the ORIGINAL flat `List(data)` untouched, so flipping
+                //   `groupMode` back is a one-line rollback with zero behavioural drift.
+                if viewModel.groupMode == .source {
+                    List(selection: $selectedSkillID) {
+                        // `ForEach` over sections: each `SkillGroup` owns its own `Section`,
+                        // so there is no index arithmetic anywhere.
+                        ForEach(viewModel.sourceGroups(from: skills)) { group in
+                            Section {
+                                // `ForEach(group.skills)` needs `Skill: Identifiable`
+                                // (already true: its id is the directory name).
+                                ForEach(group.skills) { skill in
+                                    skillRow(skill)
                                 }
-                                // Keep visibility consistent with SkillManager.reinstallBrokenSkill:
-                                // only a github lockEntry can be auto-rebuilt. Otherwise the detail
-                                // page shows the manual-reinstall hint instead of a dead button.
-                                if skillManager.latest(id: skill.id)?.lockEntry?.sourceType == "github" {
-                                    Button {
-                                        Task { await viewModel.reinstallBrokenSkill(skill) }
-                                    } label: {
-                                        LText(key: L10nKeys.skillBrokenReinstall)
-                                    }
-                                }
-                            } else {
-                                Divider()
-                                let isDisabled = skillManager.latest(id: skill.id)?.isDisabled ?? false
-                                // Only the id is forwarded; SkillManager derives the direction
-                                // from latest(id:). We intentionally do NOT disable this item:
-                                // clicking an ineligible skill surfaces a precise localized reason
-                                // (externalLocation / duplicateRealCopy / ...) in the overlay.
-                                Button {
-                                    Task { await viewModel.toggleSkillDisabled(id: skill.id) }
-                                } label: {
-                                    LText(key: isDisabled
-                                          ? L10nKeys.skillEnableAction
-                                          : L10nKeys.skillDisableAction)
-                                }
-                                Divider()
-                                Button("Delete", role: .destructive) {
-                                    viewModel.requestDelete(skill: skill)
-                                }
+                            } header: {
+                                groupHeader(group)
                             }
                         }
+                    }
+                    .listStyle(.inset(alternatesRowBackgrounds: true))
+                } else {
+                    List(skills, selection: $selectedSkillID) { skill in
+                        skillRow(skill)
+                    }
+                    .listStyle(.inset(alternatesRowBackgrounds: true))
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
             }
         }
         .navigationTitle(navigationTitle)
@@ -136,8 +109,10 @@ struct DashboardView: View {
             // placement: .navigation places toolbar items on the left (navigation area), default .automatic places on right
             ToolbarItemGroup(placement: .navigation) {
                 Menu {
-                    // Section creates titled groups in menus, similar to Android's menu group
-                    Section("Sort By") {
+                    // A custom header view is used instead of `Section("Sort By")` because a
+                    // `String` variable (from `localized(_:)`) cannot feed the LocalizedStringKey
+                    // overload, and the literal would not follow the app language.
+                    Section {
                         ForEach(DashboardViewModel.SortOrder.allCases, id: \.self) { order in
                             Button {
                                 if viewModel.sortOrder == order {
@@ -149,9 +124,15 @@ struct DashboardView: View {
                                     viewModel.sortDirection = order.defaultDirection
                                 }
                             } label: {
-                                // HStack horizontal layout: icon + text + sort direction arrow
+                                // `Label { } icon: { }` (closure form) instead of
+                                // `Label("text", systemImage:)`: `LText` is a View, so it can
+                                // only be used in the closure form.
                                 HStack {
-                                    Label(order.rawValue, systemImage: order.iconName)
+                                    Label {
+                                        LText(key: order.titleKey)
+                                    } icon: {
+                                        Image(systemName: order.iconName)
+                                    }
                                     if viewModel.sortOrder == order {
                                         // Spacer pushes arrow to the right
                                         Spacer()
@@ -160,13 +141,39 @@ struct DashboardView: View {
                                 }
                             }
                         }
+                    } header: {
+                        LText(key: L10nKeys.dashboardSortSection)
+                    }
+
+                    Section {
+                        ForEach(DashboardViewModel.GroupMode.allCases, id: \.self) { mode in
+                            Button {
+                                viewModel.groupMode = mode
+                            } label: {
+                                HStack {
+                                    Label {
+                                        LText(key: mode.titleKey)
+                                    } icon: {
+                                        Image(systemName: mode.iconName)
+                                    }
+                                    if viewModel.groupMode == mode {
+                                        Spacer()
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } header: {
+                        LText(key: L10nKeys.dashboardGroupSection)
                     }
                 } label: {
                     // Toolbar button appearance: sort icon + current sort field + direction arrow
                     // Label provides both text and icon, macOS toolbar decides which to display based on space
                     HStack(spacing: 2) {
                         Image(systemName: "line.3.horizontal.decrease")
-                        Text(viewModel.sortOrder.rawValue)
+                        // Localized key instead of the old English literal: with the menu fully
+                        // translated, a raw "Usage Count" on the button looked broken.
+                        LText(key: viewModel.sortOrder.titleKey)
                         Image(systemName: viewModel.sortDirection.iconName).appFont(.caption2)
                             // imageScale controls SF Symbol size
                             .imageScale(.small)
@@ -257,6 +264,108 @@ struct DashboardView: View {
         .task {
             autoRefreshUsageIfNeeded()
         }
+    }
+
+    /// One row plus its context menu.
+    ///
+    /// Extracted because the grouped and flat branches both need it; duplicating the 50-line
+    /// context menu in two places would guarantee the two copies drift apart.
+    @ViewBuilder
+    private func skillRow(_ skill: Skill) -> some View {
+        SkillRowView(
+            skill: skill,
+            usageSummary: viewModel.usageSummary(for: skill),
+            showsUnknownUsage: viewModel.sortOrder == .usage,
+            usageIsScanning: viewModel.isRelevantUsagePending,
+            unknownUsageHelpKey: viewModel.unknownUsageHelpKey,
+            // In grouped mode the section header already states the source, so repeating it
+            // inside every row would just be noise.
+            showsSource: viewModel.groupMode == .none
+        )
+        .tag(skill.id)
+        // contextMenu is macOS's right-click menu
+        .contextMenu {
+            Button("Open in Finder") {
+                NSWorkspace.shared.selectFile(
+                    nil,
+                    inFileViewerRootedAtPath: skill.canonicalURL.path
+                )
+            }
+
+            // Branch on the freshest state, not the row's `skill` snapshot.
+            // A broken skill has no content file, so it gets Delete + (conditional)
+            // Reinstall instead of a Disable/Enable toggle.
+            if skillManager.latest(id: skill.id)?.isBroken == true {
+                Divider()
+                Button("Delete", role: .destructive) {
+                    viewModel.requestDelete(skill: skill)
+                }
+                // Keep visibility consistent with SkillManager.reinstallBrokenSkill:
+                // only a github lockEntry can be auto-rebuilt. Otherwise the detail
+                // page shows the manual-reinstall hint instead of a dead button.
+                if skillManager.latest(id: skill.id)?.lockEntry?.sourceType == "github" {
+                    Button {
+                        Task { await viewModel.reinstallBrokenSkill(skill) }
+                    } label: {
+                        LText(key: L10nKeys.skillBrokenReinstall)
+                    }
+                }
+            } else {
+                Divider()
+                let isDisabled = skillManager.latest(id: skill.id)?.isDisabled ?? false
+                // Only the id is forwarded; SkillManager derives the direction
+                // from latest(id:). We intentionally do NOT disable this item:
+                // clicking an ineligible skill surfaces a precise localized reason
+                // (externalLocation / duplicateRealCopy / ...) in the overlay.
+                Button {
+                    Task { await viewModel.toggleSkillDisabled(id: skill.id) }
+                } label: {
+                    LText(key: isDisabled
+                          ? L10nKeys.skillEnableAction
+                          : L10nKeys.skillDisableAction)
+                }
+                Divider()
+                Button("Delete", role: .destructive) {
+                    viewModel.requestDelete(skill: skill)
+                }
+            }
+        }
+    }
+
+    /// Section header: source label + skill count.
+    ///
+    /// Kept compact (caption font, single line) because the rows are already three lines tall —
+    /// a default-sized section header would cut the number of visible rows by roughly 20%.
+    private func groupHeader(_ group: DashboardViewModel.SkillGroup) -> some View {
+        // `switch` over the `GroupTitle` enum. Swift resolves the localized case here at render
+        // time, so switching the app language re-renders headers like every other string.
+        // (This is a `switch` expression — Swift 5.9 allows the whole thing on the right-hand
+        // side of a `let`.)
+        let title: String = switch group.title {
+        case .literal(let text): text
+        case .localized(let key): localized(key)
+        }
+
+        return HStack(spacing: 6) {
+            Text(title)
+                .appFont(.caption)
+                .fontWeight(.semibold)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            // `%d` needs `String(format:)`; `LText` only takes keys without arguments.
+            Text(String(format: localized(L10nKeys.dashboardGroupSkillCountFormat), group.skills.count))
+                .appFont(.caption2)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .help(group.helpText ?? title)
+    }
+
+    /// Same tiny wrapper as `SkillRowView.localized(_:)`: SwiftUI `@Environment` values are only
+    /// reachable from the view, and `L10n.string` needs both bundle and locale. It is not a
+    /// global function on purpose — the repo keeps localization helpers view-local.
+    private func localized(_ key: String) -> String {
+        L10n.string(key, bundle: localizationBundle, locale: locale)
     }
 
     private func scanRelevantUsageIfNeeded() {

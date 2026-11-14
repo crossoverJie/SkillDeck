@@ -104,6 +104,21 @@ enum L10nKeys {
     static let dashboardLanguageMenuLabel = "dashboard.language.menuLabel"
     static let dashboardLanguageMenuHelp = "dashboard.language.menuHelp"
 
+    // MARK: - Dashboard Sort / Group Menus (10 keys)
+    // The sort predicates and the grouping logic live in `DashboardViewModel`; these keys only
+    // carry the display text, because the ViewModel has no bundle/locale to resolve it.
+    static let dashboardSortSection = "dashboard.sort.section"
+    static let dashboardSortName = "dashboard.sort.name"
+    static let dashboardSortScope = "dashboard.sort.scope"
+    static let dashboardSortAgentCount = "dashboard.sort.agentCount"
+    static let dashboardSortUsageCount = "dashboard.sort.usageCount"
+    static let dashboardGroupSection = "dashboard.group.section"
+    static let dashboardGroupNone = "dashboard.group.none"
+    static let dashboardGroupSource = "dashboard.group.source"
+    static let dashboardGroupUnknownSource = "dashboard.group.unknownSource"
+    /// `%d` placeholder, resolved with `String(format:)` (LText takes no arguments).
+    static let dashboardGroupSkillCountFormat = "dashboard.group.skillCountFormat"
+
     static let usageScanAction = "usage.scan.action"
     static let usageScanning = "usage.scanning"
     static let usageRefreshHelp = "usage.refresh.help"
@@ -217,6 +232,16 @@ enum L10nKeys {
         emptySelectSkillSubtitleClawHub,
         dashboardLanguageMenuLabel,
         dashboardLanguageMenuHelp,
+        dashboardSortSection,
+        dashboardSortName,
+        dashboardSortScope,
+        dashboardSortAgentCount,
+        dashboardSortUsageCount,
+        dashboardGroupSection,
+        dashboardGroupNone,
+        dashboardGroupSource,
+        dashboardGroupUnknownSource,
+        dashboardGroupSkillCountFormat,
         usageScanAction,
         usageScanning,
         usageRefreshHelp,
