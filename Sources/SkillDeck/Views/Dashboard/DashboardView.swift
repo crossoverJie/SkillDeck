@@ -363,10 +363,14 @@ struct DashboardView: View {
         // in `Spacer(minLength: 0)`), so two overlapping `.help` regions would mean AppKit shows
         // only one of them and the other becomes unreachable — which silently killed the local
         // path tooltip (`group.helpText`).
+        //
+        // `?? title` is not redundant: the title `Text` is truncated (`.lineLimit(1)` +
+        // `.truncationMode(.middle)`), so for groups without a detail (`github` / ClawHub /
+        // unrecorded source) hovering is the only way to read the full name.
         var collapseHelpParts = [localized(isCollapsed
                                            ? L10nKeys.dashboardGroupExpand
                                            : L10nKeys.dashboardGroupCollapse)]
-        if let detail = group.helpText { collapseHelpParts.append(detail) }
+        collapseHelpParts.append(group.helpText ?? title)
         let collapseHelp = collapseHelpParts.joined(separator: "\n")
 
         return HStack(spacing: 6) {

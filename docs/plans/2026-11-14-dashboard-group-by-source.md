@@ -559,7 +559,7 @@ if hasSourceRow {
 | **按 `metadata.author` 分组** | author 是手写字段，缺失/拼写不一；与「从哪个仓库装」不等价。 |
 | **扫描时给每个技能跑 `git config --get remote.origin.url`** | 每次刷新 N 次磁盘/子进程 I/O；npx 解包的安装没有 `.git`；锁文件已经记录了同样的信息。 |
 | **在 `SkillScanner` / `SkillManager` 里预计算分组** | 分组是纯展示概念（还依赖 `groupMode`）；放进 Service 层等于把 UI 状态塞进领域层，也让 `filteredSkills` 的既有测试要跟着改。 |
-| **`OutlineGroup` / 可折叠分组** | 需要递归模型 + 展开状态持久化，收益（折叠）与成本不对等；后续可选（第 7 节）。 |
+| **`OutlineGroup` / 可折叠分组**（第一版曾列为不做，后续需求追加后已实现） | 当时认为需要递归模型 + 展开状态持久化，收益与成本不对等；实际只用了 `Section` + `collapsedGroupIDs: Set<String>` 就够，无需 `OutlineGroup`（见 P2b）。 |
 
 ---
 
@@ -641,4 +641,4 @@ Tests/SkillDeckTests/DashboardGroupingTests.swift       # 新增
 - **分组级批量操作**：某个 source 的「检查更新 / 全部更新」入口（`SkillManager.checkAllUpdates` 已内部按 `sourceUrl` 分组，复用成本低）。
 - **ClawHub 组的跳转按钮**：`SkillManager` 为 clawhub 写的 `sourceUrl` 是 `https://clawhub.ai/skills/<slug>`，但该分组聚合了多个 slug，点击打开哪一个都是任意的，所以现在不给按钮；若要做，应该链到 marketplace 首页或展开成子分组。
 - **分组头显示更新提示**：组内任一技能 `hasUpdate` 时在 header 加橘色箭头（`skillManager.updateStatuses` 直接可读）。
-- **清理死代码**：`SortOrder: String` 与 `SortDirection.displayName` 在 P4 完成后均无消费者，可删除（`SortDirection.displayName` 现在就已经没人用）。
+- ~~**清理死代码**~~：**已完成**（`8a8a24c`）：`SortOrder` 去掉 `: String` 与四个字面量、`SortDirection.displayName` 删除，两者均无消费者。
